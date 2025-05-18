@@ -76,7 +76,7 @@ class AnalizadorRobot:
         """
         current_header = self.sheet_data[0] if self.sheet_data else self.default_column_names
         default_overall_columns = [
-            'Coral L1 Scored', 'Coral L2 Scored', 'Coral L3 Scored', 'Coral L4 Scored'
+            'Coral L1 Scored', 'Coral L2 Scored', 'Coral L3 Scored', 'Coral L4 Scored', 'Climbed?'
         ]
         self._selected_numeric_columns_for_overall = [
             col for col in default_overall_columns if col in current_header
