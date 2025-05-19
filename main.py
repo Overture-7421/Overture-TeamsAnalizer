@@ -649,37 +649,61 @@ class AnalizadorGUI:
         self.raw_frame = ttk.Frame(self.notebook)
         self.tree_raw = ttk.Treeview(self.raw_frame, show='headings')
         self.tree_raw.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        scrollbar_raw = ttk.Scrollbar(self.raw_frame, orient=tk.VERTICAL, command=self.tree_raw.yview)
-        self.tree_raw.configure(yscroll=scrollbar_raw.set)
-        scrollbar_raw.pack(side=tk.LEFT, fill=tk.Y)
+        scrollbar_raw_y = ttk.Scrollbar(self.raw_frame, orient=tk.VERTICAL, command=self.tree_raw.yview)
+        scrollbar_raw_x = ttk.Scrollbar(self.raw_frame, orient=tk.HORIZONTAL, command=self.tree_raw.xview)
+        self.tree_raw.configure(yscroll=scrollbar_raw_y.set, xscroll=scrollbar_raw_x.set)
+        scrollbar_raw_y.pack(side=tk.LEFT, fill=tk.Y)
+        scrollbar_raw_x.pack(side=tk.BOTTOM, fill=tk.X)
         self.notebook.add(self.raw_frame, text="Raw Data")
 
         # Team Stats Tab
         self.stats_frame = ttk.Frame(self.notebook)
         self.tree_stats = ttk.Treeview(self.stats_frame, show='headings')
         self.tree_stats.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        scrollbar_stats = ttk.Scrollbar(self.stats_frame, orient=tk.VERTICAL, command=self.tree_stats.yview)
-        self.tree_stats.configure(yscroll=scrollbar_stats.set)
-        scrollbar_stats.pack(side=tk.LEFT, fill=tk.Y)
+        scrollbar_stats_y = ttk.Scrollbar(self.stats_frame, orient=tk.VERTICAL, command=self.tree_stats.yview)
+        scrollbar_stats_x = ttk.Scrollbar(self.stats_frame, orient=tk.HORIZONTAL, command=self.tree_stats.xview)
+        self.tree_stats.configure(yscroll=scrollbar_stats_y.set, xscroll=scrollbar_stats_x.set)
+        scrollbar_stats_y.pack(side=tk.LEFT, fill=tk.Y)
+        scrollbar_stats_x.pack(side=tk.BOTTOM, fill=tk.X)
         self.notebook.add(self.stats_frame, text="Team Stats")
 
         # Defensive Ranking Tab
         self.def_frame = ttk.Frame(self.notebook)
         self.tree_def = ttk.Treeview(self.def_frame, show='headings')
         self.tree_def.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        scrollbar_def = ttk.Scrollbar(self.def_frame, orient=tk.VERTICAL, command=self.tree_def.yview)
-        self.tree_def.configure(yscroll=scrollbar_def.set)
-        scrollbar_def.pack(side=tk.LEFT, fill=tk.Y)
+        scrollbar_def_y = ttk.Scrollbar(self.def_frame, orient=tk.VERTICAL, command=self.tree_def.yview)
+        scrollbar_def_x = ttk.Scrollbar(self.def_frame, orient=tk.HORIZONTAL, command=self.tree_def.xview)
+        self.tree_def.configure(yscroll=scrollbar_def_y.set, xscroll=scrollbar_def_x.set)
+        scrollbar_def_y.pack(side=tk.LEFT, fill=tk.Y)
+        scrollbar_def_x.pack(side=tk.BOTTOM, fill=tk.X)
         self.notebook.add(self.def_frame, text="Defensive Ranking")
 
         # Alliance Selector Tab
         self.alliance_frame = ttk.Frame(self.notebook)
-        self.tree_alliance = ttk.Treeview(self.alliance_frame, show='headings')
-        self.tree_alliance.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        scrollbar_alliance = ttk.Scrollbar(self.alliance_frame, orient=tk.VERTICAL, command=self.tree_alliance.yview)
-        self.tree_alliance.configure(yscroll=scrollbar_alliance.set)
-        scrollbar_alliance.pack(side=tk.LEFT, fill=tk.Y)
+        # --- Add a canvas for horizontal scrolling of the entire alliance tab ---
+        self.alliance_canvas = tk.Canvas(self.alliance_frame)
+        self.alliance_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.alliance_inner_frame = ttk.Frame(self.alliance_canvas)
+        self.alliance_inner_frame_id = self.alliance_canvas.create_window((0, 0), window=self.alliance_inner_frame, anchor="nw")
+        # Horizontal and vertical scrollbars for the canvas
+        scrollbar_alliance_y = ttk.Scrollbar(self.alliance_frame, orient=tk.VERTICAL, command=self.alliance_canvas.yview)
+        scrollbar_alliance_x = ttk.Scrollbar(self.alliance_frame, orient=tk.HORIZONTAL, command=self.alliance_canvas.xview)
+        self.alliance_canvas.configure(yscrollcommand=scrollbar_alliance_y.set, xscrollcommand=scrollbar_alliance_x.set)
+        scrollbar_alliance_y.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_alliance_x.pack(side=tk.BOTTOM, fill=tk.X)
+        # Treeview inside the scrollable frame
+        self.tree_alliance = ttk.Treeview(self.alliance_inner_frame, show='headings')
+        self.tree_alliance.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
         self.notebook.add(self.alliance_frame, text="Alliance Selector")
+        # Bind resizing
+        def _on_frame_configure(event):
+            self.alliance_canvas.configure(scrollregion=self.alliance_canvas.bbox("all"))
+        self.alliance_inner_frame.bind("<Configure>", _on_frame_configure)
+        # Mousewheel horizontal scroll
+        def _on_mousewheel(event):
+            if event.state & 0x1:  # Shift is held
+                self.alliance_canvas.xview_scroll(int(-1*(event.delta/120)), "units")
+        self.alliance_canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
         # For dropdowns in the alliance selector
         self.alliance_selector = None
@@ -917,7 +941,7 @@ class AnalizadorGUI:
                 rows.append(row)
             self.refresh_table(self.tree_def, columns, rows)
         self.refresh_alliance_selector_tab()
-        self.status_var.set("Ready.")
+        self.status_var.set("BELIEVE")
 
     def refresh_alliance_selector_tab(self):
         stats = self.analizador.get_detailed_team_stats()
