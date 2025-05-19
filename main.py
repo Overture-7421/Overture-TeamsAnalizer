@@ -6,6 +6,8 @@ from tkinter import ttk, filedialog, messagebox
 import os
 from tkinter import simpledialog
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class AnalizadorRobot:
     def __init__(self, default_column_names=None):
@@ -46,6 +48,10 @@ class AnalizadorRobot:
         
         # Inicializar selecciones de columnas (podría ser más sofisticado)
         self._initialize_selected_columns()
+
+        # --- RobotValuation phase weights and boundaries ---
+        self.robot_valuation_phase_weights = [0.2, 0.3, 0.5]  # Default: Q1=0.2, Q2=0.3, Q3=0.5
+        self.robot_valuation_phase_names = ["Q1", "Q2", "Q3"]
 
     def _update_column_indices(self):
         """
@@ -461,6 +467,8 @@ class AnalizadorRobot:
                 if col_name in self._mode_boolean_columns:
                     mode_key = self._generate_stat_key(col_name, 'mode')
                     team_stats[mode_key] = self._calculate_mode(str_vals)
+            # --- RobotValuation ---
+            team_stats['RobotValuation'] = self._robot_valuation(rows)
             detailed_stats_list.append(team_stats)
         detailed_stats_list.sort(key=lambda x: (x.get('overall_avg', 0.0), -x.get('overall_std', float('inf'))), reverse=True)
         return detailed_stats_list
@@ -517,6 +525,95 @@ class AnalizadorRobot:
         """Devuelve los encabezados de columna actuales."""
         return list(self.sheet_data[0]) if self.sheet_data and self.sheet_data[0] else list(self.default_column_names)
 
+    def set_robot_valuation_phase_weights(self, weights):
+        """Set user-defined weights for Q1, Q2, Q3 phases. Expects a list of 3 floats summing to 1.0."""
+        if len(weights) != 3 or not all(isinstance(w, (float, int)) for w in weights):
+            raise ValueError("Weights must be a list of 3 numbers.")
+        total = sum(weights)
+        if not (0.99 < total < 1.01):
+            raise ValueError("Weights must sum to 1.0")
+        self.robot_valuation_phase_weights = [float(w) for w in weights]
+
+    def get_robot_valuation_phase_weights(self):
+        return list(self.robot_valuation_phase_weights)
+
+    def _split_rows_into_phases(self, rows):
+        """Split rows into 3 phases (Q1, Q2, Q3) as evenly as possible."""
+        n = len(rows)
+        if n == 0:
+            return [[], [], []]
+        # Split indices
+        q1_end = n // 3
+        q2_end = 2 * n // 3
+        q1 = rows[:q1_end]
+        q2 = rows[q1_end:q2_end]
+        q3 = rows[q2_end:]
+        return [q1, q2, q3]
+
+    def _robot_valuation(self, rows):
+        """Calculate RobotValuation as weighted avg of selected numeric columns, split by phases."""
+        if not rows or not self._selected_numeric_columns_for_overall:
+            return 0.0
+        phases = self._split_rows_into_phases(rows)
+        phase_weights = self.robot_valuation_phase_weights
+        phase_avgs = []
+        for phase_rows in phases:
+            vals = []
+            for col_name in self._selected_numeric_columns_for_overall:
+                col_idx = self._column_indices.get(col_name)
+                if col_idx is None:
+                    continue
+                for row in phase_rows:
+                    if col_idx < len(row):
+                        try:
+                            vals.append(float(row[col_idx]))
+                        except Exception:
+                            pass
+            phase_avgs.append(self._average(vals) if vals else 0.0)
+        # Weighted sum
+        return sum(w * v for w, v in zip(phase_weights, phase_avgs))
+
+    def get_team_match_performance(self, team_numbers=None):
+        """
+        Returns a dict: {team_number: [(match_number, overall_for_that_match), ...]}
+        Only includes teams in team_numbers (if provided), else all.
+        """
+        if len(self.sheet_data) < 2:
+            return {}
+        team_col = self._column_indices.get("Team Number")
+        match_col = self._column_indices.get("Match Number")
+        if team_col is None or match_col is None:
+            return {}
+        # Build per-team, per-match
+        perf = {}
+        for row in self.sheet_data[1:]:
+            if team_col >= len(row) or match_col >= len(row):
+                continue
+            team = row[team_col].strip()
+            match = row[match_col].strip()
+            if not team or not match:
+                continue
+            try:
+                match_num = int(match)
+            except Exception:
+                continue
+            # Compute "overall" for this row
+            vals = []
+            for col_name in self._selected_numeric_columns_for_overall:
+                idx = self._column_indices.get(col_name)
+                if idx is not None and idx < len(row):
+                    try:
+                        vals.append(float(row[idx]))
+                    except Exception:
+                        pass
+            overall = sum(vals) / len(vals) if vals else 0.0
+            if team_numbers is not None and team not in team_numbers:
+                continue
+            perf.setdefault(team, []).append((match_num, overall))
+        # Sort matches by match number
+        for team in perf:
+            perf[team].sort(key=lambda x: x[0])
+        return perf
 
 # GUI Application
 class AnalizadorGUI:
@@ -537,6 +634,8 @@ class AnalizadorGUI:
         ttk.Button(btn_frame, text="Load QR Data", command=self.load_qr).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Update Header", command=self.update_header).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Configure Columns", command=self.configure_columns).pack(side=tk.LEFT, padx=4, pady=2)
+        ttk.Button(btn_frame, text="RobotValuation Weights", command=self.configure_robot_valuation_weights).pack(side=tk.LEFT, padx=4, pady=2)
+        ttk.Button(btn_frame, text="Plot Team Performance", command=self.open_team_performance_plot).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="About", command=self.show_about).pack(side=tk.RIGHT, padx=4, pady=2)
 
         self.status_var = tk.StringVar()
@@ -669,6 +768,38 @@ class AnalizadorGUI:
         ttk.Button(frm, text="Apply", command=apply_cfg).grid(row=len(headers)+1, column=1, pady=10)
         cfg.wait_window()
 
+    def configure_robot_valuation_weights(self):
+        # Dialog for user to set Q1, Q2, Q3 weights
+        cfg = tk.Toplevel(self.root)
+        cfg.title("Configure RobotValuation Weights")
+        cfg.transient(self.root)
+        cfg.grab_set()
+        ttk.Label(cfg, text="Set weights for Q1, Q2, Q3 phases (must sum to 1.0):").pack(padx=10, pady=(10, 0))
+        weights = self.analizador.get_robot_valuation_phase_weights()
+        vars = [tk.DoubleVar(value=w) for w in weights]
+        frm = ttk.Frame(cfg)
+        frm.pack(padx=10, pady=10)
+        for i, name in enumerate(self.analizador.robot_valuation_phase_names):
+            ttk.Label(frm, text=f"{name} weight:").grid(row=i, column=0, sticky='e', padx=5, pady=3)
+            ttk.Entry(frm, textvariable=vars[i], width=8).grid(row=i, column=1, padx=5, pady=3)
+        msg_var = tk.StringVar()
+        ttk.Label(cfg, textvariable=msg_var, foreground="red").pack()
+        def apply():
+            try:
+                vals = [v.get() for v in vars]
+                total = sum(vals)
+                if not (0.99 < total < 1.01):
+                    msg_var.set("Weights must sum to 1.0")
+                    return
+                self.analizador.set_robot_valuation_phase_weights(vals)
+                cfg.destroy()
+                self.refresh_all()
+            except Exception as e:
+                msg_var.set(str(e))
+        ttk.Button(cfg, text="Apply", command=apply).pack(pady=(0,10))
+        ttk.Button(cfg, text="Close", command=cfg.destroy).pack()
+        cfg.wait_window()
+
     def refresh_table(self, tree, columns, rows):
         tree.delete(*tree.get_children())
         tree["columns"] = columns
@@ -707,14 +838,16 @@ class AnalizadorGUI:
         # Team Stats
         stats = self.analizador.get_detailed_team_stats()
         if stats:
-            # --- Build columns: Team, Overall (avg±std), ...rest ---
+            # --- Build columns: Team, RobotValuation, Overall (avg±std), ...rest ---
             stat_keys = list(stats[0].keys())
             columns = []
             avgstd_map = {}
             skip_keys = set()
-            # Always put 'team' first, then 'overall_avg'+'overall_std' as one column
+            # Always put 'team' first, then 'RobotValuation', then 'overall_avg'+'overall_std' as one column
             if 'team' in stat_keys:
                 columns.append('team')
+            if 'RobotValuation' in stat_keys:
+                columns.append('RobotValuation')
             if 'overall_avg' in stat_keys and 'overall_std' in stat_keys:
                 columns.append('overall (avg±std)')
                 avgstd_map['overall (avg±std)'] = ('overall_avg', 'overall_std')
@@ -791,6 +924,10 @@ class AnalizadorGUI:
         if not stats:
             self.tree_alliance.delete(*self.tree_alliance.get_children())
             self.tree_alliance["columns"] = ["Alliance #", "Captain", "Pick 1", "Recommendation 1", "Pick 2", "Recommendation 2", "Alliance Score"]
+            # Remove previous controls if any
+            if hasattr(self, 'alliance_selector_controls') and self.alliance_selector_controls:
+                self.alliance_selector_controls.destroy()
+                self.alliance_selector_controls = None
             return
 
         team_dicts = []
@@ -807,10 +944,8 @@ class AnalizadorGUI:
             })
         teams = teams_from_dicts(team_dicts)
 
-        # Only recreate selector if teams changed, otherwise keep picks
         if not hasattr(self, 'alliance_selector') or self.alliance_selector is None or len(self.alliance_selector.teams) != len(teams):
             self.alliance_selector = AllianceSelector(teams)
-            self.alliance_pick_vars = []
         selector = self.alliance_selector
 
         table = selector.get_alliance_table()
@@ -821,137 +956,103 @@ class AnalizadorGUI:
             self.tree_alliance.heading(col, text=col)
             self.tree_alliance.column(col, width=120, anchor=tk.W)
 
-        self.alliance_pick_vars.clear()
-        # Remove any previous comboboxes
-        if hasattr(self, '_alliance_selector_combos'):
-            for cb in self._alliance_selector_combos:
-                try:
-                    cb.destroy()
-                except Exception:
-                    pass
-        combo_refs = []
-
-        # For each alliance, create pick dropdowns
-        for idx, row in enumerate(table):
-            pick1_var = tk.StringVar(value=str(row["Pick 1"]) if row["Pick 1"] else "")
-            pick2_var = tk.StringVar(value=str(row["Pick 2"]) if row["Pick 2"] else "")
-
-            # Pick 1 options: allow stealing captains with worse rank
-            pick1_options = [("", "Select team")]
-            available_pick1 = selector.get_available_teams(selector.alliances[idx].captainRank, 'pick1')
-            # Remove already picked teams for pick1
-            already_picked = selector.get_selected_picks()
-            available_pick1 = [t for t in available_pick1 if str(t.team) not in [str(p) for p in already_picked if p is not None]]
-            if row["Pick 1"] and not any(str(t.team) == str(row["Pick 1"]) for t in available_pick1):
-                tval = next((t for t in selector.teams if str(t.team) == str(row["Pick 1"])), None)
-                if tval:
-                    pick1_options.append((str(tval.team), f"{tval.team} (Score: {tval.score:.1f})"))
-            for t in available_pick1:
-                pick1_options.append((str(t.team), f"{t.team} (Score: {t.score:.1f})"))
-
-            # Pick 2 options: captains not allowed, and remove already picked
-            pick2_options = [("", "Select team")]
-            available_pick2 = selector.get_available_teams(selector.alliances[idx].captainRank, 'pick2')
-            already_picked2 = selector.get_selected_picks()
-            available_pick2 = [t for t in available_pick2 if str(t.team) not in [str(p) for p in already_picked2 if p is not None]]
-            if row["Pick 2"] and not any(str(t.team) == str(row["Pick 2"]) for t in available_pick2):
-                tval = next((t for t in selector.teams if str(t.team) == str(row["Pick 2"])), None)
-                if tval:
-                    pick2_options.append((str(tval.team), f"{tval.team} (Score: {tval.score:.1f})"))
-            for t in available_pick2:
-                pick2_options.append((str(t.team), f"{t.team} (Score: {t.score:.1f})"))
-
-            self.alliance_pick_vars.append((pick1_var, pick2_var, pick1_options, pick2_options))
-
+        for row in table:
             values = [
                 row["Alliance #"],
                 row["Captain"],
-                "",  # Pick 1 (widget)
+                row["Pick 1"],
                 row["Recommendation 1"],
-                "",  # Pick 2 (widget)
+                row["Pick 2"],
                 row["Recommendation 2"],
                 row["Alliance Score"]
             ]
-            item_id = self.tree_alliance.insert("", tk.END, values=values)
-            self.tree_alliance.set(item_id, "Pick 1", "")
-            self.tree_alliance.set(item_id, "Pick 2", "")
-            self.tree_alliance.update_idletasks()
-            bbox1 = self.tree_alliance.bbox(item_id, "Pick 1")
-            bbox2 = self.tree_alliance.bbox(item_id, "Pick 2")
-            if bbox1:
-                pick1_combo = ttk.Combobox(self.tree_alliance, textvariable=pick1_var, values=[v[1] for v in pick1_options], state="readonly")
-                # Set to current value or default
-                if pick1_var.get():
-                    for v in pick1_options:
-                        if v[0] == pick1_var.get():
-                            pick1_combo.set(v[1])
-                            break
-                    else:
-                        pick1_combo.set(pick1_options[0][1])
+            self.tree_alliance.insert("", tk.END, values=values)
+
+        # --- Add Comboboxes for interactive pick selection ---
+        # Remove previous controls if any
+        if hasattr(self, 'alliance_selector_controls') and self.alliance_selector_controls:
+            self.alliance_selector_controls.destroy()
+        self.alliance_selector_controls = ttk.Frame(self.alliance_frame)
+        self.alliance_selector_controls.pack(fill=tk.X, padx=4, pady=4)
+
+        ttk.Label(self.alliance_selector_controls, text="Alliance #").grid(row=0, column=0)
+        ttk.Label(self.alliance_selector_controls, text="Pick 1").grid(row=0, column=1)
+        ttk.Label(self.alliance_selector_controls, text="Pick 2").grid(row=0, column=2)
+
+        self._alliance_selector_combos = []
+        for idx, a in enumerate(selector.alliances):
+            ttk.Label(self.alliance_selector_controls, text=str(a.allianceNumber)).grid(row=idx+1, column=0, sticky='w')
+
+            # Pick 1 Combobox
+            pick1_var = tk.StringVar(value=str(a.pick1) if a.pick1 else "")
+            available_pick1 = selector.get_available_teams(a.captainRank, 'pick1')
+            pick1_options = [("", "No selection")] + [(str(t.team), f"{t.team} (Score: {t.score:.1f})") for t in available_pick1]
+            pick1_combo = ttk.Combobox(self.alliance_selector_controls, textvariable=pick1_var,
+                                       values=[label for _, label in pick1_options], state="readonly", width=18)
+            # Set current value
+            if a.pick1:
+                for val, label in pick1_options:
+                    if val == str(a.pick1):
+                        pick1_combo.set(label)
+                        break
+            else:
+                pick1_combo.set(pick1_options[0][1])
+            def on_pick1(event, idx=idx, pick1_var=pick1_var, pick1_options=pick1_options):
+                selected_label = pick1_var.get()
+                selected_team = ""
+                for val, label in pick1_options:
+                    if label == selected_label:
+                        selected_team = val
+                        break
+                if selected_team == "":
+                    selector.alliances[idx].pick1 = None
                 else:
-                    pick1_combo.set(pick1_options[0][1])
-                pick1_combo.bind("<<ComboboxSelected>>", lambda e, idx=idx, var=pick1_var: self.on_alliance_pick_html_logic(idx, 'pick1', var))
-                pick1_combo.place(in_=self.tree_alliance, x=bbox1[0], y=bbox1[1], width=bbox1[2], height=bbox1[3])
-                combo_refs.append(pick1_combo)
-            if bbox2:
-                pick2_combo = ttk.Combobox(self.tree_alliance, textvariable=pick2_var, values=[v[1] for v in pick2_options], state="readonly")
-                if pick2_var.get():
-                    for v in pick2_options:
-                        if v[0] == pick2_var.get():
-                            pick2_combo.set(v[1])
-                            break
-                    else:
-                        pick2_combo.set(pick2_options[0][1])
-                else:
-                    pick2_combo.set(pick2_options[0][1])
-                pick2_combo.bind("<<ComboboxSelected>>", lambda e, idx=idx, var=pick2_var: self.on_alliance_pick_html_logic(idx, 'pick2', var))
-                pick2_combo.place(in_=self.tree_alliance, x=bbox2[0], y=bbox2[1], width=bbox2[2], height=bbox2[3])
-                combo_refs.append(pick2_combo)
-        self._alliance_selector_combos = combo_refs
-
-    def on_alliance_pick_html_logic(self, alliance_idx, pick_type, var):
-        selector = self.alliance_selector
-        pick_vars = self.alliance_pick_vars[alliance_idx]
-        options = pick_vars[2] if pick_type == 'pick1' else pick_vars[3]
-        selected_label = var.get()
-        selected_team = ""
-        for val, label in options:
-            if label == selected_label:
-                selected_team = val
-                break
-
-        if not selected_team:
-            setattr(selector.alliances[alliance_idx], pick_type, None)
-            selector.update_alliance_captains()
-            selector.update_recommendations()
-            self.refresh_alliance_selector_tab()
-            return
-
-        team_number = int(selected_team)
-        # For pick2, captains are not allowed
-        if pick_type == 'pick2':
-            captains = [a.captain for a in selector.alliances if a.captain]
-            if team_number in captains:
-                messagebox.showerror("Alliance Selector", "You cannot pick an alliance captain for the second pick.")
-                setattr(selector.alliances[alliance_idx], pick_type, None)
+                    try:
+                        selector.set_pick(idx, 'pick1', selected_team)
+                    except Exception as e:
+                        messagebox.showerror("Alliance Selector", str(e))
+                        selector.alliances[idx].pick1 = None
                 selector.update_alliance_captains()
                 selector.update_recommendations()
                 self.refresh_alliance_selector_tab()
-                return
-        # Team already picked?
-        selected_picks = selector.get_selected_picks()
-        if team_number in selected_picks:
-            messagebox.showerror("Alliance Selector", f"Team {team_number} is already selected.")
-            setattr(selector.alliances[alliance_idx], pick_type, None)
-            selector.update_alliance_captains()
-            selector.update_recommendations()
-            self.refresh_alliance_selector_tab()
-            return
+            pick1_combo.bind("<<ComboboxSelected>>", on_pick1)
+            pick1_combo.grid(row=idx+1, column=1, sticky='w')
+            self._alliance_selector_combos.append(pick1_combo)
 
-        setattr(selector.alliances[alliance_idx], pick_type, team_number)
-        selector.update_alliance_captains()
-        selector.update_recommendations()
-        self.refresh_alliance_selector_tab()
+            # Pick 2 Combobox
+            pick2_var = tk.StringVar(value=str(a.pick2) if a.pick2 else "")
+            available_pick2 = selector.get_available_teams(a.captainRank, 'pick2')
+            pick2_options = [("", "No selection")] + [(str(t.team), f"{t.team} (Score: {t.score:.1f})") for t in available_pick2]
+            pick2_combo = ttk.Combobox(self.alliance_selector_controls, textvariable=pick2_var,
+                                       values=[label for _, label in pick2_options], state="readonly", width=18)
+            if a.pick2:
+                for val, label in pick2_options:
+                    if val == str(a.pick2):
+                        pick2_combo.set(label)
+                        break
+            else:
+                pick2_combo.set(pick2_options[0][1])
+            def on_pick2(event, idx=idx, pick2_var=pick2_var, pick2_options=pick2_options):
+                selected_label = pick2_var.get()
+                selected_team = ""
+                for val, label in pick2_options:
+                    if label == selected_label:
+                        selected_team = val
+                        break
+                if selected_team == "":
+                    selector.alliances[idx].pick2 = None
+                else:
+                    try:
+                        selector.set_pick(idx, 'pick2', selected_team)
+                    except Exception as e:
+                        messagebox.showerror("Alliance Selector", str(e))
+                        selector.alliances[idx].pick2 = None
+                selector.update_alliance_captains()
+                selector.update_recommendations()
+                self.refresh_alliance_selector_tab()
+            pick2_combo.bind("<<ComboboxSelected>>", on_pick2)
+            pick2_combo.grid(row=idx+1, column=2, sticky='w')
+            self._alliance_selector_combos.append(pick2_combo)
 
     def open_alliance_selector(self):
         # Use current team stats to build teams for alliance selection
@@ -980,6 +1081,54 @@ class AnalizadorGUI:
         for row in table:
             msg += f"Alliance {row['Alliance #']}: Captain {row['Captain']}, Pick1 {row['Pick 1']} (Rec: {row['Recommendation 1']}), Pick2 {row['Pick 2']} (Rec: {row['Recommendation 2']}), Score: {row['Alliance Score']}\n"
         messagebox.showinfo("Alliance Recommendations", msg)
+
+    def open_team_performance_plot(self):
+        # Open a window to select teams and plot their match-by-match overall
+        win = tk.Toplevel(self.root)
+        win.title("Plot Team Performance")
+        win.transient(self.root)
+        win.grab_set()
+        ttk.Label(win, text="Select teams to plot:").pack(padx=10, pady=(10, 0))
+        # Get all teams
+        team_data = self.analizador.get_team_data_grouped()
+        team_list = sorted(team_data.keys(), key=lambda x: int(x) if x.isdigit() else x)
+        vars = {team: tk.BooleanVar(value=False) for team in team_list}
+        frm = ttk.Frame(win)
+        frm.pack(padx=10, pady=10)
+        for i, team in enumerate(team_list):
+            ttk.Checkbutton(frm, text=team, variable=vars[team]).grid(row=i//5, column=i%5, sticky='w', padx=4, pady=2)
+        msg_var = tk.StringVar()
+        ttk.Label(win, textvariable=msg_var, foreground="red").pack()
+        def plot_selected():
+            selected = [team for team in team_list if vars[team].get()]
+            if not selected:
+                msg_var.set("Select at least one team.")
+                return
+            perf = self.analizador.get_team_match_performance(selected)
+            if not perf:
+                msg_var.set("No data to plot.")
+                return
+            fig, ax = plt.subplots(figsize=(7,4))
+            for team in selected:
+                data = perf.get(team, [])
+                if not data:
+                    continue
+                xs, ys = zip(*data)
+                ax.plot(xs, ys, marker='o', label=f"Team {team}")
+            ax.set_xlabel("Match Number")
+            ax.set_ylabel("Overall (per match)")
+            ax.set_title("Team Performance Over Matches")
+            ax.legend()
+            # Embed in Tk window
+            plot_win = tk.Toplevel(win)
+            plot_win.title("Team Performance Plot")
+            canvas = FigureCanvasTkAgg(fig, master=plot_win)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+            plt.close(fig)
+        ttk.Button(win, text="Plot", command=plot_selected).pack(pady=(0,10))
+        ttk.Button(win, text="Close", command=win.destroy).pack()
+        win.wait_window()
 
 # Replace CLI example with GUI launch
 if __name__ == "__main__":
