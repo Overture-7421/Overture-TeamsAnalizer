@@ -362,7 +362,7 @@ class AnalizadorRobot:
             'Played Algae?(Disloged NO COUNT)': 'teleop_played_algae',
             'Played Algae?(Disloged DOES NOT COUNT)': 'teleop_played_algae',
             'Crossed Feild/Played Defense?': 'teleop_crossed_played_defense',
-            'Was the robot Defended by someone?': 'defended_by_other'
+            'Was the robot Defended by alguien?': 'defended_by_other'
         }
         if col_name in specific_renames:
             base = specific_renames[col_name]
@@ -631,7 +631,9 @@ class AnalizadorGUI:
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
         ttk.Button(btn_frame, text="Load CSV", command=self.load_csv).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Load QR Data", command=self.load_qr).pack(side=tk.LEFT, padx=4, pady=2)
+        ttk.Button(btn_frame, text="Scan QR Codes", command=self.scan_and_load_qr).pack(side=tk.LEFT, padx=4, pady=2)
+        ttk.Button(btn_frame, text="Test Camera", command=self.test_camera).pack(side=tk.LEFT, padx=4, pady=2)
+        ttk.Button(btn_frame, text="Paste QR Data", command=self.load_qr).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Update Header", command=self.update_header).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Configure Columns", command=self.configure_columns).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="RobotValuation Weights", command=self.configure_robot_valuation_weights).pack(side=tk.LEFT, padx=4, pady=2)
@@ -647,8 +649,21 @@ class AnalizadorGUI:
 
         # Raw Data Tab
         self.raw_frame = ttk.Frame(self.notebook)
+        
+        # Add editing controls for raw data
+        raw_controls = ttk.Frame(self.raw_frame)
+        raw_controls.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+        ttk.Button(raw_controls, text="Edit Selected Row", command=self.edit_raw_data_row).pack(side=tk.LEFT, padx=2)
+        ttk.Button(raw_controls, text="Delete Selected Row", command=self.delete_raw_data_row).pack(side=tk.LEFT, padx=2)
+        ttk.Button(raw_controls, text="Add New Row", command=self.add_raw_data_row).pack(side=tk.LEFT, padx=2)
+        ttk.Button(raw_controls, text="Save Changes", command=self.save_raw_data_changes).pack(side=tk.RIGHT, padx=2)
+        
         self.tree_raw = ttk.Treeview(self.raw_frame, show='headings')
         self.tree_raw.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
+        
+        # Add double-click binding for editing
+        self.tree_raw.bind("<Double-1>", self.on_raw_data_double_click)
+        
         scrollbar_raw_y = ttk.Scrollbar(self.raw_frame, orient=tk.VERTICAL, command=self.tree_raw.yview)
         scrollbar_raw_x = ttk.Scrollbar(self.raw_frame, orient=tk.HORIZONTAL, command=self.tree_raw.xview)
         self.tree_raw.configure(yscroll=scrollbar_raw_y.set, xscroll=scrollbar_raw_x.set)
@@ -735,6 +750,67 @@ class AnalizadorGUI:
             self.analizador.load_csv(path)
             self.status_var.set(f"Loaded CSV: {os.path.basename(path)}")
             self.refresh_all()
+
+    def scan_and_load_qr(self):
+        """Handles the QR scanning process and loads data into the analyzer."""
+        try:
+            # Test if required libraries are available
+            import cv2
+            import pyzbar
+            print("OpenCV and pyzbar libraries are available.")
+        except ImportError as e:
+            messagebox.showerror(
+                "Missing Dependencies", 
+                f"Required libraries not found: {e}\n\n"
+                "Please install:\n"
+                "- pip install opencv-python\n"
+                "- pip install pyzbar\n\n"
+                "On some systems, you may also need to install ZBar library separately."
+            )
+            return
+        
+        try:
+            # Import the scanner function
+            from qr_scanner import scan_qr_codes
+            print("QR scanner module imported successfully.")
+        except ImportError as e:
+            messagebox.showerror("Import Error", f"Failed to import QR scanner: {e}")
+            return
+
+        # Confirm with user before starting camera
+        response = messagebox.askyesno(
+            "Start QR Scanner", 
+            "This will open your camera for QR code scanning in a separate window.\n\n"
+            "The main application will remain open and visible.\n\n"
+            "Make sure your camera is not being used by another application.\n\n"
+            "Press 'q' in the scanner window to stop scanning.\n\n"
+            "Continue?"
+        )
+        
+        if not response:
+            return
+
+        self.status_var.set("QR scanner running... Press 'q' in scanner window to stop.")
+        self.root.update()  # Update the UI
+        
+        try:
+            print("Calling scan_qr_codes()...")
+            scanned_data = scan_qr_codes()
+            print(f"QR scanner returned: {scanned_data}")
+            
+            if scanned_data:
+                # load_qr_data expects a single string with records separated by newlines
+                qr_string = "\n".join(scanned_data)
+                self.analizador.load_qr_data(qr_string)
+                self.status_var.set(f"Loaded {len(scanned_data)} records from QR scanner.")
+                self.refresh_all()
+                messagebox.showinfo("Success", f"Successfully loaded {len(scanned_data)} QR codes!")
+            else:
+                self.status_var.set("QR scanning cancelled or no new data found.")
+        except Exception as e:
+            print(f"Error during QR scanning: {e}")
+            messagebox.showerror("QR Scanner Error", f"An error occurred while scanning:\n\n{e}")
+            self.status_var.set("QR scanning failed.")
 
     def load_qr(self):
         data = simpledialog.askstring("QR Data", "Enter QR data (tab-separated):")
@@ -853,6 +929,9 @@ class AnalizadorGUI:
             tree.insert("", tk.END, values=formatted_row)
 
     def refresh_all(self):
+        # Update column indices in case data structure changed
+        self.analizador._update_column_indices()
+        
         # Raw Data
         raw = self.analizador.get_raw_data()
         if raw:
@@ -1153,6 +1232,341 @@ class AnalizadorGUI:
         ttk.Button(win, text="Plot", command=plot_selected).pack(pady=(0,10))
         ttk.Button(win, text="Close", command=win.destroy).pack()
         win.wait_window()
+
+    def test_camera(self):
+        """Test camera access without starting the full QR scanner."""
+        try:
+            import cv2
+        except ImportError:
+            messagebox.showerror("Missing Dependencies", 
+                               "OpenCV not found. Please install: pip install opencv-python")
+            return
+        
+        try:
+            cap = cv2.VideoCapture(0)
+            if not cap.isOpened():
+                messagebox.showerror("Camera Error", 
+                                   "Could not open camera. Please check:\n"
+                                   "- Camera is connected\n"
+                                   "- Camera is not being used by another application\n"
+                                   "- Camera permissions are granted")
+                return
+            
+            cap.release()
+            messagebox.showinfo("Camera Test", "Camera test successful! Your camera is working properly.")
+            self.status_var.set("Camera test passed.")
+        except Exception as e:
+            messagebox.showerror("Camera Test Failed", f"Camera test failed: {e}")
+            self.status_var.set("Camera test failed.")
+
+    def edit_raw_data_row(self):
+        """Edit the selected row in the raw data table."""
+        selection = self.tree_raw.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a row to edit.")
+            return
+        
+        item = selection[0]
+        current_values = self.tree_raw.item(item, 'values')
+        headers = self.analizador.get_current_headers()
+        
+        if not current_values or not headers:
+            messagebox.showerror("Error", "No data available to edit.")
+            return
+        
+        # Create edit dialog
+        edit_window = tk.Toplevel(self.root)
+        edit_window.title("Edit Row")
+        edit_window.transient(self.root)
+        edit_window.grab_set()
+        
+        # Create form fields
+        entries = {}
+        for i, (header, value) in enumerate(zip(headers, current_values)):
+            ttk.Label(edit_window, text=f"{header}:").grid(row=i, column=0, sticky='e', padx=5, pady=2)
+            entry = ttk.Entry(edit_window, width=30)
+            entry.insert(0, str(value))
+            entry.grid(row=i, column=1, padx=5, pady=2)
+            entries[header] = entry
+        
+        # Buttons
+        def save_changes():
+            new_values = [entries[header].get() for header in headers]
+            # Update treeview
+            self.tree_raw.item(item, values=new_values)
+            # Update analyzer data
+            row_index = int(item) + 1  # +1 because item IDs start from 0, but data rows start from 1 (after header)
+            if row_index < len(self.analizador.sheet_data):
+                self.analizador.sheet_data[row_index] = new_values
+                self.status_var.set("Row updated. Click 'Save Changes' to persist modifications.")
+            edit_window.destroy()
+        
+        btn_frame = ttk.Frame(edit_window)
+        btn_frame.grid(row=len(headers), column=0, columnspan=2, pady=10)
+        ttk.Button(btn_frame, text="Save", command=save_changes).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=edit_window.destroy).pack(side=tk.LEFT, padx=5)
+
+    def delete_raw_data_row(self):
+        """Delete the selected row from the raw data table."""
+        selection = self.tree_raw.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a row to delete.")
+            return
+        
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected row?"):
+            item = selection[0]
+            row_index = int(item) + 1  # +1 because item IDs start from 0, but data rows start from 1
+            
+            # Remove from analyzer data
+            if row_index < len(self.analizador.sheet_data):
+                del self.analizador.sheet_data[row_index]
+            
+            # Remove from treeview
+            self.tree_raw.delete(item)
+            self.status_var.set("Row deleted. Click 'Save Changes' to persist modifications.")
+
+    def add_raw_data_row(self):
+        """Add a new row to the raw data table."""
+        headers = self.analizador.get_current_headers()
+        if not headers:
+            messagebox.showerror("Error", "No headers defined. Please load data or update headers first.")
+            return
+        
+        # Create add dialog
+        add_window = tk.Toplevel(self.root)
+        add_window.title("Add New Row")
+        add_window.transient(self.root)
+        add_window.grab_set()
+        
+        # Create form fields
+        entries = {}
+        for i, header in enumerate(headers):
+            ttk.Label(add_window, text=f"{header}:").grid(row=i, column=0, sticky='e', padx=5, pady=2)
+            entry = ttk.Entry(add_window, width=30)
+            entry.grid(row=i, column=1, padx=5, pady=2)
+            entries[header] = entry
+        
+        # Buttons
+        def save_new_row():
+            new_values = [entries[header].get() for header in headers]
+            # Add to analyzer data
+            self.analizador.sheet_data.append(new_values)
+            # Add to treeview
+            self.tree_raw.insert("", tk.END, values=new_values)
+            self.status_var.set("Row added. Click 'Save Changes' to persist modifications.")
+            add_window.destroy()
+        
+        btn_frame = ttk.Frame(add_window)
+        btn_frame.grid(row=len(headers), column=0, columnspan=2, pady=10)
+        ttk.Button(btn_frame, text="Add", command=save_new_row).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=add_window.destroy).pack(side=tk.LEFT, padx=5)
+
+    def save_raw_data_changes(self):
+        """Save the current raw data to a CSV file."""
+        if not self.analizador.sheet_data:
+            messagebox.showwarning("No Data", "No data to save.")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+            title="Save Raw Data"
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerows(self.analizador.sheet_data)
+                messagebox.showinfo("Success", f"Data saved to {file_path}")
+                self.status_var.set(f"Data saved to {os.path.basename(file_path)}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save file: {e}")
+
+    def on_raw_data_double_click(self, event):
+        """Handle double-click on raw data table to edit row."""
+        self.edit_raw_data_row()
+
+    def test_camera(self):
+        """Test camera access without starting the full QR scanner."""
+        try:
+            import cv2
+        except ImportError:
+            messagebox.showerror("Missing Dependencies", 
+                               "OpenCV not found. Please install: pip install opencv-python")
+            return
+        
+        try:
+            cap = cv2.VideoCapture(0)
+            if not cap.isOpened():
+                messagebox.showerror("Camera Error", 
+                                   "Could not open camera. Please check:\n"
+                                   "- Camera is connected\n"
+                                   "- Camera is not being used by another application\n"
+                                   "- Camera permissions are granted")
+                return
+            
+            cap.release()
+            messagebox.showinfo("Camera Test", "Camera test successful! Your camera is working properly.")
+            self.status_var.set("Camera test passed.")
+        except Exception as e:
+            messagebox.showerror("Camera Test Failed", f"Camera test failed: {e}")
+            self.status_var.set("Camera test failed.")
+
+    def edit_raw_data_row(self):
+        """Edit the selected row in the raw data table."""
+
+        selection = self.tree_raw.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a row to edit.")
+            return
+        
+        item = selection[0]
+        current_values = self.tree_raw.item(item, 'values')
+        headers = self.analizador.get_current_headers()
+        
+        if not current_values or not headers:
+            messagebox.showerror("Error", "No data available to edit.")
+            return
+        
+        # Create edit dialog
+        edit_window = tk.Toplevel(self.root)
+        edit_window.title("Edit Row")
+        edit_window.transient(self.root)
+        edit_window.grab_set()
+        
+        # Create form fields
+        entries = {}
+        for i, (header, value) in enumerate(zip(headers, current_values)):
+            ttk.Label(edit_window, text=f"{header}:").grid(row=i, column=0, sticky='e', padx=5, pady=2)
+            entry = ttk.Entry(edit_window, width=30)
+            entry.insert(0, str(value))
+            entry.grid(row=i, column=1, padx=5, pady=2)
+            entries[header] = entry
+        
+        # Buttons
+        def save_changes():
+            new_values = [entries[header].get() for header in headers]
+            # Update treeview
+            self.tree_raw.item(item, values=new_values)
+            # Update analyzer data
+            row_index = int(item) + 1  # +1 because item IDs start from 0, but data rows start from 1 (after header)
+            if row_index < len(self.analizador.sheet_data):
+                self.analizador.sheet_data[row_index] = new_values
+                self.status_var.set("Row updated. Click 'Save Changes' to persist modifications.")
+            edit_window.destroy()
+        
+        btn_frame = ttk.Frame(edit_window)
+        btn_frame.grid(row=len(headers), column=0, columnspan=2, pady=10)
+        ttk.Button(btn_frame, text="Save", command=save_changes).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=edit_window.destroy).pack(side=tk.LEFT, padx=5)
+
+    def delete_raw_data_row(self):
+        """Delete the selected row from the raw data table."""
+        selection = self.tree_raw.selection()
+        if not selection:
+            messagebox.showwarning("No Selection", "Please select a row to delete.")
+            return
+        
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected row?"):
+            item = selection[0]
+            row_index = int(item) + 1  # +1 because item IDs start from 0, but data rows start from 1
+            
+            # Remove from analyzer data
+            if row_index < len(self.analizador.sheet_data):
+                del self.analizador.sheet_data[row_index]
+            
+            # Remove from treeview
+            self.tree_raw.delete(item)
+            self.status_var.set("Row deleted. Click 'Save Changes' to persist modifications.")
+
+    def add_raw_data_row(self):
+        """Add a new row to the raw data table."""
+        headers = self.analizador.get_current_headers()
+        if not headers:
+            messagebox.showerror("Error", "No headers defined. Please load data or update headers first.")
+            return
+        
+        # Create add dialog
+        add_window = tk.Toplevel(self.root)
+        add_window.title("Add New Row")
+        add_window.transient(self.root)
+        add_window.grab_set()
+        
+        # Create form fields
+        entries = {}
+        for i, header in enumerate(headers):
+            ttk.Label(add_window, text=f"{header}:").grid(row=i, column=0, sticky='e', padx=5, pady=2)
+            entry = ttk.Entry(add_window, width=30)
+            entry.grid(row=i, column=1, padx=5, pady=2)
+            entries[header] = entry
+        
+        # Buttons
+        def save_new_row():
+            new_values = [entries[header].get() for header in headers]
+            # Add to analyzer data
+            self.analizador.sheet_data.append(new_values)
+            # Add to treeview
+            self.tree_raw.insert("", tk.END, values=new_values)
+            self.status_var.set("Row added. Click 'Save Changes' to persist modifications.")
+            add_window.destroy()
+        
+        btn_frame = ttk.Frame(add_window)
+        btn_frame.grid(row=len(headers), column=0, columnspan=2, pady=10)
+        ttk.Button(btn_frame, text="Add", command=save_new_row).pack(side=tk.LEFT, padx=5)
+        ttk.Button(btn_frame, text="Cancel", command=add_window.destroy).pack(side=tk.LEFT, padx=5)
+
+    def save_raw_data_changes(self):
+        """Save the current raw data to a CSV file."""
+        if not self.analizador.sheet_data:
+            messagebox.showwarning("No Data", "No data to save.")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+            title="Save Raw Data"
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    writer.writerows(self.analizador.sheet_data)
+                messagebox.showinfo("Success", f"Data saved to {file_path}")
+                self.status_var.set(f"Data saved to {os.path.basename(file_path)}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save file: {e}")
+
+    def on_raw_data_double_click(self, event):
+        """Handle double-click on raw data table to edit row."""
+        self.edit_raw_data_row()
+
+    def test_camera(self):
+        """Test camera access without starting the full QR scanner."""
+        try:
+            import cv2
+        except ImportError:
+            messagebox.showerror("Missing Dependencies", 
+                               "OpenCV not found. Please install: pip install opencv-python")
+            return
+        
+        try:
+            cap = cv2.VideoCapture(0)
+            if not cap.isOpened():
+                messagebox.showerror("Camera Error", 
+                                   "Could not open camera. Please check:\n"
+                                   "- Camera is connected\n"
+                                   "- Camera is not being used by another application\n"
+                                   "- Camera permissions are granted")
+                return
+            
+            cap.release()
+            messagebox.showinfo("Camera Test", "Camera test successful! Your camera is working properly.")
+            self.status_var.set("Camera test passed.")
+        except Exception as e:
+            messagebox.showerror("Camera Test Failed", f"Camera test failed: {e}")
+            self.status_var.set("Camera test failed.")
 
 # Replace CLI example with GUI launch
 if __name__ == "__main__":
