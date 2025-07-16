@@ -1,5 +1,6 @@
 import cv2
 from pyzbar import pyzbar
+import numpy as np
 import time
 
 try:
@@ -56,11 +57,16 @@ def scan_qr_codes():
 
             # Draw a bounding box around the QR code for visual feedback
             points = obj.polygon
+            # Convert points to numpy array with correct format for polylines
             if len(points) > 4:
-                hull = cv2.convexHull(points, clockwise=True)
+                # Convert points to numpy array format
+                points_array = np.array([[p.x, p.y] for p in points], dtype=np.int32)
+                hull = cv2.convexHull(points_array, clockwise=True)
                 cv2.polylines(frame, [hull], True, (0, 255, 0), 2)
             else:
-                cv2.polylines(frame, [points], True, (0, 255, 0), 2)
+                # Convert points to numpy array format
+                points_array = np.array([[p.x, p.y] for p in points], dtype=np.int32)
+                cv2.polylines(frame, [points_array], True, (0, 255, 0), 2)
 
             # You can also draw the data on the screen
             # cv2.putText(frame, data, (points[0].x, points[0].y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
