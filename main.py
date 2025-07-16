@@ -220,54 +220,85 @@ class AnalizadorRobot:
 
     def load_qr_data(self, qr_string_data):
         """
-        Procesa datos desde un string (simulando entrada de QR).
-        Recibe un String con líneas separadas por tabuladores (\t), lo parsea y
-        reemplaza el encabezado actual. (Según la descripción, aunque el código Dart parece añadir los datos)
-
-        NOTA: La descripción dice "reemplaza el encabezado actual", pero el código Dart
-        parece usar el encabezado existente o por defecto y añade las filas de datos del QR.
-        Implementaré la lógica del código Dart (añadir datos bajo el encabezado actual/default).
-        Si el objetivo es reemplazar el encabezado con la primera línea del QR, la lógica debe cambiar.
+        Procesa datos desde un string de QR codes.
+        Maneja diferentes formatos: texto simple, CSV, o datos separados por tabuladores.
+        Añade los datos como nuevas filas en la tabla raw data.
 
         Args:
-            qr_string_data (str): String con los datos, líneas separadas por '\n',
-                                  columnas separadas por '\t'.
+            qr_string_data (str): String con los datos del QR, puede contener múltiples líneas.
         """
         if not qr_string_data.strip():
             print("Datos de QR vacíos.")
             return
 
-        lines = qr_string_data.strip().split('\n')
-        qr_rows = [[field.strip() for field in line.split('\t')] for line in lines if line.strip()]
+        print(f"Procesando datos QR: {qr_string_data}")
 
-        if not qr_rows:
-            print("No se pudieron parsear filas de los datos QR.")
-            return
-
-        # Usar el encabezado actualmente definido (o el default si sheet_data está vacío)
-        if not self.sheet_data or not self.sheet_data[0]: # Si no hay encabezado
+        # Asegurar que tenemos un encabezado
+        if not self.sheet_data or not self.sheet_data[0]:
             if self.default_column_names:
-                self.sheet_data = [list(self.default_column_names)] # Empezar con el encabezado default
+                self.sheet_data = [list(self.default_column_names)]
+                print(f"Inicializando con encabezado por defecto: {len(self.default_column_names)} columnas")
             else:
-                # Si no hay default_column_names y no hay encabezado en sheet_data,
-                # podríamos asumir que la primera línea de qr_rows ES el encabezado.
-                # Por ahora, se requiere que el encabezado esté definido o se use el default.
-                print("Error: No hay un encabezado definido para los datos QR y no hay nombres de columna por defecto.")
-                # Alternativamente, si la primera fila del QR debe ser el encabezado:
-                # self.sheet_data = [qr_rows[0]]
-                # self.sheet_data.extend(qr_rows[1:])
-                # self._update_column_indices()
-                # self._initialize_selected_columns()
+                print("Error: No hay un encabezado definido para los datos QR.")
                 return
 
+        current_headers = self.sheet_data[0]
+        num_columns = len(current_headers)
 
-        # Añadir las filas de datos del QR. Se asume que qr_rows NO contiene un encabezado.
-        # Si qr_rows SÍ contiene un encabezado, se debería omitir qr_rows[0] al extender.
-        # Por simplicidad y siguiendo el ejemplo Dart (donde procesa widget.initialData sin tratarlo como header)
-        self.sheet_data.extend(qr_rows)
+        # Procesar cada línea del QR
+        lines = qr_string_data.strip().split('\n')
+        new_rows_added = 0
+
+        for line in lines:
+            if not line.strip():
+                continue
+
+            # Intentar diferentes métodos de parsing
+            row_data = None
+
+            # Método 1: Datos separados por tabuladores
+            if '\t' in line:
+                row_data = [field.strip() for field in line.split('\t')]
+                print(f"Parseado como datos tabulados: {len(row_data)} campos")
+
+            # Método 2: Datos separados por comas (CSV)
+            elif ',' in line and line.count(',') >= 2:
+                row_data = [field.strip() for field in line.split(',')]
+                print(f"Parseado como CSV: {len(row_data)} campos")
+
+            # Método 3: Datos separados por punto y coma
+            elif ';' in line:
+                row_data = [field.strip() for field in line.split(';')]
+                print(f"Parseado como datos separados por ';': {len(row_data)} campos")
+
+            # Método 4: Texto simple - crear una fila con el texto en la primera columna
+            else:
+                row_data = [line.strip()]
+                # Rellenar el resto de columnas con valores vacíos
+                while len(row_data) < num_columns:
+                    row_data.append("")
+                print(f"Parseado como texto simple en {num_columns} columnas")
+
+            # Ajustar el número de campos para que coincida con el encabezado
+            if row_data:
+                # Si hay menos campos, rellenar con vacíos
+                while len(row_data) < num_columns:
+                    row_data.append("")
+                
+                # Si hay más campos, truncar
+                if len(row_data) > num_columns:
+                    row_data = row_data[:num_columns]
+                    print(f"Truncando a {num_columns} campos para coincidir con el encabezado")
+
+                # Añadir la fila a los datos
+                self.sheet_data.append(row_data)
+                new_rows_added += 1
+                print(f"Fila añadida: {row_data}")
+
+        print(f"Datos de QR procesados. {new_rows_added} filas añadidas. Total: {len(self.sheet_data)} filas.")
         
-        print(f"Datos de QR procesados. Total {len(self.sheet_data)} filas.")
-        # No es necesario _update_column_indices ni _initialize_selected_columns aquí si solo añadimos datos
+        # Actualizar índices después de añadir datos
+        self._update_column_indices()
         # y el encabezado no cambió. Si el encabezado PUDIERA cambiar con QR, entonces sí.
 
     # --- Funciones de Cálculo Estadístico ---
@@ -799,14 +830,39 @@ class AnalizadorGUI:
             print(f"QR scanner returned: {scanned_data}")
             
             if scanned_data:
-                # load_qr_data expects a single string with records separated by newlines
-                qr_string = "\n".join(scanned_data)
-                self.analizador.load_qr_data(qr_string)
-                self.status_var.set(f"Loaded {len(scanned_data)} records from QR scanner.")
-                self.refresh_all()
-                messagebox.showinfo("Success", f"Successfully loaded {len(scanned_data)} QR codes!")
+                # Mostrar preview de los datos escaneados
+                preview_text = ""
+                for i, data in enumerate(scanned_data[:3]):  # Mostrar máximo 3 códigos
+                    preview_text += f"QR {i+1}: {data[:50]}{'...' if len(data) > 50 else ''}\n"
+                if len(scanned_data) > 3:
+                    preview_text += f"... y {len(scanned_data) - 3} códigos más\n"
+                
+                # Confirmar antes de cargar los datos
+                confirm = messagebox.askyesno(
+                    "QR Codes Escaneados",
+                    f"Se escanearon {len(scanned_data)} códigos QR:\n\n{preview_text}\n"
+                    "¿Desea cargar estos datos en la tabla Raw Data?"
+                )
+                
+                if confirm:
+                    # load_qr_data expects a single string with records separated by newlines
+                    qr_string = "\n".join(scanned_data)
+                    self.analizador.load_qr_data(qr_string)
+                    self.status_var.set(f"Cargados {len(scanned_data)} registros desde QR scanner.")
+                    self.refresh_all()
+                    messagebox.showinfo("Éxito", f"¡Datos cargados exitosamente!\n\n"
+                                      f"- {len(scanned_data)} códigos QR procesados\n"
+                                      f"- Datos añadidos a la tabla Raw Data\n"
+                                      f"- Total de filas: {len(self.analizador.sheet_data)}")
+                else:
+                    self.status_var.set("Carga de datos QR cancelada por el usuario.")
             else:
-                self.status_var.set("QR scanning cancelled or no new data found.")
+                self.status_var.set("No se escanearon códigos QR o el escaneo fue cancelado.")
+                messagebox.showinfo("QR Scanner", "No se detectaron códigos QR nuevos.\n\n"
+                                  "Asegúrese de que:\n"
+                                  "- Los códigos QR sean claros y legibles\n"
+                                  "- Haya buena iluminación\n"
+                                  "- La cámara esté enfocada correctamente")
         except Exception as e:
             print(f"Error during QR scanning: {e}")
             messagebox.showerror("QR Scanner Error", f"An error occurred while scanning:\n\n{e}")

@@ -80,19 +80,22 @@ def scan_qr_codes():
     return newly_scanned_data
 
 def test_camera():
-    """Test function to check if camera access is working."""
+    """
+    Prueba si la cámara está disponible y accesible
+    Returns: True si la cámara funciona, False en caso contrario
+    """
     try:
-        import cv2
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            print("Error: Could not open camera.")
             return False
         
-        print("Camera test successful!")
+        ret, frame = cap.read()
         cap.release()
-        return True
+        
+        return ret and frame is not None
+        
     except Exception as e:
-        print(f"Camera test failed: {e}")
+        print(f"Error probando cámara: {e}")
         return False
 
 if __name__ == '__main__':
