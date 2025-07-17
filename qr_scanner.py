@@ -12,9 +12,13 @@ except ImportError:
     def play_beep():
         pass
 
-def scan_qr_codes():
+def scan_qr_codes(update_callback=None):
     """
     Activates the camera to scan QR codes and returns the data as a list of strings.
+    
+    Args:
+        update_callback: Optional function to call immediately when a QR code is detected.
+                        Should accept a single string parameter (the QR data).
     """
     # Initialize the camera
     cap = cv2.VideoCapture(0)
@@ -24,6 +28,8 @@ def scan_qr_codes():
 
     print("Camera opened. Point a QR code at the camera.")
     print("Press 'q' to quit.")
+    if update_callback:
+        print("Real-time updates enabled - data will be processed immediately!")
 
     scanned_codes = set()
     last_scan_time = 0
@@ -51,6 +57,15 @@ def scan_qr_codes():
                     print(f"New QR Code Detected: {data}")
                     scanned_codes.add(data)
                     newly_scanned_data.append(data)
+                    
+                    # Call the update callback immediately if provided
+                    if update_callback:
+                        try:
+                            print(f"Calling real-time update for: {data[:50]}...")
+                            update_callback(data)
+                            print("✓ Real-time update successful!")
+                        except Exception as e:
+                            print(f"Error in real-time update: {e}")
                     
                     play_beep()
                     last_scan_time = current_time

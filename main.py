@@ -662,7 +662,7 @@ class AnalizadorGUI:
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
         ttk.Button(btn_frame, text="Load CSV", command=self.load_csv).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Scan QR Codes", command=self.scan_and_load_qr).pack(side=tk.LEFT, padx=4, pady=2)
+        ttk.Button(btn_frame, text="Real-Time QR Scanner", command=self.scan_and_load_qr).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Test Camera", command=self.test_camera).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Paste QR Data", command=self.load_qr).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Update Header", command=self.update_header).pack(side=tk.LEFT, padx=4, pady=2)
@@ -783,7 +783,7 @@ class AnalizadorGUI:
             self.refresh_all()
 
     def scan_and_load_qr(self):
-        """Handles the QR scanning process and loads data into the analyzer."""
+        """Handles the QR scanning process with real-time updates to the table."""
         try:
             # Test if required libraries are available
             import cv2
@@ -810,63 +810,79 @@ class AnalizadorGUI:
 
         # Confirm with user before starting camera
         response = messagebox.askyesno(
-            "Start QR Scanner", 
-            "This will open your camera for QR code scanning in a separate window.\n\n"
-            "The main application will remain open and visible.\n\n"
+            "Start Real-Time QR Scanner", 
+            "This will open your camera for QR code scanning with REAL-TIME updates.\n\n"
+            "• The Raw Data table will update immediately when QR codes are detected\n"
+            "• The main application will remain open and visible\n"
+            "• You can watch the table update in real-time!\n\n"
             "Make sure your camera is not being used by another application.\n\n"
             "Press 'q' in the scanner window to stop scanning.\n\n"
-            "Continue?"
+            "Continue with real-time scanning?"
         )
         
         if not response:
             return
 
-        self.status_var.set("QR scanner running... Press 'q' in scanner window to stop.")
+        # Define the real-time update callback
+        def real_time_update_callback(qr_data):
+            """
+            This function is called immediately when a QR code is detected.
+            It updates the Raw Data table in real-time.
+            """
+            try:
+                print(f"Processing QR data in real-time: {qr_data}")
+                
+                # Load the QR data immediately into the analyzer
+                self.analizador.load_qr_data(qr_data)
+                
+                # Update the GUI immediately
+                self.refresh_raw_data_only()
+                
+                # Update status bar
+                total_rows = len(self.analizador.sheet_data) - 1  # -1 for header
+                self.status_var.set(f"Real-time update: New QR data added! Total rows: {total_rows}")
+                
+                # Force GUI update
+                self.root.update_idletasks()
+                
+                print(f"✓ Real-time table update completed. Total rows: {total_rows}")
+                
+            except Exception as e:
+                print(f"Error in real-time update callback: {e}")
+                self.status_var.set(f"Error in real-time update: {e}")
+
+        self.status_var.set("Real-time QR scanner starting... Data will update immediately when detected!")
         self.root.update()  # Update the UI
         
         try:
-            print("Calling scan_qr_codes()...")
-            scanned_data = scan_qr_codes()
-            print(f"QR scanner returned: {scanned_data}")
+            print("Starting real-time QR scanner...")
+            # Pass the callback to enable real-time updates
+            scanned_data = scan_qr_codes(update_callback=real_time_update_callback)
+            print(f"QR scanner finished. Total codes processed: {len(scanned_data)}")
+            
+            # Final refresh after scanning is complete
+            self.refresh_all()
             
             if scanned_data:
-                # Mostrar preview de los datos escaneados
-                preview_text = ""
-                for i, data in enumerate(scanned_data[:3]):  # Mostrar máximo 3 códigos
-                    preview_text += f"QR {i+1}: {data[:50]}{'...' if len(data) > 50 else ''}\n"
-                if len(scanned_data) > 3:
-                    preview_text += f"... y {len(scanned_data) - 3} códigos más\n"
-                
-                # Confirmar antes de cargar los datos
-                confirm = messagebox.askyesno(
-                    "QR Codes Escaneados",
-                    f"Se escanearon {len(scanned_data)} códigos QR:\n\n{preview_text}\n"
-                    "¿Desea cargar estos datos en la tabla Raw Data?"
-                )
-                
-                if confirm:
-                    # load_qr_data expects a single string with records separated by newlines
-                    qr_string = "\n".join(scanned_data)
-                    self.analizador.load_qr_data(qr_string)
-                    self.status_var.set(f"Cargados {len(scanned_data)} registros desde QR scanner.")
-                    self.refresh_all()
-                    messagebox.showinfo("Éxito", f"¡Datos cargados exitosamente!\n\n"
-                                      f"- {len(scanned_data)} códigos QR procesados\n"
-                                      f"- Datos añadidos a la tabla Raw Data\n"
-                                      f"- Total de filas: {len(self.analizador.sheet_data)}")
-                else:
-                    self.status_var.set("Carga de datos QR cancelada por el usuario.")
+                total_rows = len(self.analizador.sheet_data) - 1
+                self.status_var.set(f"Real-time scanning completed! {len(scanned_data)} codes processed. Total rows: {total_rows}")
+                messagebox.showinfo("Real-Time Scanning Complete", 
+                                  f"¡Escaneo en tiempo real completado!\n\n"
+                                  f"• {len(scanned_data)} códigos QR procesados\n"
+                                  f"• Datos actualizados en tiempo real en Raw Data\n"
+                                  f"• Total de filas: {total_rows}")
             else:
-                self.status_var.set("No se escanearon códigos QR o el escaneo fue cancelado.")
-                messagebox.showinfo("QR Scanner", "No se detectaron códigos QR nuevos.\n\n"
+                self.status_var.set("Real-time scanning ended - no new codes detected.")
+                messagebox.showinfo("Scanning Complete", "Escaneo terminado.\n\n"
+                                  "No se detectaron códigos QR nuevos.\n\n"
                                   "Asegúrese de que:\n"
-                                  "- Los códigos QR sean claros y legibles\n"
-                                  "- Haya buena iluminación\n"
-                                  "- La cámara esté enfocada correctamente")
+                                  "• Los códigos QR sean claros y legibles\n"
+                                  "• Haya buena iluminación\n"
+                                  "• La cámara esté enfocada correctamente")
         except Exception as e:
-            print(f"Error during QR scanning: {e}")
-            messagebox.showerror("QR Scanner Error", f"An error occurred while scanning:\n\n{e}")
-            self.status_var.set("QR scanning failed.")
+            print(f"Error during real-time QR scanning: {e}")
+            messagebox.showerror("QR Scanner Error", f"Error durante el escaneo en tiempo real:\n\n{e}")
+            self.status_var.set("Real-time QR scanning failed.")
 
     def load_qr(self):
         data = simpledialog.askstring("QR Data", "Enter QR data (tab-separated):")
@@ -1077,6 +1093,22 @@ class AnalizadorGUI:
             self.refresh_table(self.tree_def, columns, rows)
         self.refresh_alliance_selector_tab()
         self.status_var.set("BELIEVE")
+
+    def refresh_raw_data_only(self):
+        """
+        Actualiza solo la tabla Raw Data sin recalcular estadísticas.
+        Optimizada para actualizaciones en tiempo real durante el escaneo QR.
+        """
+        # Update column indices in case data structure changed
+        self.analizador._update_column_indices()
+        
+        # Raw Data only
+        raw = self.analizador.get_raw_data()
+        if raw:
+            headers = raw[0]
+            data = raw[1:]
+            self.refresh_table(self.tree_raw, headers, data)
+            print(f"Raw data table refreshed with {len(data)} rows")
 
     def refresh_alliance_selector_tab(self):
         stats = self.analizador.get_detailed_team_stats()
@@ -1317,161 +1349,6 @@ class AnalizadorGUI:
 
     def edit_raw_data_row(self):
         """Edit the selected row in the raw data table."""
-        selection = self.tree_raw.selection()
-        if not selection:
-            messagebox.showwarning("No Selection", "Please select a row to edit.")
-            return
-        
-        item = selection[0]
-        current_values = self.tree_raw.item(item, 'values')
-        headers = self.analizador.get_current_headers()
-        
-        if not current_values or not headers:
-            messagebox.showerror("Error", "No data available to edit.")
-            return
-        
-        # Create edit dialog
-        edit_window = tk.Toplevel(self.root)
-        edit_window.title("Edit Row")
-        edit_window.transient(self.root)
-        edit_window.grab_set()
-        
-        # Create form fields
-        entries = {}
-        for i, (header, value) in enumerate(zip(headers, current_values)):
-            ttk.Label(edit_window, text=f"{header}:").grid(row=i, column=0, sticky='e', padx=5, pady=2)
-            entry = ttk.Entry(edit_window, width=30)
-            entry.insert(0, str(value))
-            entry.grid(row=i, column=1, padx=5, pady=2)
-            entries[header] = entry
-        
-        # Buttons
-        def save_changes():
-            new_values = [entries[header].get() for header in headers]
-            # Update treeview
-            self.tree_raw.item(item, values=new_values)
-            # Update analyzer data
-            row_index = int(item) + 1  # +1 because item IDs start from 0, but data rows start from 1 (after header)
-            if row_index < len(self.analizador.sheet_data):
-                self.analizador.sheet_data[row_index] = new_values
-                self.status_var.set("Row updated. Click 'Save Changes' to persist modifications.")
-            edit_window.destroy()
-        
-        btn_frame = ttk.Frame(edit_window)
-        btn_frame.grid(row=len(headers), column=0, columnspan=2, pady=10)
-        ttk.Button(btn_frame, text="Save", command=save_changes).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Cancel", command=edit_window.destroy).pack(side=tk.LEFT, padx=5)
-
-    def delete_raw_data_row(self):
-        """Delete the selected row from the raw data table."""
-        selection = self.tree_raw.selection()
-        if not selection:
-            messagebox.showwarning("No Selection", "Please select a row to delete.")
-            return
-        
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected row?"):
-            item = selection[0]
-            row_index = int(item) + 1  # +1 because item IDs start from 0, but data rows start from 1
-            
-            # Remove from analyzer data
-            if row_index < len(self.analizador.sheet_data):
-                del self.analizador.sheet_data[row_index]
-            
-            # Remove from treeview
-            self.tree_raw.delete(item)
-            self.status_var.set("Row deleted. Click 'Save Changes' to persist modifications.")
-
-    def add_raw_data_row(self):
-        """Add a new row to the raw data table."""
-        headers = self.analizador.get_current_headers()
-        if not headers:
-            messagebox.showerror("Error", "No headers defined. Please load data or update headers first.")
-            return
-        
-        # Create add dialog
-        add_window = tk.Toplevel(self.root)
-        add_window.title("Add New Row")
-        add_window.transient(self.root)
-        add_window.grab_set()
-        
-        # Create form fields
-        entries = {}
-        for i, header in enumerate(headers):
-            ttk.Label(add_window, text=f"{header}:").grid(row=i, column=0, sticky='e', padx=5, pady=2)
-            entry = ttk.Entry(add_window, width=30)
-            entry.grid(row=i, column=1, padx=5, pady=2)
-            entries[header] = entry
-        
-        # Buttons
-        def save_new_row():
-            new_values = [entries[header].get() for header in headers]
-            # Add to analyzer data
-            self.analizador.sheet_data.append(new_values)
-            # Add to treeview
-            self.tree_raw.insert("", tk.END, values=new_values)
-            self.status_var.set("Row added. Click 'Save Changes' to persist modifications.")
-            add_window.destroy()
-        
-        btn_frame = ttk.Frame(add_window)
-        btn_frame.grid(row=len(headers), column=0, columnspan=2, pady=10)
-        ttk.Button(btn_frame, text="Add", command=save_new_row).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Cancel", command=add_window.destroy).pack(side=tk.LEFT, padx=5)
-
-    def save_raw_data_changes(self):
-        """Save the current raw data to a CSV file."""
-        if not self.analizador.sheet_data:
-            messagebox.showwarning("No Data", "No data to save.")
-            return
-        
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".csv",
-            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
-            title="Save Raw Data"
-        )
-        
-        if file_path:
-            try:
-                with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
-                    writer = csv.writer(csvfile)
-                    writer.writerows(self.analizador.sheet_data)
-                messagebox.showinfo("Success", f"Data saved to {file_path}")
-                self.status_var.set(f"Data saved to {os.path.basename(file_path)}")
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to save file: {e}")
-
-    def on_raw_data_double_click(self, event):
-        """Handle double-click on raw data table to edit row."""
-        self.edit_raw_data_row()
-
-    def test_camera(self):
-        """Test camera access without starting the full QR scanner."""
-        try:
-            import cv2
-        except ImportError:
-            messagebox.showerror("Missing Dependencies", 
-                               "OpenCV not found. Please install: pip install opencv-python")
-            return
-        
-        try:
-            cap = cv2.VideoCapture(0)
-            if not cap.isOpened():
-                messagebox.showerror("Camera Error", 
-                                   "Could not open camera. Please check:\n"
-                                   "- Camera is connected\n"
-                                   "- Camera is not being used by another application\n"
-                                   "- Camera permissions are granted")
-                return
-            
-            cap.release()
-            messagebox.showinfo("Camera Test", "Camera test successful! Your camera is working properly.")
-            self.status_var.set("Camera test passed.")
-        except Exception as e:
-            messagebox.showerror("Camera Test Failed", f"Camera test failed: {e}")
-            self.status_var.set("Camera test failed.")
-
-    def edit_raw_data_row(self):
-        """Edit the selected row in the raw data table."""
-
         selection = self.tree_raw.selection()
         if not selection:
             messagebox.showwarning("No Selection", "Please select a row to edit.")
