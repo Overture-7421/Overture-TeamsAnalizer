@@ -2,7 +2,7 @@
 
 ## 📋 Descripción General
 
-Alliance Simulator es una aplicación integral para el análisis de datos de competencias de robótica. Permite cargar, procesar y analizar datos de equipos, calcular estadísticas detalladas, crear rankings defensivos, simular alianzas y gestionar un sistema completo de Honor Roll con puntuaciones académicas.
+Alliance Simulator es una aplicación integral para el análisis de datos de competencias de robótica. Permite cargar, procesar y analizar datos de equipos, calcular estadísticas detalladas, crear rankings defensivos, simular alianzas y gestionar un sistema completo de Honor Roll con puntuaciones "académicas".
 
 ## 🚀 Características Principales
 
