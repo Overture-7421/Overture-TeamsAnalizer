@@ -8,6 +8,7 @@ from tkinter import simpledialog
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from school_system import TeamScoring, BehaviorReportType
 
 class AnalizadorRobot:
     def __init__(self, default_column_names=None):
@@ -652,6 +653,8 @@ class AnalizadorGUI:
         self.root = root
         self.analizador = analizador
         self.root.title("Alliance Simulator Analyzer")
+        # Initialize SchoolSystem
+        self.school_system = TeamScoring()
         self.create_widgets()
 
     def create_widgets(self):
@@ -669,6 +672,7 @@ class AnalizadorGUI:
         ttk.Button(btn_frame, text="Configure Columns", command=self.configure_columns).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="RobotValuation Weights", command=self.configure_robot_valuation_weights).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Plot Team Performance", command=self.open_team_performance_plot).pack(side=tk.LEFT, padx=4, pady=2)
+        ttk.Button(btn_frame, text="SchoolSystem", command=self.open_school_system).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="About", command=self.show_about).pack(side=tk.RIGHT, padx=4, pady=2)
 
         self.status_var = tk.StringVar()
@@ -751,12 +755,33 @@ class AnalizadorGUI:
                 self.alliance_canvas.xview_scroll(int(-1*(event.delta/120)), "units")
         self.alliance_canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
+        # Honor Roll System Tab
+        self.honor_roll_frame = ttk.Frame(self.notebook)
+        
+        # Honor Roll controls
+        honor_controls = ttk.Frame(self.honor_roll_frame)
+        honor_controls.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+        ttk.Button(honor_controls, text="Auto-populate from Team Data", command=self.auto_populate_school_system).pack(side=tk.LEFT, padx=2)
+        ttk.Button(honor_controls, text="Manual Team Entry", command=self.manual_team_entry).pack(side=tk.LEFT, padx=2)
+        ttk.Button(honor_controls, text="Edit Team Scores", command=self.edit_team_scores).pack(side=tk.LEFT, padx=2)
+        ttk.Button(honor_controls, text="Export Honor Roll", command=self.export_honor_roll).pack(side=tk.RIGHT, padx=2)
+        
+        self.tree_honor_roll = ttk.Treeview(self.honor_roll_frame, show='headings')
+        self.tree_honor_roll.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
+        
+        scrollbar_honor_y = ttk.Scrollbar(self.honor_roll_frame, orient=tk.VERTICAL, command=self.tree_honor_roll.yview)
+        scrollbar_honor_x = ttk.Scrollbar(self.honor_roll_frame, orient=tk.HORIZONTAL, command=self.tree_honor_roll.xview)
+        self.tree_honor_roll.configure(yscroll=scrollbar_honor_y.set, xscroll=scrollbar_honor_x.set)
+        scrollbar_honor_y.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_honor_x.pack(side=tk.BOTTOM, fill=tk.X)
+        self.notebook.add(self.honor_roll_frame, text="Honor Roll System")
+
         # For dropdowns in the alliance selector
         self.alliance_selector = None
         self.alliance_pick_vars = []  # List of (pick1_var, pick2_var) for each alliance
 
         # Mejorar resize de columnas
-        for tree in [self.tree_raw, self.tree_stats, self.tree_def, self.tree_alliance]:
+        for tree in [self.tree_raw, self.tree_stats, self.tree_def, self.tree_alliance, self.tree_honor_roll]:
             tree["displaycolumns"] = "#all"
             tree.tag_configure('highlight', background='#f0f0ff')
 
@@ -1092,6 +1117,7 @@ class AnalizadorGUI:
                 rows.append(row)
             self.refresh_table(self.tree_def, columns, rows)
         self.refresh_alliance_selector_tab()
+        self.refresh_honor_roll_tab()
         self.status_var.set("BELIEVE")
 
     def refresh_raw_data_only(self):
@@ -1474,6 +1500,532 @@ class AnalizadorGUI:
     def on_raw_data_double_click(self, event):
         """Handle double-click on raw data table to edit row."""
         self.edit_raw_data_row()
+
+    def open_school_system(self):
+        """Open SchoolSystem Honor Roll configuration window"""
+        school_window = tk.Toplevel(self.root)
+        school_window.title("SchoolSystem - Honor Roll Configuration")
+        school_window.geometry("800x600")
+        school_window.transient(self.root)
+        
+        # Create notebook for different configuration sections
+        school_notebook = ttk.Notebook(school_window)
+        school_notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Team Management Tab
+        team_mgmt_frame = ttk.Frame(school_notebook)
+        school_notebook.add(team_mgmt_frame, text="Team Management")
+        
+        # Team list
+        ttk.Label(team_mgmt_frame, text="Teams in SchoolSystem:").pack(anchor=tk.W, padx=5, pady=5)
+        
+        team_listbox = tk.Listbox(team_mgmt_frame, height=8)
+        team_listbox.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Populate team list
+        for team_num in self.school_system.teams.keys():
+            team_listbox.insert(tk.END, f"Team {team_num}")
+        
+        # Team management buttons
+        team_btn_frame = ttk.Frame(team_mgmt_frame)
+        team_btn_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        def add_team():
+            team_num = simpledialog.askstring("Add Team", "Enter team number:")
+            if team_num:
+                self.school_system.add_team(team_num)
+                team_listbox.insert(tk.END, f"Team {team_num}")
+                self.refresh_honor_roll_tab()
+        
+        def remove_team():
+            selection = team_listbox.curselection()
+            if selection:
+                team_text = team_listbox.get(selection[0])
+                team_num = team_text.replace("Team ", "")
+                if team_num in self.school_system.teams:
+                    del self.school_system.teams[team_num]
+                    del self.school_system.calculated_scores[team_num]
+                team_listbox.delete(selection[0])
+                self.refresh_honor_roll_tab()
+        
+        ttk.Button(team_btn_frame, text="Add Team", command=add_team).pack(side=tk.LEFT, padx=2)
+        ttk.Button(team_btn_frame, text="Remove Selected", command=remove_team).pack(side=tk.LEFT, padx=2)
+        ttk.Button(team_btn_frame, text="Auto-populate from Raw Data", command=self.auto_populate_school_system).pack(side=tk.LEFT, padx=2)
+        
+        # Quick Configuration Tab
+        quick_config_frame = ttk.Frame(school_notebook)
+        school_notebook.add(quick_config_frame, text="Quick Configuration")
+        
+        ttk.Label(quick_config_frame, text="SchoolSystem Configuration", font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Configuration options
+        config_frame = ttk.LabelFrame(quick_config_frame, text="Multipliers and Thresholds")
+        config_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Multipliers
+        mult_frame = ttk.Frame(config_frame)
+        mult_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(mult_frame, text="Competencies Multiplier:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        comp_mult_var = tk.IntVar(value=self.school_system.competencies_multiplier)
+        ttk.Entry(mult_frame, textvariable=comp_mult_var, width=10).grid(row=0, column=1, padx=5)
+        
+        ttk.Label(mult_frame, text="Subcompetencies Multiplier:").grid(row=1, column=0, sticky=tk.W, padx=5)
+        subcomp_mult_var = tk.IntVar(value=self.school_system.subcompetencies_multiplier)
+        ttk.Entry(mult_frame, textvariable=subcomp_mult_var, width=10).grid(row=1, column=1, padx=5)
+        
+        # Thresholds
+        thresh_frame = ttk.Frame(config_frame)
+        thresh_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(thresh_frame, text="Min Competencies:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        min_comp_var = tk.IntVar(value=self.school_system.min_competencies_count)
+        ttk.Entry(thresh_frame, textvariable=min_comp_var, width=10).grid(row=0, column=1, padx=5)
+        
+        ttk.Label(thresh_frame, text="Min Subcompetencies:").grid(row=1, column=0, sticky=tk.W, padx=5)
+        min_subcomp_var = tk.IntVar(value=self.school_system.min_subcompetencies_count)
+        ttk.Entry(thresh_frame, textvariable=min_subcomp_var, width=10).grid(row=1, column=1, padx=5)
+        
+        ttk.Label(thresh_frame, text="Min Honor Roll Score:").grid(row=2, column=0, sticky=tk.W, padx=5)
+        min_score_var = tk.DoubleVar(value=self.school_system.min_honor_roll_score)
+        ttk.Entry(thresh_frame, textvariable=min_score_var, width=10).grid(row=2, column=1, padx=5)
+        
+        def apply_config():
+            self.school_system.competencies_multiplier = comp_mult_var.get()
+            self.school_system.subcompetencies_multiplier = subcomp_mult_var.get()
+            self.school_system.min_competencies_count = min_comp_var.get()
+            self.school_system.min_subcompetencies_count = min_subcomp_var.get()
+            self.school_system.min_honor_roll_score = min_score_var.get()
+            self.refresh_honor_roll_tab()
+            messagebox.showinfo("Configuration", "Settings updated successfully!")
+        
+        ttk.Button(config_frame, text="Apply Settings", command=apply_config).pack(pady=10)
+        
+        # Results Preview Tab
+        results_frame = ttk.Frame(school_notebook)
+        school_notebook.add(results_frame, text="Results Preview")
+        
+        # Results tree
+        results_tree = ttk.Treeview(results_frame, show='headings')
+        results_tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Populate results
+        def refresh_results():
+            rankings = self.school_system.get_honor_roll_ranking()
+            
+            columns = ["Rank", "Team", "Final Points", "Honor Roll Score", "Curved Score", "C/SC/RP", "Status"]
+            results_tree["columns"] = columns
+            
+            for col in columns:
+                results_tree.heading(col, text=col)
+                results_tree.column(col, width=100)
+            
+            results_tree.delete(*results_tree.get_children())
+            
+            for rank, (team_num, results) in enumerate(rankings, 1):
+                c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+                status = "Qualified"
+                
+                results_tree.insert("", tk.END, values=[
+                    rank, team_num, results.final_points,
+                    f"{results.honor_roll_score:.1f}", f"{results.curved_score:.1f}",
+                    f"{c}/{sc}/{rp}", status
+                ])
+            
+            # Add disqualified teams
+            disqualified = self.school_system.get_disqualified_teams()
+            for team_num, reason in disqualified:
+                c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+                results_tree.insert("", tk.END, values=[
+                    "DQ", team_num, "0", "0.0", "0.0", f"{c}/{sc}/{rp}", reason[:30]
+                ])
+        
+        ttk.Button(results_frame, text="Refresh Results", command=refresh_results).pack(pady=5)
+        refresh_results()
+
+    def auto_populate_school_system(self):
+        """Auto-populate SchoolSystem with teams from raw data"""
+        team_data = self.analizador.get_team_data_grouped()
+        if not team_data:
+            messagebox.showwarning("No Data", "No team data available. Please load some data first.")
+            return
+        
+        teams_added = 0
+        for team_number in team_data.keys():
+            self.school_system.add_team(team_number)
+            
+            # Try to map existing data to SchoolSystem scores
+            # This is a basic mapping - you might want to customize this
+            self.school_system.update_autonomous_score(team_number, 75.0)  # Default values
+            self.school_system.update_teleop_score(team_number, 80.0)
+            self.school_system.update_endgame_score(team_number, 70.0)
+            self.school_system.update_electrical_score(team_number, 85.0)
+            self.school_system.update_mechanical_score(team_number, 80.0)
+            self.school_system.update_driver_station_layout_score(team_number, 75.0)
+            self.school_system.update_tools_score(team_number, 70.0)
+            self.school_system.update_spare_parts_score(team_number, 65.0)
+            self.school_system.update_team_organization_score(team_number, 80.0)
+            self.school_system.update_collaboration_score(team_number, 85.0)
+            
+            # Set some default competencies
+            self.school_system.update_competency(team_number, "team_communication", True)
+            self.school_system.update_competency(team_number, "driving_skills", True)
+            self.school_system.update_competency(team_number, "working_under_pressure", True)
+            
+            teams_added += 1
+        
+        self.refresh_honor_roll_tab()
+        messagebox.showinfo("Auto-populate", f"Added {teams_added} teams to SchoolSystem with default scores.")
+
+    def manual_team_entry(self):
+        """Open manual team entry dialog"""
+        team_num = simpledialog.askstring("Manual Entry", "Enter team number:")
+        if not team_num:
+            return
+        
+        self.school_system.add_team(team_num)
+        self.edit_team_scores_for_team(team_num)
+
+    def edit_team_scores(self):
+        """Open team selection for score editing"""
+        if not self.school_system.teams:
+            messagebox.showwarning("No Teams", "No teams in SchoolSystem. Please add teams first.")
+            return
+        
+        # Create team selection dialog
+        selection_window = tk.Toplevel(self.root)
+        selection_window.title("Select Team to Edit")
+        selection_window.geometry("300x400")
+        selection_window.transient(self.root)
+        
+        ttk.Label(selection_window, text="Select a team to edit:").pack(pady=10)
+        
+        team_listbox = tk.Listbox(selection_window)
+        team_listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        for team_num in sorted(self.school_system.teams.keys()):
+            team_listbox.insert(tk.END, team_num)
+        
+        def edit_selected():
+            selection = team_listbox.curselection()
+            if selection:
+                team_num = team_listbox.get(selection[0])
+                selection_window.destroy()
+                self.edit_team_scores_for_team(team_num)
+        
+        ttk.Button(selection_window, text="Edit Selected Team", command=edit_selected).pack(pady=10)
+
+    def edit_team_scores_for_team(self, team_number):
+        """Open detailed score editing window for a specific team"""
+        edit_window = tk.Toplevel(self.root)
+        edit_window.title(f"Edit Scores - Team {team_number}")
+        edit_window.geometry("600x700")
+        edit_window.transient(self.root)
+        
+        # Create scrollable frame
+        canvas = tk.Canvas(edit_window)
+        scrollbar = ttk.Scrollbar(edit_window, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Get current scores
+        current_scores = self.school_system.teams[team_number]
+        
+        # Variables for all scores
+        score_vars = {}
+        
+        # Match Performance Section
+        match_frame = ttk.LabelFrame(scrollable_frame, text="Match Performance (50%)")
+        match_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        score_vars['autonomous'] = tk.DoubleVar(value=current_scores.autonomous_score)
+        score_vars['teleop'] = tk.DoubleVar(value=current_scores.teleop_score)
+        score_vars['endgame'] = tk.DoubleVar(value=current_scores.endgame_score)
+        
+        ttk.Label(match_frame, text="Autonomous Score (20%):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(match_frame, textvariable=score_vars['autonomous'], width=10).grid(row=0, column=1, padx=5, pady=2)
+        
+        ttk.Label(match_frame, text="Teleop Score (60%):").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(match_frame, textvariable=score_vars['teleop'], width=10).grid(row=1, column=1, padx=5, pady=2)
+        
+        ttk.Label(match_frame, text="Endgame Score (20%):").grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(match_frame, textvariable=score_vars['endgame'], width=10).grid(row=2, column=1, padx=5, pady=2)
+        
+        # Pit Scouting Section
+        pit_frame = ttk.LabelFrame(scrollable_frame, text="Pit Scouting (30%)")
+        pit_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        score_vars['electrical'] = tk.DoubleVar(value=current_scores.electrical_score)
+        score_vars['mechanical'] = tk.DoubleVar(value=current_scores.mechanical_score)
+        score_vars['driver_station'] = tk.DoubleVar(value=current_scores.driver_station_layout_score)
+        score_vars['tools'] = tk.DoubleVar(value=current_scores.tools_score)
+        score_vars['spare_parts'] = tk.DoubleVar(value=current_scores.spare_parts_score)
+        
+        pit_scores = [
+            ("Electrical (33.33%):", 'electrical'),
+            ("Mechanical (25%):", 'mechanical'),
+            ("Driver Station Layout (16.67%):", 'driver_station'),
+            ("Tools (16.67%):", 'tools'),
+            ("Spare Parts (8.33%):", 'spare_parts')
+        ]
+        
+        for i, (label, var_key) in enumerate(pit_scores):
+            ttk.Label(pit_frame, text=label).grid(row=i, column=0, sticky=tk.W, padx=5, pady=2)
+            ttk.Entry(pit_frame, textvariable=score_vars[var_key], width=10).grid(row=i, column=1, padx=5, pady=2)
+        
+        # During Event Section
+        event_frame = ttk.LabelFrame(scrollable_frame, text="During Event (20%)")
+        event_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        score_vars['organization'] = tk.DoubleVar(value=current_scores.team_organization_score)
+        score_vars['collaboration'] = tk.DoubleVar(value=current_scores.collaboration_score)
+        
+        ttk.Label(event_frame, text="Team Organization (50%):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(event_frame, textvariable=score_vars['organization'], width=10).grid(row=0, column=1, padx=5, pady=2)
+        
+        ttk.Label(event_frame, text="Collaboration (50%):").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(event_frame, textvariable=score_vars['collaboration'], width=10).grid(row=1, column=1, padx=5, pady=2)
+        
+        # Competencies Section
+        comp_frame = ttk.LabelFrame(scrollable_frame, text="Competencies & Subcompetencies")
+        comp_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        competencies = current_scores.competencies
+        comp_vars = {}
+        
+        # Competencies
+        comp_items = [
+            ("Team Communication", 'team_communication'),
+            ("Driving Skills", 'driving_skills'),
+            ("Reliability", 'reliability'),
+            ("No Deaths", 'no_deaths'),
+            ("Pasar Inspección Primera", 'pasar_inspeccion_primera'),
+            ("Human Player", 'human_player'),
+            ("Necessary Drivers Fix", 'necessary_drivers_fix')
+        ]
+        
+        ttk.Label(comp_frame, text="Competencies:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, pady=5)
+        
+        for i, (label, attr) in enumerate(comp_items, 1):
+            comp_vars[attr] = tk.BooleanVar(value=getattr(competencies, attr))
+            ttk.Checkbutton(comp_frame, text=label, variable=comp_vars[attr]).grid(row=i, column=0, sticky=tk.W, padx=5, pady=1)
+        
+        # Subcompetencies
+        subcomp_items = [
+            ("Working Under Pressure", 'working_under_pressure'),
+            ("Commitment", 'commitment'),
+            ("Win Most Games", 'win_most_games'),
+            ("Never Ask Pit Admin", 'never_ask_pit_admin'),
+            ("Knows the Rules", 'knows_the_rules')
+        ]
+        
+        ttk.Label(comp_frame, text="Subcompetencies:", font=("Arial", 10, "bold")).grid(row=0, column=2, columnspan=2, pady=5)
+        
+        for i, (label, attr) in enumerate(subcomp_items, 1):
+            comp_vars[attr] = tk.BooleanVar(value=getattr(competencies, attr))
+            ttk.Checkbutton(comp_frame, text=label, variable=comp_vars[attr]).grid(row=i, column=2, sticky=tk.W, padx=5, pady=1)
+        
+        # Behavior Reports Section
+        behavior_frame = ttk.LabelFrame(scrollable_frame, text="Behavior Reports")
+        behavior_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Label(behavior_frame, text=f"Current penalty points: {competencies.get_behavior_reports_points()}").pack(pady=5)
+        
+        def add_low_conduct():
+            self.school_system.add_behavior_report(team_number, BehaviorReportType.LOW_CONDUCT)
+            refresh_behavior_display()
+        
+        def add_very_low_conduct():
+            self.school_system.add_behavior_report(team_number, BehaviorReportType.VERY_LOW_CONDUCT)
+            refresh_behavior_display()
+        
+        def clear_reports():
+            self.school_system.teams[team_number].competencies.behavior_reports.clear()
+            refresh_behavior_display()
+        
+        def refresh_behavior_display():
+            current_points = self.school_system.teams[team_number].competencies.get_behavior_reports_points()
+            ttk.Label(behavior_frame, text=f"Current penalty points: {current_points}").pack(pady=5)
+        
+        behavior_btn_frame = ttk.Frame(behavior_frame)
+        behavior_btn_frame.pack(pady=5)
+        
+        ttk.Button(behavior_btn_frame, text="Add Low Conduct (+2)", command=add_low_conduct).pack(side=tk.LEFT, padx=2)
+        ttk.Button(behavior_btn_frame, text="Add Very Low Conduct (+5)", command=add_very_low_conduct).pack(side=tk.LEFT, padx=2)
+        ttk.Button(behavior_btn_frame, text="Clear All Reports", command=clear_reports).pack(side=tk.LEFT, padx=2)
+        
+        # Save button
+        def save_scores():
+            # Update all scores
+            self.school_system.update_autonomous_score(team_number, score_vars['autonomous'].get())
+            self.school_system.update_teleop_score(team_number, score_vars['teleop'].get())
+            self.school_system.update_endgame_score(team_number, score_vars['endgame'].get())
+            self.school_system.update_electrical_score(team_number, score_vars['electrical'].get())
+            self.school_system.update_mechanical_score(team_number, score_vars['mechanical'].get())
+            self.school_system.update_driver_station_layout_score(team_number, score_vars['driver_station'].get())
+            self.school_system.update_tools_score(team_number, score_vars['tools'].get())
+            self.school_system.update_spare_parts_score(team_number, score_vars['spare_parts'].get())
+            self.school_system.update_team_organization_score(team_number, score_vars['organization'].get())
+            self.school_system.update_collaboration_score(team_number, score_vars['collaboration'].get())
+            
+            # Update competencies
+            for attr, var in comp_vars.items():
+                self.school_system.update_competency(team_number, attr, var.get())
+            
+            self.refresh_honor_roll_tab()
+            messagebox.showinfo("Saved", f"Scores updated for Team {team_number}")
+            edit_window.destroy()
+        
+        ttk.Button(scrollable_frame, text="Save All Changes", command=save_scores).pack(pady=20)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+    def refresh_honor_roll_tab(self):
+        """Refresh the Honor Roll System tab"""
+        if not hasattr(self, 'tree_honor_roll'):
+            return
+        
+        rankings = self.school_system.get_honor_roll_ranking()
+        disqualified = self.school_system.get_disqualified_teams()
+        
+        columns = ["Rank", "Team", "Final Points", "Honor Roll", "Curved", "Match Perf", "Pit Scout", "During Event", "C/SC/RP", "Status"]
+        self.tree_honor_roll["columns"] = columns
+        
+        for col in columns:
+            self.tree_honor_roll.heading(col, text=col)
+            if col in ["Team", "Status"]:
+                self.tree_honor_roll.column(col, width=80)
+            else:
+                self.tree_honor_roll.column(col, width=90)
+        
+        self.tree_honor_roll.delete(*self.tree_honor_roll.get_children())
+        
+        # Add qualified teams
+        for rank, (team_num, results) in enumerate(rankings, 1):
+            c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+            
+            self.tree_honor_roll.insert("", tk.END, values=[
+                rank,
+                team_num,
+                results.final_points,
+                f"{results.honor_roll_score:.1f}",
+                f"{results.curved_score:.1f}",
+                f"{results.match_performance_score:.1f}",
+                f"{results.pit_scouting_score:.1f}",
+                f"{results.during_event_score:.1f}",
+                f"{c}/{sc}/{rp}",
+                "Qualified"
+            ])
+        
+        # Add disqualified teams
+        for team_num, reason in disqualified:
+            calculated = self.school_system.calculated_scores.get(team_num)
+            c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+            
+            if calculated:
+                self.tree_honor_roll.insert("", tk.END, values=[
+                    "DQ",
+                    team_num,
+                    "0",
+                    f"{calculated.honor_roll_score:.1f}",
+                    "0.0",
+                    f"{calculated.match_performance_score:.1f}",
+                    f"{calculated.pit_scouting_score:.1f}",
+                    f"{calculated.during_event_score:.1f}",
+                    f"{c}/{sc}/{rp}",
+                    reason[:20] + "..." if len(reason) > 20 else reason
+                ])
+
+    def export_honor_roll(self):
+        """Export Honor Roll results to CSV"""
+        if not self.school_system.teams:
+            messagebox.showwarning("No Data", "No teams in SchoolSystem to export.")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+            title="Export Honor Roll Results"
+        )
+        
+        if file_path:
+            try:
+                rankings = self.school_system.get_honor_roll_ranking()
+                disqualified = self.school_system.get_disqualified_teams()
+                
+                with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    
+                    # Write header
+                    writer.writerow([
+                        "Rank", "Team", "Final Points", "Honor Roll Score", "Curved Score",
+                        "Match Performance", "Pit Scouting", "During Event",
+                        "Competencies", "Subcompetencies", "Behavior Reports", "Status", "Notes"
+                    ])
+                    
+                    # Write qualified teams
+                    for rank, (team_num, results) in enumerate(rankings, 1):
+                        c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+                        
+                        writer.writerow([
+                            rank, team_num, results.final_points,
+                            f"{results.honor_roll_score:.2f}", f"{results.curved_score:.2f}",
+                            f"{results.match_performance_score:.2f}",
+                            f"{results.pit_scouting_score:.2f}",
+                            f"{results.during_event_score:.2f}",
+                            c, sc, rp, "Qualified", ""
+                        ])
+                    
+                    # Write disqualified teams
+                    for team_num, reason in disqualified:
+                        calculated = self.school_system.calculated_scores.get(team_num)
+                        c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+                        
+                        if calculated:
+                            writer.writerow([
+                                "DQ", team_num, 0,
+                                f"{calculated.honor_roll_score:.2f}", "0.00",
+                                f"{calculated.match_performance_score:.2f}",
+                                f"{calculated.pit_scouting_score:.2f}",
+                                f"{calculated.during_event_score:.2f}",
+                                c, sc, rp, "Disqualified", reason
+                            ])
+                
+                # Export summary statistics
+                stats = self.school_system.get_summary_stats()
+                summary_path = file_path.replace('.csv', '_summary.txt')
+                
+                with open(summary_path, 'w', encoding='utf-8') as summary_file:
+                    summary_file.write("SchoolSystem Honor Roll Summary\n")
+                    summary_file.write("=" * 40 + "\n\n")
+                    summary_file.write(f"Total Teams: {stats['total_teams']}\n")
+                    summary_file.write(f"Qualified Teams: {stats['qualified_teams']}\n")
+                    summary_file.write(f"Disqualified Teams: {stats['disqualified_teams']}\n")
+                    summary_file.write(f"Average Honor Roll Score: {stats['avg_honor_roll_score']:.2f}\n")
+                    summary_file.write(f"Average Final Points: {stats['avg_final_points']:.2f}\n\n")
+                    
+                    summary_file.write("Configuration:\n")
+                    summary_file.write(f"  Competencies Multiplier: {self.school_system.competencies_multiplier}\n")
+                    summary_file.write(f"  Subcompetencies Multiplier: {self.school_system.subcompetencies_multiplier}\n")
+                    summary_file.write(f"  Min Competencies: {self.school_system.min_competencies_count}\n")
+                    summary_file.write(f"  Min Subcompetencies: {self.school_system.min_subcompetencies_count}\n")
+                    summary_file.write(f"  Min Honor Roll Score: {self.school_system.min_honor_roll_score}\n")
+                
+                messagebox.showinfo("Export Complete", 
+                                  f"Honor Roll results exported to:\n{file_path}\n\n"
+                                  f"Summary exported to:\n{summary_path}")
+                self.status_var.set(f"Honor Roll exported to {os.path.basename(file_path)}")
+                
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Failed to export Honor Roll: {e}")
 
     def test_camera(self):
         """Test camera access without starting the full QR scanner."""
