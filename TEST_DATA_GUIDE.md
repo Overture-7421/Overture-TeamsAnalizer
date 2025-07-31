@@ -153,10 +153,10 @@ python main.py
 2. Formar contra-alianza para scoring puro
 3. **Respuesta esperada**: Anti: 7890+5678, Counter: 1234+3456
 
-### Ejercicio 3: "Dark Horse Discovery"
+### Ejercicio 3: "Gallito de Oro Discovery"
 1. Encontrar el equipo con mayor potencial oculto
 2. Usar RobotValuation con peso temporal
-3. **Respuesta esperada**: 3456 como dark horse
+3. **Respuesta esperada**: 3456 como Gallito de Oro
 
 ### Ejercicio 4: "Risk Assessment"
 1. Calcular "reliability score" personalizado
