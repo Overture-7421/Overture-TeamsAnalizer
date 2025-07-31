@@ -1,4 +1,5 @@
 import csv
+import json
 import math
 from collections import Counter, defaultdict
 import tkinter as tk
@@ -647,6 +648,129 @@ class AnalizadorRobot:
             perf[team].sort(key=lambda x: x[0])
         return perf
 
+    def export_columns_config(self, file_path):
+        """
+        Exporta la configuración actual de columnas a un archivo JSON.
+        
+        Args:
+            file_path (str): Ruta donde guardar el archivo JSON
+        """
+        config = {
+            "version": "1.0",
+            "timestamp": f"{tk.TkVersion}",
+            "headers": self.get_current_headers(),
+            "column_configuration": {
+                "numeric_for_overall": self._selected_numeric_columns_for_overall,
+                "stats_columns": self._selected_stats_columns,
+                "mode_boolean_columns": self._mode_boolean_columns
+            },
+            "robot_valuation": {
+                "phase_weights": self.robot_valuation_phase_weights,
+                "phase_names": self.robot_valuation_phase_names
+            },
+            "metadata": {
+                "total_columns": len(self.get_current_headers()),
+                "description": "Alliance Simulator Column Configuration"
+            }
+        }
+        
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
+            print(f"Configuración exportada exitosamente a: {file_path}")
+            return True
+        except Exception as e:
+            print(f"Error al exportar configuración: {e}")
+            return False
+
+    def import_columns_config(self, file_path):
+        """
+        Importa la configuración de columnas desde un archivo JSON.
+        
+        Args:
+            file_path (str): Ruta del archivo JSON a importar
+            
+        Returns:
+            tuple: (success: bool, message: str)
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            # Validar estructura básica
+            if "column_configuration" not in config:
+                return False, "Archivo JSON no contiene configuración de columnas válida"
+            
+            col_config = config["column_configuration"]
+            current_headers = self.get_current_headers()
+            
+            # Validar que las columnas en el archivo existen en los datos actuales
+            missing_columns = []
+            
+            # Validar columnas numéricas para overall
+            if "numeric_for_overall" in col_config:
+                numeric_cols = col_config["numeric_for_overall"]
+                missing = [col for col in numeric_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._selected_numeric_columns_for_overall = numeric_cols
+            
+            # Validar columnas de estadísticas
+            if "stats_columns" in col_config:
+                stats_cols = col_config["stats_columns"]
+                missing = [col for col in stats_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._selected_stats_columns = stats_cols
+            
+            # Validar columnas booleanas de modo
+            if "mode_boolean_columns" in col_config:
+                mode_cols = col_config["mode_boolean_columns"]
+                missing = [col for col in mode_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._mode_boolean_columns = mode_cols
+            
+            # Importar configuración de RobotValuation si existe
+            if "robot_valuation" in config:
+                robot_val = config["robot_valuation"]
+                if "phase_weights" in robot_val and len(robot_val["phase_weights"]) == 3:
+                    weights = robot_val["phase_weights"]
+                    if abs(sum(weights) - 1.0) < 0.01:  # Verificar que sumen ~1.0
+                        self.robot_valuation_phase_weights = weights
+            
+            if missing_columns:
+                missing_unique = list(set(missing_columns))
+                return False, f"Las siguientes columnas no existen en los datos actuales: {', '.join(missing_unique)}"
+            
+            print(f"Configuración importada exitosamente desde: {file_path}")
+            return True, "Configuración importada exitosamente"
+            
+        except FileNotFoundError:
+            return False, "Archivo no encontrado"
+        except json.JSONDecodeError:
+            return False, "Error al decodificar JSON - archivo corrupto o formato inválido"
+        except Exception as e:
+            return False, f"Error al importar configuración: {str(e)}"
+
+    def get_columns_config_summary(self):
+        """
+        Retorna un resumen de la configuración actual de columnas.
+        
+        Returns:
+            dict: Resumen de la configuración
+        """
+        return {
+            "total_headers": len(self.get_current_headers()),
+            "numeric_for_overall_count": len(self._selected_numeric_columns_for_overall),
+            "stats_columns_count": len(self._selected_stats_columns),
+            "mode_boolean_count": len(self._mode_boolean_columns),
+            "robot_valuation_weights": self.robot_valuation_phase_weights
+        }
+
 # GUI Application
 class AnalizadorGUI:
     def __init__(self, root, analizador):
@@ -929,25 +1053,94 @@ class AnalizadorGUI:
         cfg.title("Configure Columns")
         cfg.transient(self.root)
         cfg.grab_set()
+        cfg.geometry("800x600")
+        
         headers = self.analizador.get_current_headers()
+
+        # Frame principal con scroll
+        main_frame = tk.Frame(cfg)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Frame para botones de Import/Export en la parte superior
+        import_export_frame = tk.Frame(main_frame)
+        import_export_frame.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Label(import_export_frame, text="Gestión de Configuraciones:", 
+                font=("Arial", 12, "bold")).pack(anchor=tk.W)
+        
+        buttons_frame = tk.Frame(import_export_frame)
+        buttons_frame.pack(fill=tk.X, pady=5)
+
+        def export_config():
+            file_path = filedialog.asksaveasfilename(
+                title="Exportar Configuración de Columnas",
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+            if file_path:
+                if self.analizador.export_columns_config(file_path):
+                    messagebox.showinfo("Éxito", f"Configuración exportada exitosamente a:\n{file_path}")
+                else:
+                    messagebox.showerror("Error", "Error al exportar la configuración")
+
+        def import_config():
+            file_path = filedialog.askopenfilename(
+                title="Importar Configuración de Columnas",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+            if file_path:
+                success, message = self.analizador.import_columns_config(file_path)
+                if success:
+                    messagebox.showinfo("Éxito", message)
+                    # Actualizar las variables de checkboxes con la nueva configuración
+                    for h in headers:
+                        var_nums[h].set(h in self.analizador._selected_numeric_columns_for_overall)
+                        var_stats[h].set(h in self.analizador._selected_stats_columns)
+                        var_modes[h].set(h in self.analizador._mode_boolean_columns)
+                else:
+                    messagebox.showerror("Error", message)
+
+        tk.Button(buttons_frame, text="📤 Exportar Configuración", command=export_config, 
+                 bg="#4CAF50", fg="white", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 10))
+        tk.Button(buttons_frame, text="📥 Importar Configuración", command=import_config,
+                 bg="#2196F3", fg="white", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+
+        # Separador
+        separator = tk.Frame(main_frame, height=2, bg="gray")
+        separator.pack(fill=tk.X, pady=10)
 
         # Variables para checkboxes
         var_nums = {h: tk.BooleanVar(value=h in self.analizador._selected_numeric_columns_for_overall) for h in headers}
         var_stats = {h: tk.BooleanVar(value=h in self.analizador._selected_stats_columns) for h in headers}
         var_modes = {h: tk.BooleanVar(value=h in self.analizador._mode_boolean_columns) for h in headers}
 
-        frm = ttk.Frame(cfg)
+        # Frame con scroll para los checkboxes
+        canvas = tk.Canvas(main_frame)
+        scrollbar = tk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        frm = ttk.Frame(scrollable_frame)
         frm.pack(padx=10, pady=10)
 
-        ttk.Label(frm, text="Numeric for overall").grid(row=0, column=0, padx=5, pady=5)
-        ttk.Label(frm, text="Stats columns").grid(row=0, column=1, padx=5, pady=5)
-        ttk.Label(frm, text="Mode boolean").grid(row=0, column=2, padx=5, pady=5)
+        # Add a title and headers
+        ttk.Label(frm, text="Select columns for each category:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=3, pady=(0,8))
+        ttk.Label(frm, text="Numeric for overall").grid(row=1, column=0, padx=5, pady=5)
+        ttk.Label(frm, text="Stats columns").grid(row=1, column=1, padx=5, pady=5)
+        ttk.Label(frm, text="Mode boolean").grid(row=1, column=2, padx=5, pady=5)
 
         # Crear columnas de checkboxes
         for i, h in enumerate(headers):
-            ttk.Checkbutton(frm, text=h, variable=var_nums[h]).grid(row=i+1, column=0, sticky='w')
-            ttk.Checkbutton(frm, text=h, variable=var_stats[h]).grid(row=i+1, column=1, sticky='w')
-            ttk.Checkbutton(frm, text=h, variable=var_modes[h]).grid(row=i+1, column=2, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_nums[h]).grid(row=i+2, column=0, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_stats[h]).grid(row=i+2, column=1, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_modes[h]).grid(row=i+2, column=2, sticky='w')
 
         def apply_cfg():
             sel_nums  = [h for h in headers if var_nums[h].get()]
@@ -959,10 +1152,22 @@ class AnalizadorGUI:
             cfg.destroy()
             self.refresh_all()
 
-        # Add a title and a close button for better UX
-        ttk.Label(frm, text="Select columns for each category:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=3, pady=(0,8))
-        ttk.Button(frm, text="Close", command=cfg.destroy).grid(row=len(headers)+2, column=2, pady=10, sticky='e')
-        ttk.Button(frm, text="Apply", command=apply_cfg).grid(row=len(headers)+1, column=1, pady=10)
+        # Botones en la parte inferior
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=10)
+        
+        ttk.Button(button_frame, text="Apply", command=apply_cfg).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Close", command=cfg.destroy).pack(side=tk.RIGHT, padx=5)
+
+        # Configurar el canvas y scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Bind mousewheel to canvas
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        
         cfg.wait_window()
 
     def configure_robot_valuation_weights(self):

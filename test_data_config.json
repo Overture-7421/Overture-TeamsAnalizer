@@ -1,0 +1,85 @@
+{
+    "version": "1.0",
+    "timestamp": "8.6",
+    "description": "Configuración optimizada para datos de test de Alliance Simulator",
+    "headers": [
+        "Lead Scouter",
+        "Highlights Scouter Name", 
+        "Scouter Name",
+        "Match Number",
+        "Future Alliance in Qualy?",
+        "Team Number",
+        "Did something?",
+        "Did Foul?",
+        "Did auton worked?",
+        "Coral L1 Scored",
+        "Coral L2 Scored",
+        "Coral L3 Scored",
+        "Coral L4 Scored",
+        "Played Algae?(Disloged NO COUNT)",
+        "Algae Scored in Barge",
+        "Crossed Feild/Played Defense?",
+        "Tipped/Fell Over?",
+        "Died?",
+        "Was the robot Defended by someone?",
+        "Yellow/Red Card",
+        "Climbed?"
+    ],
+    "column_configuration": {
+        "numeric_for_overall": [
+            "Coral L1 Scored",
+            "Coral L2 Scored", 
+            "Coral L3 Scored",
+            "Coral L4 Scored",
+            "Algae Scored in Barge"
+        ],
+        "stats_columns": [
+            "Team Number",
+            "Match Number",
+            "Did something?",
+            "Did auton worked?",
+            "Coral L1 Scored",
+            "Coral L2 Scored",
+            "Coral L3 Scored", 
+            "Coral L4 Scored",
+            "Algae Scored in Barge",
+            "Crossed Feild/Played Defense?",
+            "Climbed?",
+            "Did Foul?",
+            "Tipped/Fell Over?",
+            "Died?",
+            "Yellow/Red Card",
+            "Future Alliance in Qualy?",
+            "Was the robot Defended by someone?",
+            "Played Algae?(Disloged NO COUNT)"
+        ],
+        "mode_boolean_columns": [
+            "Did something?",
+            "Did auton worked?",
+            "Crossed Feild/Played Defense?",
+            "Climbed?",
+            "Future Alliance in Qualy?",
+            "Did Foul?",
+            "Tipped/Fell Over?",
+            "Died?",
+            "Yellow/Red Card",
+            "Was the robot Defended by someone?",
+            "Played Algae?(Disloged NO COUNT)"
+        ]
+    },
+    "robot_valuation": {
+        "phase_weights": [0.25, 0.35, 0.4],
+        "phase_names": ["Q1", "Q2", "Q3"]
+    },
+    "metadata": {
+        "total_columns": 21,
+        "description": "Configuración optimizada para competencias de robótica tipo FIRST",
+        "optimization_notes": {
+            "numeric_columns": "Enfocado en scoring de corales y algas como métricas principales",
+            "stats_columns": "Incluye todas las métricas relevantes excluyendo nombres de scouts", 
+            "boolean_columns": "Todas las preguntas sí/no para análisis de patrones",
+            "phase_weights": "Peso mayor en Q3 para valorar mejora progresiva (25%-35%-40%)"
+        },
+        "recommended_use": "Cargar esta configuración después de importar test_data.csv para análisis óptimo"
+    }
+}
