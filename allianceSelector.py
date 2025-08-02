@@ -63,7 +63,10 @@ class Alliance:
 class AllianceSelector:
     def __init__(self, teams):
         self.teams = sorted(teams, key=lambda t: t.rank)
-        self.alliances = [Alliance(i+1) for i in range(8)]
+        # Official FIRST competitions always have exactly 8 alliances
+        # However, if there are fewer than 8 teams, we adjust accordingly
+        max_alliances = min(8, len(teams))
+        self.alliances = [Alliance(i+1) for i in range(max_alliances)]
         self.update_alliance_captains()
         self.update_recommendations()
 
@@ -88,17 +91,13 @@ class AllianceSelector:
 
     def get_available_teams(self, drafting_captain_rank, pick_type):
         selected = self.get_selected_picks()
-        if pick_type == 'pick2':
-            captains = [a.captain for a in self.alliances if a.captain]
-            available = [t for t in self.teams if t.team not in selected and t.team not in captains]
-        else:
-            captains = [a.captain for a in self.alliances if a.captain]
-            available = []
-            for t in self.teams:
-                if t.team not in selected:
-                    available.append(t)
-                elif t.team in captains and t.rank > drafting_captain_rank:
-                    available.append(t)
+        captains = [a.captain for a in self.alliances if a.captain]
+        
+        # For both pick1 and pick2, exclude:
+        # 1. Already selected picks
+        # 2. Current alliance captains (captains can never be picked)
+        available = [t for t in self.teams if t.team not in selected and t.team not in captains]
+        
         # Sort by score descending, then by rank ascending for tie-breaker
         available.sort(key=lambda t: (-t.score, t.rank))
         return available
@@ -145,13 +144,22 @@ class AllianceSelector:
 
     def set_pick(self, alliance_index, pick_type, team_number):
         team_number = int(team_number)
-        if pick_type == 'pick2':
-            captains = [a.captain for a in self.alliances if a.captain]
-            if team_number in captains:
-                raise ValueError("Cannot pick an alliance captain for the second pick.")
+        
+        # Check if the team is already a captain (captains cannot be picked)
+        captains = [a.captain for a in self.alliances if a.captain]
+        if team_number in captains:
+            raise ValueError(f"Cannot pick team {team_number} - it is already an alliance captain.")
+        
+        # Check if the team is already selected as a pick
         selected = self.get_selected_picks()
         if team_number in selected:
-            raise ValueError("Team already selected.")
+            raise ValueError(f"Team {team_number} is already selected as a pick.")
+        
+        # Verify the team exists in our team list
+        team_exists = any(t.team == team_number for t in self.teams)
+        if not team_exists:
+            raise ValueError(f"Team {team_number} does not exist in the team list.")
+        
         setattr(self.alliances[alliance_index], pick_type, team_number)
         self.update_alliance_captains()
         self.update_recommendations()
@@ -181,8 +189,35 @@ class AllianceSelector:
             })
         return table
 
+    def get_selector_info(self):
+        """
+        Retorna información útil sobre el estado actual del selector
+        """
+        captains = [a.captain for a in self.alliances if a.captain]
+        selected_picks = self.get_selected_picks()
+        total_selected = len(captains) + len(selected_picks)
+        available_for_picks = len(self.teams) - len(captains)
+        
+        return {
+            "total_teams": len(self.teams),
+            "total_alliances": len(self.alliances),
+            "active_alliances": len(captains),
+            "captains": captains,
+            "selected_picks": selected_picks,
+            "total_selected": total_selected,
+            "available_for_picks": available_for_picks,
+            "can_make_picks": available_for_picks > 0
+        }
+
     def update_teams(self, teams):
         self.teams = sorted(teams, key=lambda t: t.rank)
+        # Recalculate number of alliances based on new team count
+        max_alliances = min(8, max(1, len(teams) // 2))
+        
+        # If we need to adjust the number of alliances
+        if len(self.alliances) != max_alliances:
+            self.alliances = [Alliance(i+1) for i in range(max_alliances)]
+        
         self.reset_picks()
 
 def teams_from_dicts(team_dicts):
