@@ -31,6 +31,11 @@ class AnalizadorRobot:
             "Died?", "Was the robot Defended by someone?", "Yellow/Red Card", "Climbed?"
         ]
         
+        # Configuración de columnas por fase del juego
+        self._autonomous_columns = []
+        self._teleop_columns = []
+        self._endgame_columns = []
+        
         # sheetData es un List<List<String>> cuya primera fila es siempre el encabezado.
         self.sheet_data = []
         if self.default_column_names:
@@ -73,6 +78,10 @@ class AnalizadorRobot:
         for i, col_name in enumerate(header):
             self._column_indices[col_name.strip()] = i
         
+        # Auto-detectar columnas por fase del juego si no están configuradas
+        if not self._autonomous_columns or not self._teleop_columns or not self._endgame_columns:
+            self._auto_detect_game_phase_columns()
+        
         # Podríamos reinicializar las columnas seleccionadas aquí si el encabezado cambia.
         # self._initialize_selected_columns() # Descomentar si es necesario
 
@@ -94,6 +103,160 @@ class AnalizadorRobot:
             col for col in current_header if col not in excluded_from_stats
         ]
         self._mode_boolean_columns = []  # El usuario elige, por defecto vacío
+
+    def _auto_detect_game_phase_columns(self):
+        """
+        Auto-detecta columnas por fase del juego basándose en palabras clave en los nombres.
+        """
+        if not self.sheet_data or not self.sheet_data[0]:
+            return
+            
+        header = self.sheet_data[0]
+        
+        # Palabras clave para identificar fases del juego
+        autonomous_keywords = ['auton', 'auto', 'autonomous', 'did something', 'did foul', 'worked']
+        teleop_keywords = ['coral', 'algae', 'barge', 'processor', 'crossed', 'defense', 'defended', 'teleop']
+        endgame_keywords = ['climb', 'endgame', 'end game', 'tipped', 'fell over', 'died']
+        
+        # Limpiar listas actuales si están siendo auto-detectadas
+        if not self._autonomous_columns:
+            self._autonomous_columns = []
+        if not self._teleop_columns:
+            self._teleop_columns = []
+        if not self._endgame_columns:
+            self._endgame_columns = []
+            
+        for col_name in header:
+            col_lower = col_name.lower()
+            
+            # Verificar autonomous
+            if any(keyword in col_lower for keyword in autonomous_keywords):
+                if col_name not in self._autonomous_columns:
+                    self._autonomous_columns.append(col_name)
+            
+            # Verificar teleop
+            elif any(keyword in col_lower for keyword in teleop_keywords):
+                if col_name not in self._teleop_columns:
+                    self._teleop_columns.append(col_name)
+            
+            # Verificar endgame
+            elif any(keyword in col_lower for keyword in endgame_keywords):
+                if col_name not in self._endgame_columns:
+                    self._endgame_columns.append(col_name)
+
+    def set_autonomous_columns(self, column_names_list):
+        """Configura manualmente las columnas de autonomous"""
+        self._autonomous_columns = column_names_list.copy()
+        
+    def set_teleop_columns(self, column_names_list):
+        """Configura manualmente las columnas de teleop"""
+        self._teleop_columns = column_names_list.copy()
+        
+    def set_endgame_columns(self, column_names_list):
+        """Configura manualmente las columnas de endgame"""
+        self._endgame_columns = column_names_list.copy()
+        
+    def get_autonomous_columns(self):
+        """Obtiene la lista de columnas de autonomous"""
+        return self._autonomous_columns.copy()
+        
+    def get_teleop_columns(self):
+        """Obtiene la lista de columnas de teleop"""
+        return self._teleop_columns.copy()
+        
+    def get_endgame_columns(self):
+        """Obtiene la lista de columnas de endgame"""
+        return self._endgame_columns.copy()
+
+    def calculate_team_phase_scores(self, team_number):
+        """
+        Calcula los puntajes de autonomous, teleop y endgame para un equipo específico.
+        Retorna un diccionario con los puntajes promedio de cada fase.
+        """
+        team_data = self.get_team_data_grouped().get(str(team_number), [])
+        if not team_data:
+            return {"autonomous": 0, "teleop": 0, "endgame": 0}
+            
+        # Calcular promedios para cada fase
+        phase_scores = {"autonomous": 0, "teleop": 0, "endgame": 0}
+        
+        # Autonomous
+        if self._autonomous_columns:
+            auto_values = []
+            for row in team_data:
+                for col_name in self._autonomous_columns:
+                    if col_name in self._column_indices:
+                        col_idx = self._column_indices[col_name]
+                        if col_idx < len(row):
+                            try:
+                                # Convertir booleanos y strings a números
+                                val = row[col_idx]
+                                if isinstance(val, str):
+                                    if val.lower() in ['true', 'yes', 'y', '1', 'si', 'sí']:
+                                        auto_values.append(100)
+                                    elif val.lower() in ['false', 'no', 'n', '0']:
+                                        auto_values.append(0)
+                                    else:
+                                        auto_values.append(float(val))
+                                elif isinstance(val, bool):
+                                    auto_values.append(100 if val else 0)
+                                else:
+                                    auto_values.append(float(val))
+                            except (ValueError, TypeError):
+                                pass
+            phase_scores["autonomous"] = sum(auto_values) / len(auto_values) if auto_values else 0
+            
+        # Teleop
+        if self._teleop_columns:
+            teleop_values = []
+            for row in team_data:
+                for col_name in self._teleop_columns:
+                    if col_name in self._column_indices:
+                        col_idx = self._column_indices[col_name]
+                        if col_idx < len(row):
+                            try:
+                                val = row[col_idx]
+                                if isinstance(val, str):
+                                    if val.lower() in ['true', 'yes', 'y', '1', 'si', 'sí']:
+                                        teleop_values.append(100)
+                                    elif val.lower() in ['false', 'no', 'n', '0']:
+                                        teleop_values.append(0)
+                                    else:
+                                        teleop_values.append(float(val))
+                                elif isinstance(val, bool):
+                                    teleop_values.append(100 if val else 0)
+                                else:
+                                    teleop_values.append(float(val))
+                            except (ValueError, TypeError):
+                                pass
+            phase_scores["teleop"] = sum(teleop_values) / len(teleop_values) if teleop_values else 0
+            
+        # Endgame
+        if self._endgame_columns:
+            endgame_values = []
+            for row in team_data:
+                for col_name in self._endgame_columns:
+                    if col_name in self._column_indices:
+                        col_idx = self._column_indices[col_name]
+                        if col_idx < len(row):
+                            try:
+                                val = row[col_idx]
+                                if isinstance(val, str):
+                                    if val.lower() in ['true', 'yes', 'y', '1', 'si', 'sí']:
+                                        endgame_values.append(100)
+                                    elif val.lower() in ['false', 'no', 'n', '0']:
+                                        endgame_values.append(0)
+                                    else:
+                                        endgame_values.append(float(val))
+                                elif isinstance(val, bool):
+                                    endgame_values.append(100 if val else 0)
+                                else:
+                                    endgame_values.append(float(val))
+                            except (ValueError, TypeError):
+                                pass
+            phase_scores["endgame"] = sum(endgame_values) / len(endgame_values) if endgame_values else 0
+            
+        return phase_scores
 
     def _find_potential_numeric_columns(self, header, sample_data_row=None):
         """
@@ -662,7 +825,10 @@ class AnalizadorRobot:
             "column_configuration": {
                 "numeric_for_overall": self._selected_numeric_columns_for_overall,
                 "stats_columns": self._selected_stats_columns,
-                "mode_boolean_columns": self._mode_boolean_columns
+                "mode_boolean_columns": self._mode_boolean_columns,
+                "autonomous_columns": self._autonomous_columns,
+                "teleop_columns": self._teleop_columns,
+                "endgame_columns": self._endgame_columns
             },
             "robot_valuation": {
                 "phase_weights": self.robot_valuation_phase_weights,
@@ -734,6 +900,33 @@ class AnalizadorRobot:
                 else:
                     self._mode_boolean_columns = mode_cols
             
+            # Validar columnas de autonomous
+            if "autonomous_columns" in col_config:
+                auto_cols = col_config["autonomous_columns"]
+                missing = [col for col in auto_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._autonomous_columns = auto_cols
+            
+            # Validar columnas de teleop
+            if "teleop_columns" in col_config:
+                teleop_cols = col_config["teleop_columns"]
+                missing = [col for col in teleop_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._teleop_columns = teleop_cols
+            
+            # Validar columnas de endgame
+            if "endgame_columns" in col_config:
+                endgame_cols = col_config["endgame_columns"]
+                missing = [col for col in endgame_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._endgame_columns = endgame_cols
+            
             # Importar configuración de RobotValuation si existe
             if "robot_valuation" in config:
                 robot_val = config["robot_valuation"]
@@ -768,7 +961,15 @@ class AnalizadorRobot:
             "numeric_for_overall_count": len(self._selected_numeric_columns_for_overall),
             "stats_columns_count": len(self._selected_stats_columns),
             "mode_boolean_count": len(self._mode_boolean_columns),
-            "robot_valuation_weights": self.robot_valuation_phase_weights
+            "autonomous_columns_count": len(self._autonomous_columns),
+            "teleop_columns_count": len(self._teleop_columns),
+            "endgame_columns_count": len(self._endgame_columns),
+            "robot_valuation_weights": self.robot_valuation_phase_weights,
+            "game_phases_configured": {
+                "autonomous": self._autonomous_columns,
+                "teleop": self._teleop_columns,
+                "endgame": self._endgame_columns
+            }
         }
 
 # GUI Application
@@ -794,6 +995,7 @@ class AnalizadorGUI:
         ttk.Button(btn_frame, text="Paste QR Data", command=self.load_qr).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Update Header", command=self.update_header).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Configure Columns", command=self.configure_columns).pack(side=tk.LEFT, padx=4, pady=2)
+        ttk.Button(btn_frame, text="Game Phase Config", command=self.show_phase_config).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="RobotValuation Weights", command=self.configure_robot_valuation_weights).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="Plot Team Performance", command=self.open_team_performance_plot).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="SchoolSystem", command=self.open_school_system).pack(side=tk.LEFT, padx=4, pady=2)
@@ -1097,6 +1299,10 @@ class AnalizadorGUI:
                         var_nums[h].set(h in self.analizador._selected_numeric_columns_for_overall)
                         var_stats[h].set(h in self.analizador._selected_stats_columns)
                         var_modes[h].set(h in self.analizador._mode_boolean_columns)
+                        # Actualizar variables de fases del juego
+                        var_auto[h].set(h in self.analizador.get_autonomous_columns())
+                        var_teleop[h].set(h in self.analizador.get_teleop_columns())
+                        var_endgame[h].set(h in self.analizador.get_endgame_columns())
                 else:
                     messagebox.showerror("Error", message)
 
@@ -1113,6 +1319,11 @@ class AnalizadorGUI:
         var_nums = {h: tk.BooleanVar(value=h in self.analizador._selected_numeric_columns_for_overall) for h in headers}
         var_stats = {h: tk.BooleanVar(value=h in self.analizador._selected_stats_columns) for h in headers}
         var_modes = {h: tk.BooleanVar(value=h in self.analizador._mode_boolean_columns) for h in headers}
+        
+        # Variables para fases del juego
+        var_auto = {h: tk.BooleanVar(value=h in self.analizador.get_autonomous_columns()) for h in headers}
+        var_teleop = {h: tk.BooleanVar(value=h in self.analizador.get_teleop_columns()) for h in headers}
+        var_endgame = {h: tk.BooleanVar(value=h in self.analizador.get_endgame_columns()) for h in headers}
 
         # Frame con scroll para los checkboxes
         canvas = tk.Canvas(main_frame)
@@ -1131,24 +1342,47 @@ class AnalizadorGUI:
         frm.pack(padx=10, pady=10)
 
         # Add a title and headers
-        ttk.Label(frm, text="Select columns for each category:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=3, pady=(0,8))
-        ttk.Label(frm, text="Numeric for overall").grid(row=1, column=0, padx=5, pady=5)
-        ttk.Label(frm, text="Stats columns").grid(row=1, column=1, padx=5, pady=5)
-        ttk.Label(frm, text="Mode boolean").grid(row=1, column=2, padx=5, pady=5)
+        ttk.Label(frm, text="Select columns for each category:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=6, pady=(0,8))
+        
+        # Headers para columnas generales
+        ttk.Label(frm, text="Numeric for overall", font=("Segoe UI", 9, "bold")).grid(row=1, column=0, padx=5, pady=5)
+        ttk.Label(frm, text="Stats columns", font=("Segoe UI", 9, "bold")).grid(row=1, column=1, padx=5, pady=5)
+        ttk.Label(frm, text="Mode boolean", font=("Segoe UI", 9, "bold")).grid(row=1, column=2, padx=5, pady=5)
+        
+        # Headers para fases del juego
+        tk.Label(frm, text="Autonomous", font=("Segoe UI", 9, "bold"), fg="blue").grid(row=1, column=3, padx=5, pady=5)
+        tk.Label(frm, text="Teleop", font=("Segoe UI", 9, "bold"), fg="green").grid(row=1, column=4, padx=5, pady=5)
+        tk.Label(frm, text="Endgame", font=("Segoe UI", 9, "bold"), fg="red").grid(row=1, column=5, padx=5, pady=5)
 
         # Crear columnas de checkboxes
         for i, h in enumerate(headers):
             ttk.Checkbutton(frm, text=h, variable=var_nums[h]).grid(row=i+2, column=0, sticky='w')
             ttk.Checkbutton(frm, text=h, variable=var_stats[h]).grid(row=i+2, column=1, sticky='w')
             ttk.Checkbutton(frm, text=h, variable=var_modes[h]).grid(row=i+2, column=2, sticky='w')
+            # Checkboxes para fases del juego
+            ttk.Checkbutton(frm, text=h, variable=var_auto[h]).grid(row=i+2, column=3, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_teleop[h]).grid(row=i+2, column=4, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_endgame[h]).grid(row=i+2, column=5, sticky='w')
 
         def apply_cfg():
             sel_nums  = [h for h in headers if var_nums[h].get()]
             sel_stats = [h for h in headers if var_stats[h].get()]
             sel_modes = [h for h in headers if var_modes[h].get()]
+            
+            # Aplicar configuración de fases del juego
+            sel_auto = [h for h in headers if var_auto[h].get()]
+            sel_teleop = [h for h in headers if var_teleop[h].get()]
+            sel_endgame = [h for h in headers if var_endgame[h].get()]
+            
             self.analizador.set_selected_numeric_columns_for_overall(sel_nums)
             self.analizador.set_selected_stats_columns(sel_stats)
             self.analizador.set_mode_boolean_columns(sel_modes)
+            
+            # Configurar fases del juego
+            self.analizador.set_autonomous_columns(sel_auto)
+            self.analizador.set_teleop_columns(sel_teleop)
+            self.analizador.set_endgame_columns(sel_endgame)
+            
             cfg.destroy()
             self.refresh_all()
 
@@ -1201,6 +1435,99 @@ class AnalizadorGUI:
         ttk.Button(cfg, text="Apply", command=apply).pack(pady=(0,10))
         ttk.Button(cfg, text="Close", command=cfg.destroy).pack()
         cfg.wait_window()
+
+    def show_phase_config(self):
+        """Show current game phase column configuration"""
+        cfg = tk.Toplevel(self.root)
+        cfg.title("Game Phase Column Configuration")
+        cfg.transient(self.root)
+        cfg.grab_set()
+        cfg.geometry("600x500")
+        
+        main_frame = tk.Frame(cfg)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Title
+        ttk.Label(main_frame, text="Current Game Phase Column Configuration", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        # Create notebook for different phases
+        phase_notebook = ttk.Notebook(main_frame)
+        phase_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Autonomous tab
+        auto_frame = ttk.Frame(phase_notebook)
+        phase_notebook.add(auto_frame, text="Autonomous")
+        
+        ttk.Label(auto_frame, text="Autonomous Columns:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=5)
+        auto_columns = self.analizador.get_autonomous_columns()
+        if auto_columns:
+            for col in auto_columns:
+                ttk.Label(auto_frame, text=f"• {col}").pack(anchor=tk.W, padx=20)
+        else:
+            ttk.Label(auto_frame, text="No autonomous columns configured", 
+                     foreground="gray").pack(anchor=tk.W, padx=20)
+        
+        # Teleop tab
+        teleop_frame = ttk.Frame(phase_notebook)
+        phase_notebook.add(teleop_frame, text="Teleop")
+        
+        ttk.Label(teleop_frame, text="Teleop Columns:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=5)
+        teleop_columns = self.analizador.get_teleop_columns()
+        if teleop_columns:
+            for col in teleop_columns:
+                ttk.Label(teleop_frame, text=f"• {col}").pack(anchor=tk.W, padx=20)
+        else:
+            ttk.Label(teleop_frame, text="No teleop columns configured", 
+                     foreground="gray").pack(anchor=tk.W, padx=20)
+        
+        # Endgame tab
+        endgame_frame = ttk.Frame(phase_notebook)
+        phase_notebook.add(endgame_frame, text="Endgame")
+        
+        ttk.Label(endgame_frame, text="Endgame Columns:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=5)
+        endgame_columns = self.analizador.get_endgame_columns()
+        if endgame_columns:
+            for col in endgame_columns:
+                ttk.Label(endgame_frame, text=f"• {col}").pack(anchor=tk.W, padx=20)
+        else:
+            ttk.Label(endgame_frame, text="No endgame columns configured", 
+                     foreground="gray").pack(anchor=tk.W, padx=20)
+        
+        # Summary tab
+        summary_frame = ttk.Frame(phase_notebook)
+        phase_notebook.add(summary_frame, text="Summary")
+        
+        ttk.Label(summary_frame, text="Configuration Summary:", 
+                 font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=5)
+        
+        summary = self.analizador.get_columns_config_summary()
+        summary_text = f"""
+        Total Headers: {summary['total_headers']}
+        
+        Game Phase Columns:
+        • Autonomous: {summary['autonomous_columns_count']} columns
+        • Teleop: {summary['teleop_columns_count']} columns  
+        • Endgame: {summary['endgame_columns_count']} columns
+        
+        Other Columns:
+        • Numeric for Overall: {summary['numeric_for_overall_count']} columns
+        • Stats Columns: {summary['stats_columns_count']} columns
+        • Mode Boolean: {summary['mode_boolean_count']} columns
+        """
+        
+        ttk.Label(summary_frame, text=summary_text, justify=tk.LEFT).pack(anchor=tk.W, padx=20)
+        
+        # Buttons
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Button(button_frame, text="Configure Columns", 
+                  command=lambda: [cfg.destroy(), self.configure_columns()]).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Auto-detect Phases", 
+                  command=lambda: [self.analizador._auto_detect_game_phase_columns(), 
+                                   cfg.destroy(), self.show_phase_config()]).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Close", command=cfg.destroy).pack(side=tk.RIGHT, padx=5)
 
     def refresh_table(self, tree, columns, rows):
         tree.delete(*tree.get_children())
@@ -1849,21 +2176,34 @@ class AnalizadorGUI:
         refresh_results()
 
     def auto_populate_school_system(self):
-        """Auto-populate SchoolSystem with teams from raw data"""
+        """Auto-populate SchoolSystem with teams from raw data using calculated phase scores"""
         team_data = self.analizador.get_team_data_grouped()
         if not team_data:
             messagebox.showwarning("No Data", "No team data available. Please load some data first.")
             return
         
         teams_added = 0
+        teams_with_calculated_scores = 0
+        
         for team_number in team_data.keys():
             self.school_system.add_team(team_number)
             
-            # Try to map existing data to SchoolSystem scores
-            # This is a basic mapping - you might want to customize this
-            self.school_system.update_autonomous_score(team_number, 75.0)  # Default values
-            self.school_system.update_teleop_score(team_number, 80.0)
-            self.school_system.update_endgame_score(team_number, 70.0)
+            # Calculate real scores from game phases
+            phase_scores = self.analizador.calculate_team_phase_scores(int(team_number))
+            
+            if any(score > 0 for score in phase_scores.values()):
+                # Use calculated scores from actual data
+                self.school_system.update_autonomous_score(team_number, phase_scores["autonomous"])
+                self.school_system.update_teleop_score(team_number, phase_scores["teleop"])
+                self.school_system.update_endgame_score(team_number, phase_scores["endgame"])
+                teams_with_calculated_scores += 1
+            else:
+                # Use default values if no data available
+                self.school_system.update_autonomous_score(team_number, 75.0)
+                self.school_system.update_teleop_score(team_number, 80.0)
+                self.school_system.update_endgame_score(team_number, 70.0)
+            
+            # Set default pit scouting scores (these need manual input or separate data source)
             self.school_system.update_electrical_score(team_number, 85.0)
             self.school_system.update_mechanical_score(team_number, 80.0)
             self.school_system.update_driver_station_layout_score(team_number, 75.0)
@@ -1872,15 +2212,38 @@ class AnalizadorGUI:
             self.school_system.update_team_organization_score(team_number, 80.0)
             self.school_system.update_collaboration_score(team_number, 85.0)
             
+            # Try to infer some competencies from performance data
+            team_stats = self.analizador.get_detailed_team_stats()
+            if str(team_number) in team_stats:
+                stats = team_stats[str(team_number)]
+                
+                # Infer reliability based on match consistency
+                if "died_rate" in stats and stats["died_rate"] < 0.1:  # Less than 10% death rate
+                    self.school_system.update_competency(team_number, "no_deaths", True)
+                    self.school_system.update_competency(team_number, "reliability", True)
+                
+                # Infer driving skills based on teleop performance
+                if phase_scores["teleop"] > 75:
+                    self.school_system.update_competency(team_number, "driving_skills", True)
+                
+                # Infer autonomous competency
+                if phase_scores["autonomous"] > 75:
+                    self.school_system.update_competency(team_number, "pasar_inspeccion_primera", True)
+            
             # Set some default competencies
             self.school_system.update_competency(team_number, "team_communication", True)
-            self.school_system.update_competency(team_number, "driving_skills", True)
             self.school_system.update_competency(team_number, "working_under_pressure", True)
             
             teams_added += 1
         
         self.refresh_honor_roll_tab()
-        messagebox.showinfo("Auto-populate", f"Added {teams_added} teams to SchoolSystem with default scores.")
+        
+        message = f"Added {teams_added} teams to SchoolSystem.\n"
+        message += f"{teams_with_calculated_scores} teams have calculated phase scores from actual data.\n"
+        message += f"{teams_added - teams_with_calculated_scores} teams use default values.\n\n"
+        message += "Note: Pit scouting scores still use default values and may need manual adjustment."
+        
+        messagebox.showinfo("Auto-populate Complete", message)
 
     def manual_team_entry(self):
         """Open manual team entry dialog"""

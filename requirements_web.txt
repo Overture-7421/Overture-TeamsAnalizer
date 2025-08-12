@@ -1,0 +1,10 @@
+# Requisitos para la versión web del Alliance Simulator
+streamlit>=1.28.0
+pandas>=2.0.0
+matplotlib>=3.7.0
+opencv-python>=4.8.0
+pyzbar>=0.1.9
+plotly>=5.15.0
+
+# Requisitos originales del programa
+# (ya incluidos en el entorno virtual)
