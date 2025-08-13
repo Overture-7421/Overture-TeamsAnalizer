@@ -8,6 +8,7 @@ import io
 from main import AnalizadorRobot
 from school_system import TeamScoring
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
+from foreshadowing import predict_match  # nuevo para foreshadowing
 
 # Configuración de la página
 st.set_page_config(
@@ -33,6 +34,7 @@ def main():
         "📊 Datos y Configuración",
         "📈 Estadísticas de Equipos", 
         "🤝 Selector de Alianzas",
+        "🔮 Foreshadowing",
         "🏆 Honor Roll System",
         "⚙️ Configuración de Fases"
     ])
@@ -43,6 +45,8 @@ def main():
         page_team_stats()
     elif page == "🤝 Selector de Alianzas":
         page_alliance_selector()
+    elif page == "🔮 Foreshadowing":
+        page_foreshadowing()
     elif page == "🏆 Honor Roll System":
         page_honor_roll()
     elif page == "⚙️ Configuración de Fases":
@@ -397,6 +401,100 @@ def page_phase_config():
                     st.error("❌ Formato de archivo inválido")
             except Exception as e:
                 st.error(f"❌ Error al importar: {e}")
+
+def page_foreshadowing():
+    st.header("🔮 Foreshadowing – Predicción de Match")
+    if not st.session_state.analizador.sheet_data or len(st.session_state.analizador.sheet_data) <= 1:
+        st.warning("⚠️ Carga datos primero en 'Datos y Configuración'.")
+        return
+    team_data = st.session_state.analizador.get_team_data_grouped()
+    if not team_data:
+        st.warning("⚠️ No hay datos de equipos.")
+        return
+    teams_sorted = sorted(team_data.keys(), key=lambda t: int(t))
+    st.subheader("Selecciona equipos (3 y 3)")
+    col_r, col_b = st.columns(2)
+    with col_r:
+        red_sel = st.multiselect("Red Alliance", teams_sorted, key="fo_red", max_selections=3)
+    with col_b:
+        blue_sel = st.multiselect("Blue Alliance", teams_sorted, key="fo_blue", max_selections=3)
+    col_btn1, col_btn2 = st.columns([1,1])
+    with col_btn1:
+        run = st.button("Predecir", type="primary")
+    with col_btn2:
+        rerun = st.button("Re-predecir (forzar modelo)")
+    if run or rerun:
+        if len(red_sel) != 3 or len(blue_sel) != 3:
+            st.error("Debes elegir exactamente 3 equipos por alianza")
+        else:
+            result = predict_match(st.session_state.analizador, red_sel, blue_sel)
+            red_stats = result['red']; blue_stats = result['blue']; sim = result['simulation']
+            st.subheader("Resultado esperado")
+            c1,c2,c3 = st.columns(3)
+            with c1: st.metric("Red Mean Pts", f"{sim['red_mean']:.1f}")
+            with c2: st.metric("Blue Mean Pts", f"{sim['blue_mean']:.1f}")
+            with c3: st.metric("Δ", f"{sim['red_mean']-sim['blue_mean']:.1f}")
+            st.markdown("### Detalle por Equipo")
+            def team_table(alliance_stats, color_name):
+                rows=[]
+                climb_rows=[]
+                for t in alliance_stats['teams']:
+                    auto_levels = [t['auto_L1'], t['auto_L2'], t['auto_L3'], t['auto_L4']]
+                    tele_levels = [t['tele_L1'], t['tele_L2'], t['tele_L3'], t['tele_L4']]
+                    auto_total = sum(auto_levels)
+                    tele_total = sum(tele_levels)
+                    total_coral = auto_total + tele_total
+                    climb_dist = t['climb_dist']
+                    exp_climb_pts = 0.0
+                    for cat, p in climb_dist.items():
+                        exp_climb_pts += p * result['config'].climb_points.get(cat, 0)
+                    rows.append({
+                        'Equipo': t['team'],
+                        'Auto L1': round(t['auto_L1'],2), 'Auto L2': round(t['auto_L2'],2), 'Auto L3': round(t['auto_L3'],2), 'Auto L4': round(t['auto_L4'],2),
+                        'Tele L1': round(t['tele_L1'],2), 'Tele L2': round(t['tele_L2'],2), 'Tele L3': round(t['tele_L3'],2), 'Tele L4': round(t['tele_L4'],2),
+                        'Auto Total': round(auto_total,2), 'Tele Total': round(tele_total,2), 'Total Coral': round(total_coral,2),
+                        'pAuto': round(t['p_auto'],2), 'CoopProb': round(t['coop_prob'],2),
+                        'Best Climb': t['best_climb'], 'Exp ClimbPts': round(exp_climb_pts,2)
+                    })
+                    # Climb distribution normalized %
+                    climb_rows.append({
+                        'Equipo': t['team'],
+                        'Deep %': round(climb_dist.get('deep',0)*100,1),
+                        'Shallow %': round(climb_dist.get('shallow',0)*100,1),
+                        'Park %': round(climb_dist.get('park',0)*100,1),
+                        'None %': round(climb_dist.get('none',0)*100,1)
+                    })
+                st.markdown(f"**{color_name} Alliance**")
+                st.dataframe(pd.DataFrame(rows), use_container_width=True)
+                with st.expander(f"Distribución de Climb {color_name}"):
+                    st.dataframe(pd.DataFrame(climb_rows), use_container_width=True)
+            col_red, col_blue = st.columns(2)
+            with col_red: team_table(red_stats, "RED")
+            with col_blue: team_table(blue_stats, "BLUE")
+            st.markdown("### Totales de Alianza (Esperados)")
+            agg_rows=[]
+            for label, stats in (('RED', red_stats), ('BLUE', blue_stats)):
+                agg_rows.append({
+                    'Alianza': label,
+                    'L1 Total': round(stats['agg_total']['L1'],2),
+                    'L2 Total': round(stats['agg_total']['L2'],2),
+                    'L3 Total': round(stats['agg_total']['L3'],2),
+                    'L4 Total': round(stats['agg_total']['L4'],2),
+                    'Auto L1': round(stats['agg_auto']['L1'],2),
+                    'Auto L2': round(stats['agg_auto']['L2'],2),
+                    'Auto L3': round(stats['agg_auto']['L3'],2),
+                    'Auto L4': round(stats['agg_auto']['L4'],2),
+                    'Exp Climb Pts': round(stats['expected_climb_points'],2)
+                })
+            st.dataframe(pd.DataFrame(agg_rows), use_container_width=True)
+            with st.expander("Distribución Monte Carlo (primeros 50 samples)"):
+                mc_df = pd.DataFrame({
+                    'Red': sim['red_samples'][:50],
+                    'Blue': sim['blue_samples'][:50]
+                })
+                st.dataframe(mc_df)
+                st.caption("Muestras truncadas a 50 para visualización rápida")
+            st.success("Predicción generada")
 
 if __name__ == "__main__":
     main()

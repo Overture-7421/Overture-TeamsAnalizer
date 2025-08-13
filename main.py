@@ -983,48 +983,55 @@ class AnalizadorGUI:
         self.create_widgets()
 
     def create_widgets(self):
-        # Mejoras visuales y de disposición
+        # Layout container
         frame = ttk.Frame(self.root, padding=8)
         frame.pack(fill=tk.BOTH, expand=True)
 
+        # Top buttons
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
-        ttk.Button(btn_frame, text="Load CSV", command=self.load_csv).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Real-Time QR Scanner", command=self.scan_and_load_qr).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Test Camera", command=self.test_camera).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Paste QR Data", command=self.load_qr).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Update Header", command=self.update_header).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Configure Columns", command=self.configure_columns).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Game Phase Config", command=self.show_phase_config).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="RobotValuation Weights", command=self.configure_robot_valuation_weights).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Plot Team Performance", command=self.open_team_performance_plot).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="SchoolSystem", command=self.open_school_system).pack(side=tk.LEFT, padx=4, pady=2)
+        buttons = [
+            ("Load CSV", self.load_csv),
+            ("Real-Time QR Scanner", self.scan_and_load_qr),
+            ("Test Camera", self.test_camera),
+            ("Paste QR Data", self.load_qr),
+            ("Update Header", self.update_header),
+            ("Configure Columns", self.configure_columns),
+            ("Game Phase Config", self.show_phase_config),
+            ("RobotValuation Weights", self.configure_robot_valuation_weights),
+            ("Plot Team Performance", self.open_team_performance_plot),
+            ("SchoolSystem", self.open_school_system),
+            ("Foreshadowing", self.open_foreshadowing),
+        ]
+        for text, cmd in buttons:
+            ttk.Button(btn_frame, text=text, command=cmd).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="About", command=self.show_about).pack(side=tk.RIGHT, padx=4, pady=2)
 
+        # Status bar
         self.status_var = tk.StringVar()
         status_bar = ttk.Label(frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
+        # Notebook
         self.notebook = ttk.Notebook(frame)
         self.notebook.pack(fill=tk.BOTH, expand=True, pady=5)
 
         # Raw Data Tab
         self.raw_frame = ttk.Frame(self.notebook)
-        
-        # Add editing controls for raw data
         raw_controls = ttk.Frame(self.raw_frame)
         raw_controls.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
-        ttk.Button(raw_controls, text="Edit Selected Row", command=self.edit_raw_data_row).pack(side=tk.LEFT, padx=2)
-        ttk.Button(raw_controls, text="Delete Selected Row", command=self.delete_raw_data_row).pack(side=tk.LEFT, padx=2)
-        ttk.Button(raw_controls, text="Add New Row", command=self.add_raw_data_row).pack(side=tk.LEFT, padx=2)
-        ttk.Button(raw_controls, text="Save Changes", command=self.save_raw_data_changes).pack(side=tk.RIGHT, padx=2)
-        
+        raw_btns = [
+            ("Edit Selected Row", self.edit_raw_data_row),
+            ("Delete Selected Row", self.delete_raw_data_row),
+            ("Add New Row", self.add_raw_data_row),
+            ("Save Changes", self.save_raw_data_changes),
+        ]
+        for txt, cmd in raw_btns[:-1]:
+            ttk.Button(raw_controls, text=txt, command=cmd).pack(side=tk.LEFT, padx=2)
+        ttk.Button(raw_controls, text=raw_btns[-1][0], command=raw_btns[-1][1]).pack(side=tk.RIGHT, padx=2)
         self.tree_raw = ttk.Treeview(self.raw_frame, show='headings')
         self.tree_raw.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        
-        # Add double-click binding for editing
         self.tree_raw.bind("<Double-1>", self.on_raw_data_double_click)
-        
         scrollbar_raw_y = ttk.Scrollbar(self.raw_frame, orient=tk.VERTICAL, command=self.tree_raw.yview)
         scrollbar_raw_x = ttk.Scrollbar(self.raw_frame, orient=tk.HORIZONTAL, command=self.tree_raw.xview)
         self.tree_raw.configure(yscroll=scrollbar_raw_y.set, xscroll=scrollbar_raw_x.set)
@@ -1904,6 +1911,16 @@ class AnalizadorGUI:
         except Exception as e:
             messagebox.showerror("Camera Test Failed", f"Camera test failed: {e}")
             self.status_var.set("Camera test failed.")
+
+    def open_foreshadowing(self):
+        def _launch():
+            try:
+                from foreshadowing import ForeshadowingLauncher
+            except ImportError as e:
+                messagebox.showerror("Foreshadowing", f"No se pudo importar módulo: {e}")
+                return
+            ForeshadowingLauncher(self.root, analyzer=self.analizador)
+        _launch()
 
     def edit_raw_data_row(self):
         """Edit the selected row in the raw data table."""
