@@ -5,10 +5,12 @@ import streamlit as st
 import pandas as pd
 import json
 import io
-from main import AnalizadorRobot
+from main_web import AnalizadorRobotWeb
 from school_system import TeamScoring
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
-from foreshadowing import predict_match  # nuevo para foreshadowing
+from foreshadowing_web import predict_match  # nuevo para foreshadowing
+from config_manager import ConfigManager
+from csv_converter import CSVFormatConverter, convert_csv_file
 
 # Configuración de la página
 st.set_page_config(
@@ -20,9 +22,13 @@ st.set_page_config(
 
 # Inicializar estado de la sesión
 if 'analizador' not in st.session_state:
-    st.session_state.analizador = AnalizadorRobot()
+    st.session_state.analizador = AnalizadorRobotWeb()
 if 'school_system' not in st.session_state:
     st.session_state.school_system = TeamScoring()
+if 'config_manager' not in st.session_state:
+    st.session_state.config_manager = ConfigManager()
+if 'csv_converter' not in st.session_state:
+    st.session_state.csv_converter = CSVFormatConverter(st.session_state.config_manager)
 
 def main():
     st.title("🤖 Alliance Simulator Web")
@@ -36,7 +42,8 @@ def main():
         "🤝 Selector de Alianzas",
         "🔮 Foreshadowing",
         "🏆 Honor Roll System",
-        "⚙️ Configuración de Fases"
+        "⚙️ Configuración de Sistema",
+        "🔄 Conversión de CSV"
     ])
     
     if page == "📊 Datos y Configuración":
@@ -49,8 +56,10 @@ def main():
         page_foreshadowing()
     elif page == "🏆 Honor Roll System":
         page_honor_roll()
-    elif page == "⚙️ Configuración de Fases":
-        page_phase_config()
+    elif page == "⚙️ Configuración de Sistema":
+        page_system_configuration()
+    elif page == "🔄 Conversión de CSV":
+        page_csv_conversion()
 
 def page_data_config():
     st.header("📊 Carga y Configuración de Datos")
@@ -60,33 +69,32 @@ def page_data_config():
     uploaded_file = st.file_uploader("Selecciona un archivo CSV", type=['csv'])
     
     if uploaded_file is not None:
-        # Leer el CSV
+        # Leer el contenido del CSV
+        content = uploaded_file.getvalue().decode('utf-8')
+        
+        # Load using the web analyzer
+        st.session_state.analizador.load_csv_from_text(content)
+        
+        # Mostrar información del archivo
         df = pd.read_csv(uploaded_file)
         st.success(f"✅ Archivo cargado: {len(df)} filas, {len(df.columns)} columnas")
         
         # Mostrar preview
         st.subheader("👀 Vista previa de los datos")
         st.dataframe(df.head(10), use_container_width=True)
-        
-        # Convertir a formato del analizador
-        if st.button("🔄 Procesar datos"):
-            # Convertir DataFrame a formato del analizador
-            sheet_data = [df.columns.tolist()] + df.values.tolist()
-            st.session_state.analizador.sheet_data = sheet_data
-            st.session_state.analizador._update_column_indices()
-            st.success("✅ Datos procesados exitosamente")
     
     # Entrada manual de datos QR
     st.subheader("📱 Datos de QR Code")
     qr_data = st.text_area("Pega aquí los datos de QR codes (uno por línea):")
     if st.button("➕ Añadir datos QR") and qr_data:
-        st.session_state.analizador.load_qr_data(qr_data)
+        # For now, treat QR data as CSV text
+        st.session_state.analizador.load_csv_from_text(qr_data)
         st.success("✅ Datos QR añadidos")
     
     # Mostrar datos actuales
     if st.session_state.analizador.sheet_data:
         st.subheader("📋 Datos actuales")
-        current_data = st.session_state.analizador.get_raw_data()
+        current_data = st.session_state.analizador.sheet_data
         if len(current_data) > 1:
             df_current = pd.DataFrame(current_data[1:], columns=current_data[0])
             st.dataframe(df_current, use_container_width=True)
@@ -105,39 +113,41 @@ def page_team_stats():
         st.subheader("📊 Estadísticas detalladas por equipo")
         
         # Convertir a DataFrame para mejor visualización
-        stats_rows = []
-        for team_num, stats in team_stats.items():
-            row = {"Equipo": team_num}
-            row.update(stats)
-            stats_rows.append(row)
-        
-        if stats_rows:
-            df_stats = pd.DataFrame(stats_rows)
+        if team_stats:
+            df_stats = pd.DataFrame(team_stats)
             st.dataframe(df_stats, use_container_width=True)
     
-    # Puntajes por fase del juego
-    st.subheader("🎮 Puntajes por Fase del Juego")
-    team_data = st.session_state.analizador.get_team_data_grouped()
+    # Información de configuración de columnas
+    st.subheader("🎮 Configuración de Fases del Juego")
     
-    if team_data:
-        phase_scores = []
-        for team_num in team_data.keys():
-            scores = st.session_state.analizador.calculate_team_phase_scores(int(team_num))
-            scores['Equipo'] = team_num
-            phase_scores.append(scores)
-        
-        if phase_scores:
-            df_phases = pd.DataFrame(phase_scores)
-            df_phases = df_phases[['Equipo', 'autonomous', 'teleop', 'endgame']]
-            df_phases.columns = ['Equipo', 'Autonomous', 'Teleop', 'Endgame']
-            
-            # Mostrar tabla
-            st.dataframe(df_phases, use_container_width=True)
-            
-            # Gráfico de barras
-            st.subheader("📊 Visualización de Puntajes por Fase")
-            df_plot = df_phases.set_index('Equipo')
-            st.bar_chart(df_plot)
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown("**Autonomous**")
+        auto_cols = st.session_state.analizador.get_autonomous_columns()
+        if auto_cols:
+            for col in auto_cols:
+                st.write(f"• {col}")
+        else:
+            st.write("No configurado")
+    
+    with col2:
+        st.markdown("**Teleop**")
+        teleop_cols = st.session_state.analizador.get_teleop_columns()
+        if teleop_cols:
+            for col in teleop_cols:
+                st.write(f"• {col}")
+        else:
+            st.write("No configurado")
+    
+    with col3:
+        st.markdown("**Endgame**")
+        endgame_cols = st.session_state.analizador.get_endgame_columns()
+        if endgame_cols:
+            for col in endgame_cols:
+                st.write(f"• {col}")
+        else:
+            st.write("No configurado")
 
 def page_alliance_selector():
     st.header("🤝 Selector de Alianzas")
@@ -495,6 +505,259 @@ def page_foreshadowing():
                 st.dataframe(mc_df)
                 st.caption("Muestras truncadas a 50 para visualización rápida")
             st.success("Predicción generada")
+
+def page_system_configuration():
+    """Page for system configuration management"""
+    st.header("⚙️ Configuración de Sistema")
+    
+    config_manager = st.session_state.config_manager
+    
+    # Configuration Presets
+    st.subheader("📋 Presets de Configuración")
+    presets = config_manager.get_configuration_presets()
+    
+    preset_names = list(presets.keys())
+    if preset_names:
+        selected_preset = st.selectbox("Seleccionar preset:", preset_names)
+        
+        if st.button("Aplicar Preset", type="primary"):
+            config_manager.apply_preset(selected_preset)
+            st.session_state.analizador.apply_configuration_preset(selected_preset)
+            st.success(f"✅ Preset '{presets[selected_preset]['name']}' aplicado correctamente")
+            st.rerun()
+        
+        # Show preset details
+        if selected_preset:
+            preset_info = presets[selected_preset]
+            st.info(f"**{preset_info['name']}**: {preset_info['description']}")
+    
+    st.divider()
+    
+    # Current Configuration
+    st.subheader("🔧 Configuración Actual")
+    
+    # Column Configuration
+    column_config = config_manager.get_column_config()
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Columnas Numéricas (Overall)**")
+        st.write(f"Total: {len(column_config.numeric_for_overall)}")
+        with st.expander("Ver columnas"):
+            for col in column_config.numeric_for_overall:
+                st.write(f"• {col}")
+    
+    with col2:
+        st.markdown("**Columnas de Estadísticas**")
+        st.write(f"Total: {len(column_config.stats_columns)}")
+        with st.expander("Ver columnas"):
+            for col in column_config.stats_columns:
+                st.write(f"• {col}")
+    
+    # Game Phase Configuration
+    st.subheader("🎮 Configuración de Fases del Juego")
+    
+    phase_col1, phase_col2, phase_col3 = st.columns(3)
+    
+    with phase_col1:
+        st.markdown("**Autonomous**")
+        st.write(f"Columnas: {len(column_config.autonomous_columns)}")
+        with st.expander("Ver columnas"):
+            for col in column_config.autonomous_columns:
+                st.write(f"• {col}")
+    
+    with phase_col2:
+        st.markdown("**Teleop**")
+        st.write(f"Columnas: {len(column_config.teleop_columns)}")
+        with st.expander("Ver columnas"):
+            for col in column_config.teleop_columns:
+                st.write(f"• {col}")
+    
+    with phase_col3:
+        st.markdown("**Endgame**")
+        st.write(f"Columnas: {len(column_config.endgame_columns)}")
+        with st.expander("Ver columnas"):
+            for col in column_config.endgame_columns:
+                st.write(f"• {col}")
+    
+    # Robot Valuation Configuration
+    st.subheader("🤖 Configuración de Valuación de Robots")
+    
+    robot_config = config_manager.get_robot_valuation_config()
+    
+    st.write("**Pesos de Fases:**")
+    for i, (phase, weight) in enumerate(zip(robot_config.phase_names, robot_config.phase_weights)):
+        st.write(f"• {phase}: {weight}")
+    
+    # Save Configuration
+    st.divider()
+    if st.button("💾 Guardar Configuración Actual", type="secondary"):
+        st.session_state.analizador.save_configuration()
+        st.success("✅ Configuración guardada correctamente")
+
+def page_csv_conversion():
+    """Page for CSV format conversion"""
+    st.header("🔄 Conversión de Formato CSV")
+    
+    st.markdown("""
+    Esta herramienta permite convertir archivos CSV del formato antiguo al nuevo formato estándar.
+    El sistema detecta automáticamente el formato y realiza la conversión necesaria.
+    """)
+    
+    # File Upload
+    st.subheader("📁 Subir Archivo CSV")
+    uploaded_file = st.file_uploader("Selecciona un archivo CSV", type=['csv'])
+    
+    if uploaded_file is not None:
+        # Save uploaded file temporarily
+        import tempfile
+        import os
+        
+        with tempfile.NamedTemporaryFile(mode='w+', suffix='.csv', delete=False) as tmp_file:
+            content = uploaded_file.getvalue().decode('utf-8')
+            tmp_file.write(content)
+            tmp_file_path = tmp_file.name
+        
+        try:
+            # Detect format
+            csv_converter = st.session_state.csv_converter
+            
+            # Read headers for format detection
+            with open(tmp_file_path, 'r', encoding='utf-8') as f:
+                import csv
+                reader = csv.reader(f)
+                headers = next(reader)
+            
+            detected_format = st.session_state.config_manager.detect_csv_format(headers)
+            
+            st.subheader("📊 Información del Archivo")
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Formato Detectado", detected_format.replace('_', ' ').title())
+            with col2:
+                st.metric("Columnas", len(headers))
+            with col3:
+                # Count data rows
+                with open(tmp_file_path, 'r', encoding='utf-8') as f:
+                    reader = csv.reader(f)
+                    data_rows = sum(1 for row in reader) - 1  # Exclude header
+                st.metric("Filas de Datos", data_rows)
+            
+            # Show first few headers
+            st.subheader("🗂️ Primeras Columnas del Archivo")
+            st.write(", ".join(headers[:10]) + ("..." if len(headers) > 10 else ""))
+            
+            if detected_format == "legacy_format":
+                st.warning("⚠️ Archivo en formato antiguo detectado. Se recomienda conversión.")
+                
+                if st.button("🔄 Convertir a Nuevo Formato", type="primary"):
+                    try:
+                        # Perform conversion
+                        with st.spinner("Convirtiendo archivo..."):
+                            converted_file_path = tmp_file_path.replace('.csv', '_converted.csv')
+                            detected_format, output_file = csv_converter.detect_and_convert_file(
+                                tmp_file_path, converted_file_path
+                            )
+                        
+                        # Validate conversion
+                        validation_report = csv_converter.validate_converted_data(output_file)
+                        
+                        st.success("✅ Conversión completada exitosamente!")
+                        
+                        # Show validation results
+                        st.subheader("📋 Reporte de Validación")
+                        
+                        val_col1, val_col2, val_col3, val_col4 = st.columns(4)
+                        with val_col1:
+                            st.metric("Filas Totales", validation_report.get('total_rows', 0))
+                        with val_col2:
+                            st.metric("Columnas", validation_report.get('total_columns', 0))
+                        with val_col3:
+                            st.metric("Filas Vacías", validation_report.get('empty_rows', 0))
+                        with val_col4:
+                            st.metric("Filas Incompletas", validation_report.get('incomplete_rows', 0))
+                        
+                        # Data quality
+                        if validation_report.get('data_quality'):
+                            st.subheader("📈 Calidad de Datos")
+                            quality_data = []
+                            for col, info in validation_report['data_quality'].items():
+                                quality_data.append({
+                                    'Columna': col,
+                                    'Completitud (%)': f"{info['completion_rate']:.1f}%",
+                                    'Valores Vacíos': info['empty_count']
+                                })
+                            
+                            if quality_data:
+                                st.dataframe(pd.DataFrame(quality_data), use_container_width=True)
+                        
+                        # Download converted file
+                        with open(output_file, 'r', encoding='utf-8') as f:
+                            converted_content = f.read()
+                        
+                        st.download_button(
+                            label="📥 Descargar Archivo Convertido",
+                            data=converted_content,
+                            file_name=f"{uploaded_file.name.replace('.csv', '_converted.csv')}",
+                            mime='text/csv'
+                        )
+                        
+                    except Exception as e:
+                        st.error(f"❌ Error durante la conversión: {e}")
+                        
+            elif detected_format == "new_format":
+                st.success("✅ El archivo ya está en el formato correcto.")
+                
+                # Option to load directly
+                if st.button("📊 Cargar Datos en el Sistema", type="primary"):
+                    try:
+                        st.session_state.analizador.load_csv(tmp_file_path)
+                        st.success("✅ Datos cargados exitosamente en el sistema!")
+                        st.info("Ve a la página 'Datos y Configuración' para ver los datos cargados.")
+                    except Exception as e:
+                        st.error(f"❌ Error al cargar datos: {e}")
+                        
+            else:
+                st.warning("⚠️ Formato desconocido. El archivo podría no ser compatible.")
+                st.info("Puedes intentar cargarlo de todas formas, pero algunas funciones podrían no funcionar correctamente.")
+        
+        finally:
+            # Clean up temporary file
+            if os.path.exists(tmp_file_path):
+                os.unlink(tmp_file_path)
+    
+    # Manual CSV Format Converter
+    st.divider()
+    st.subheader("🛠️ Convertidor Manual")
+    st.markdown("""
+    Si tienes un archivo CSV en tu computadora, puedes usar esta herramienta para convertirlo.
+    """)
+    
+    # Format mapping information
+    with st.expander("📖 Información de Mapeo de Formatos"):
+        st.markdown("""
+        **Formato Antiguo → Nuevo Formato:**
+        
+        - `Lead Scouter` → `Scouter Initials`
+        - `Future Alliance in Qualy?` → `Future Alliance`
+        - `Coral L1 Scored` → `Coral L1 (Teleop)`
+        - `Coral L2 Scored` → `Coral L2 (Teleop)`
+        - `Coral L3 Scored` → `Coral L3 (Teleop)`
+        - `Coral L4 Scored` → `Coral L4 (Teleop)`
+        - `Algae Scored in Barge` → `Barge Algae (Teleop)`
+        - `Crossed Feild/Played Defense?` → `Crossed Field/Defense`
+        - `Did auton worked?` → `Moved (Auto)`
+        - `Did Foul?` → `Foul (Auto)`
+        - Y más...
+        
+        **Valores por Defecto para Columnas Nuevas:**
+        - `Robot`: 1
+        - `Starting Position`: Unknown
+        - `No Show`: False
+        - `End Position`: Unknown
+        """)
 
 if __name__ == "__main__":
     main()

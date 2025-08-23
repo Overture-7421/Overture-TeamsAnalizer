@@ -10,31 +10,33 @@ from allianceSelector import AllianceSelector, Team, teams_from_dicts
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from school_system import TeamScoring, BehaviorReportType
+from config_manager import ConfigManager
+from csv_converter import CSVFormatConverter
 
 class AnalizadorRobot:
-    def __init__(self, default_column_names=None):
+    def __init__(self, default_column_names=None, config_file="columnsConfig.json"):
         """
         Inicializa el analizador.
 
         Args:
             default_column_names (list, optional): Nombres de columna predeterminados.
-                                                  Si no se proveen, se esperará que el primer
-                                                  archivo CSV o QR defina los encabezados.
+                                                  Si no se proveen, se cargarán desde la configuración.
+            config_file (str): Archivo de configuración de columnas.
         """
-        self.default_column_names = default_column_names if default_column_names else [
-            "Lead Scouter", "Highlights Scouter Name", "Scouter Name", "Match Number",
-            "Future Alliance in Qualy?", "Team Number",
-            "Did something?", "Did Foul?", "Did auton worked?",
-            "Coral L1 Scored", "Coral L2 Scored", "Coral L3 Scored", "Coral L4 Scored",
-            "Played Algae?(Disloged NO COUNT)", "Algae Scored in Barge",
-            "Crossed Feild/Played Defense?", "Tipped/Fell Over?",
-            "Died?", "Was the robot Defended by someone?", "Yellow/Red Card", "Climbed?"
-        ]
+        # Initialize configuration manager
+        self.config_manager = ConfigManager(config_file)
+        self.csv_converter = CSVFormatConverter(self.config_manager)
+        
+        # Load column configuration
+        column_config = self.config_manager.get_column_config()
+        robot_config = self.config_manager.get_robot_valuation_config()
+        
+        self.default_column_names = default_column_names if default_column_names else column_config.headers
         
         # Configuración de columnas por fase del juego
-        self._autonomous_columns = []
-        self._teleop_columns = []
-        self._endgame_columns = []
+        self._autonomous_columns = column_config.autonomous_columns.copy()
+        self._teleop_columns = column_config.teleop_columns.copy()
+        self._endgame_columns = column_config.endgame_columns.copy()
         
         # sheetData es un List<List<String>> cuya primera fila es siempre el encabezado.
         self.sheet_data = []
@@ -47,18 +49,18 @@ class AnalizadorRobot:
 
         # El usuario puede afinar tres conjuntos de columnas:
         # Numéricas para cálculo global (_selectedNumericColumnsForOverall)
-        self._selected_numeric_columns_for_overall = []
+        self._selected_numeric_columns_for_overall = column_config.numeric_for_overall.copy()
         # Para la tabla de estadísticas (_selectedStatsColumns)
-        self._selected_stats_columns = []
+        self._selected_stats_columns = column_config.stats_columns.copy()
         # Booleanas cuyo modo (valor más frecuente) se muestre (_modeBooleanColumns)
-        self._mode_boolean_columns = []
+        self._mode_boolean_columns = column_config.mode_boolean_columns.copy()
         
         # Inicializar selecciones de columnas (podría ser más sofisticado)
         self._initialize_selected_columns()
 
         # --- RobotValuation phase weights and boundaries ---
-        self.robot_valuation_phase_weights = [0.2, 0.3, 0.5]  # Default: Q1=0.2, Q2=0.3, Q3=0.5
-        self.robot_valuation_phase_names = ["Q1", "Q2", "Q3"]
+        self.robot_valuation_phase_weights = robot_config.phase_weights.copy()
+        self.robot_valuation_phase_names = robot_config.phase_names.copy()
 
     def _update_column_indices(self):
         """
@@ -88,21 +90,40 @@ class AnalizadorRobot:
     def _initialize_selected_columns(self):
         """
         Inicializa las listas de columnas seleccionadas con valores predeterminados,
-        siguiendo la lógica Dart: overall = corales, stats = todas menos identificadores,
-        mode = vacío (usuario elige).
+        usando la configuración cargada del ConfigManager.
         """
-        current_header = self.sheet_data[0] if self.sheet_data else self.default_column_names
-        default_overall_columns = [
-            'Coral L1 Scored', 'Coral L2 Scored', 'Coral L3 Scored', 'Coral L4 Scored', 'Climbed?'
-        ]
-        self._selected_numeric_columns_for_overall = [
-            col for col in default_overall_columns if col in current_header
-        ]
-        excluded_from_stats = ["Lead Scouter", "Scouter Name", "Highlights Scouter Name"]
-        self._selected_stats_columns = [
-            col for col in current_header if col not in excluded_from_stats
-        ]
-        self._mode_boolean_columns = []  # El usuario elige, por defecto vacío
+        # Use configuration from ConfigManager if available
+        if hasattr(self, 'config_manager'):
+            column_config = self.config_manager.get_column_config()
+            
+            current_header = self.sheet_data[0] if self.sheet_data else self.default_column_names
+            
+            # Filter columns that exist in current header
+            self._selected_numeric_columns_for_overall = [
+                col for col in column_config.numeric_for_overall if col in current_header
+            ]
+            self._selected_stats_columns = [
+                col for col in column_config.stats_columns if col in current_header
+            ]
+            self._mode_boolean_columns = [
+                col for col in column_config.mode_boolean_columns if col in current_header
+            ]
+        else:
+            # Fallback to legacy behavior
+            current_header = self.sheet_data[0] if self.sheet_data else self.default_column_names
+            default_overall_columns = [
+                'Coral L1 (Auto)', 'Coral L2 (Auto)', 'Coral L3 (Auto)', 'Coral L4 (Auto)', 
+                'Coral L1 (Teleop)', 'Coral L2 (Teleop)', 'Coral L3 (Teleop)', 'Coral L4 (Teleop)',
+                'Barge Algae (Auto)', 'Barge Algae (Teleop)', 'Processor Algae (Auto)', 'Processor Algae (Teleop)'
+            ]
+            self._selected_numeric_columns_for_overall = [
+                col for col in default_overall_columns if col in current_header
+            ]
+            excluded_from_stats = ["Scouter Initials", "Robot"]
+            self._selected_stats_columns = [
+                col for col in current_header if col not in excluded_from_stats
+            ]
+            self._mode_boolean_columns = []  # El usuario elige, por defecto vacío
 
     def _auto_detect_game_phase_columns(self):
         """
@@ -341,7 +362,7 @@ class AnalizadorRobot:
 
     def load_csv(self, file_path):
         """
-        Carga datos desde un archivo CSV.
+        Carga un archivo CSV, detectando automáticamente el formato y convirtiéndolo si es necesario.
         Usa FilePicker para seleccionar un .csv, lee su contenido (bytes o ruta),
         lo parte por líneas y comas y lo añade a sheetData.
 
@@ -356,6 +377,32 @@ class AnalizadorRobot:
             if not csv_rows:
                 print("Archivo CSV está vacío o no contiene datos.")
                 return
+
+            csv_headers = csv_rows[0]
+            
+            # Detect CSV format
+            detected_format = self.config_manager.detect_csv_format(csv_headers)
+            
+            if detected_format == "legacy_format":
+                print(f"Detected legacy format. Converting to new format...")
+                
+                # Convert to new format
+                converted_rows = self.csv_converter.convert_rows_to_new_format(csv_headers, csv_rows[1:])
+                csv_rows = [self.config_manager.get_column_config().headers] + converted_rows
+                
+                print(f"Successfully converted {len(converted_rows)} data rows to new format.")
+                
+                # Optionally save converted file
+                converted_file_path = file_path.replace('.csv', '_converted.csv')
+                with open(converted_file_path, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerows(csv_rows)
+                print(f"Saved converted file as: {converted_file_path}")
+                
+            elif detected_format == "unknown_format":
+                print("Warning: Unknown CSV format detected. Loading as-is, but some features may not work correctly.")
+            else:
+                print("CSV file is already in the correct format.")
 
             # Si sheet_data está vacío o solo tiene el encabezado por defecto (y no datos reales)
             if not self.sheet_data or (len(self.sheet_data) == 1 and not any(self.sheet_data[0])): 
@@ -729,6 +776,55 @@ class AnalizadorRobot:
         if not (0.99 < total < 1.01):
             raise ValueError("Weights must sum to 1.0")
         self.robot_valuation_phase_weights = [float(w) for w in weights]
+
+    def save_configuration(self):
+        """Save current configuration to file"""
+        if hasattr(self, 'config_manager'):
+            # Update configuration with current selections
+            self.config_manager.update_column_config(
+                numeric_for_overall=self._selected_numeric_columns_for_overall,
+                stats_columns=self._selected_stats_columns,
+                mode_boolean_columns=self._mode_boolean_columns,
+                autonomous_columns=self._autonomous_columns,
+                teleop_columns=self._teleop_columns,
+                endgame_columns=self._endgame_columns
+            )
+            self.config_manager.update_robot_valuation_config(
+                phase_weights=self.robot_valuation_phase_weights,
+                phase_names=self.robot_valuation_phase_names
+            )
+            self.config_manager.save_configuration()
+            print("Configuration saved successfully.")
+        else:
+            print("Warning: No configuration manager available.")
+
+    def get_available_presets(self):
+        """Get available configuration presets"""
+        if hasattr(self, 'config_manager'):
+            return self.config_manager.get_configuration_presets()
+        return {}
+
+    def apply_configuration_preset(self, preset_name):
+        """Apply a configuration preset"""
+        if hasattr(self, 'config_manager'):
+            self.config_manager.apply_preset(preset_name)
+            # Reload configuration
+            column_config = self.config_manager.get_column_config()
+            robot_config = self.config_manager.get_robot_valuation_config()
+            
+            # Update local variables
+            self._selected_numeric_columns_for_overall = column_config.numeric_for_overall.copy()
+            self._selected_stats_columns = column_config.stats_columns.copy()
+            self._mode_boolean_columns = column_config.mode_boolean_columns.copy()
+            self._autonomous_columns = column_config.autonomous_columns.copy()
+            self._teleop_columns = column_config.teleop_columns.copy()
+            self._endgame_columns = column_config.endgame_columns.copy()
+            self.robot_valuation_phase_weights = robot_config.phase_weights.copy()
+            self.robot_valuation_phase_names = robot_config.phase_names.copy()
+            
+            print(f"Applied configuration preset: {preset_name}")
+        else:
+            print("Warning: No configuration manager available.")
 
     def get_robot_valuation_phase_weights(self):
         return list(self.robot_valuation_phase_weights)
