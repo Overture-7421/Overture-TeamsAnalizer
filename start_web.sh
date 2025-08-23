@@ -4,6 +4,12 @@ echo "============================================"
 echo "   🌐 Alliance Simulator - Versión Web"
 echo "============================================"
 echo ""
+
+# Check system requirements
+echo "Verificando sistema..."
+python setup.py --check
+
+echo ""
 echo "Iniciando aplicación web..."
 echo "La aplicación se abrirá en tu navegador en unos segundos."
 echo ""
