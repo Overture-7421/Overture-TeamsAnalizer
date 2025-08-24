@@ -590,6 +590,8 @@ class AnalizadorRobot:
         base = col_name.replace('?', '') \
                        .replace('(Disloged NO COUNT)', '') \
                        .replace('(Disloged DOES NOT COUNT)', '') \
+                       .replace('(Auto)', '') \
+                       .replace('(Teleop)', '') \
                        .replace('/', '_') \
                        .replace(' ', '_') \
                        .lower()
@@ -599,12 +601,16 @@ class AnalizadorRobot:
             'Did something?': 'auto_did_something',
             'Did Foul?': 'auto_did_foul',
             'Did auton worked?': 'auto_worked',
+            'Moved (Auto)': 'auto_worked',
             'Barge Algae Scored': 'teleop_barge_algae',
+            'Barge Algae (Teleop)': 'teleop_barge_algae',
             'Algae Scored in Barge': 'teleop_barge_algae',
             'Processor Algae Scored': 'teleop_processor_algae',
+            'Processor Algae (Teleop)': 'teleop_processor_algae',
             'Played Algae?(Disloged NO COUNT)': 'teleop_played_algae',
             'Played Algae?(Disloged DOES NOT COUNT)': 'teleop_played_algae',
             'Crossed Feild/Played Defense?': 'teleop_crossed_played_defense',
+            'Crossed Field/Defense': 'teleop_crossed_played_defense',
             'Was the robot Defended by alguien?': 'defended_by_other'
         }
         if col_name in specific_renames:
@@ -619,12 +625,20 @@ class AnalizadorRobot:
         if not team_data_grouped:
             return []
         detailed_stats_list = []
+        # Updated coral_algae_groups to support both new and legacy formats
         coral_algae_groups = {
             'teleop_coral': [
+                # New format columns
+                'Coral L1 (Teleop)', 'Coral L2 (Teleop)',
+                'Coral L3 (Teleop)', 'Coral L4 (Teleop)',
+                # Legacy format columns for backward compatibility
                 'Coral L1 Scored', 'Coral L2 Scored',
                 'Coral L3 Scored', 'Coral L4 Scored'
             ],
             'teleop_algae': [
+                # New format columns
+                'Barge Algae (Teleop)', 'Processor Algae (Teleop)',
+                # Legacy format columns for backward compatibility
                 'Algae Scored in Barge'
             ]
         }
@@ -667,9 +681,13 @@ class AnalizadorRobot:
                 std_key = self._generate_stat_key(col_name, 'std')
                 team_stats[avg_key] = self._average(values) if values else 0.0
                 team_stats[std_key] = self._standard_deviation(values) if values else 0.0
-            # Defensa (rate)
-            defense_col = 'Crossed Feild/Played Defense?'
+            # Defensa (rate) - handle both new and legacy column names
+            defense_col = 'Crossed Field/Defense'  # Try new format first
             defense_idx = self._column_indices.get(defense_col)
+            if defense_idx is None:
+                defense_col = 'Crossed Feild/Played Defense?'  # Fall back to legacy format
+                defense_idx = self._column_indices.get(defense_col)
+            
             defense_values = []
             if defense_idx is not None:
                 for row in rows:
@@ -681,18 +699,94 @@ class AnalizadorRobot:
                             defense_values.append(0.0)
                 defense_key = self._generate_stat_key(defense_col, 'rate')
                 team_stats[defense_key] = self._average(defense_values) if defense_values else 0.0
-            # Overall avg y std (solo columnas seleccionadas)
+            # Enhanced Overall calculation with proper weighting
             overall_values = []
-            for col_name in self._selected_numeric_columns_for_overall:
-                col_idx = self._column_indices.get(col_name)
-                if col_idx is None:
-                    continue
-                for row in rows:
-                    if col_idx < len(row):
+            coral_values = []
+            algae_values = []
+            
+            # Calculate per-match performance across all matches for this team
+            for row in rows:
+                match_score = 0.0
+                
+                # Coral scoring with level-based weights (L1=2, L2=3, L3=4, L4=5 for teleop; double for auto)
+                coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
+                for level, weight in coral_weights.items():
+                    # Auto coral (higher value)
+                    auto_col = f'Coral {level} (Auto)'
+                    auto_idx = self._column_indices.get(auto_col)
+                    if auto_idx is not None and auto_idx < len(row):
                         try:
-                            overall_values.append(float(row[col_idx]))
+                            auto_val = float(row[auto_idx])
+                            match_score += auto_val * weight * 2  # Double points for auto
+                            coral_values.append(auto_val * weight * 2)
                         except Exception:
                             pass
+                    
+                    # Teleop coral
+                    teleop_col = f'Coral {level} (Teleop)'
+                    teleop_idx = self._column_indices.get(teleop_col)
+                    if teleop_idx is not None and teleop_idx < len(row):
+                        try:
+                            teleop_val = float(row[teleop_idx])
+                            match_score += teleop_val * weight
+                            coral_values.append(teleop_val * weight)
+                        except Exception:
+                            pass
+                    
+                    # Legacy format fallback
+                    legacy_col = f'Coral {level} Scored'
+                    legacy_idx = self._column_indices.get(legacy_col)
+                    if legacy_idx is not None and legacy_idx < len(row) and auto_idx is None and teleop_idx is None:
+                        try:
+                            legacy_val = float(row[legacy_idx])
+                            match_score += legacy_val * weight * 1.5  # Moderate weight for combined
+                            coral_values.append(legacy_val * weight * 1.5)
+                        except Exception:
+                            pass
+                
+                # Algae scoring (Barge=3 points, Processor=6 points)
+                algae_configs = [
+                    ('Barge Algae (Auto)', 3 * 1.5),  # Auto bonus
+                    ('Barge Algae (Teleop)', 3),
+                    ('Processor Algae (Auto)', 6 * 1.5),  # Auto bonus  
+                    ('Processor Algae (Teleop)', 6),
+                    ('Algae Scored in Barge', 3)  # Legacy
+                ]
+                
+                for col_name, points in algae_configs:
+                    col_idx = self._column_indices.get(col_name)
+                    if col_idx is not None and col_idx < len(row):
+                        try:
+                            val = float(row[col_idx])
+                            match_score += val * points
+                            algae_values.append(val * points)
+                        except Exception:
+                            pass
+                
+                # Add endgame scoring (climb bonus)
+                end_pos_idx = self._column_indices.get('End Position')
+                climb_idx = self._column_indices.get('Climbed?')  # Legacy
+                
+                if end_pos_idx is not None and end_pos_idx < len(row):
+                    end_pos = str(row[end_pos_idx]).strip().lower()
+                    if 'deep' in end_pos:
+                        match_score += 12
+                    elif 'shallow' in end_pos:
+                        match_score += 6
+                    elif 'park' in end_pos:
+                        match_score += 2
+                elif climb_idx is not None and climb_idx < len(row):
+                    try:
+                        climb_val = float(row[climb_idx])
+                        if climb_val > 0:
+                            match_score += 8  # Estimated climb points for legacy
+                    except Exception:
+                        pass
+                
+                if match_score > 0:
+                    overall_values.append(match_score)
+            
+            # Set overall stats
             team_stats['overall_avg'] = self._average(overall_values) if overall_values else 0.0
             team_stats['overall_std'] = self._standard_deviation(overall_values) if overall_values else 0.0
             # Booleanas: rate y mode si corresponde
@@ -843,27 +937,126 @@ class AnalizadorRobot:
         return [q1, q2, q3]
 
     def _robot_valuation(self, rows):
-        """Calculate RobotValuation as weighted avg of selected numeric columns, split by phases."""
-        if not rows or not self._selected_numeric_columns_for_overall:
+        """Calculate RobotValuation using enhanced weighted scoring across phases."""
+        if not rows:
             return 0.0
+        
         phases = self._split_rows_into_phases(rows)
         phase_weights = self.robot_valuation_phase_weights
-        phase_avgs = []
+        phase_scores = []
+        
         for phase_rows in phases:
-            vals = []
-            for col_name in self._selected_numeric_columns_for_overall:
-                col_idx = self._column_indices.get(col_name)
-                if col_idx is None:
-                    continue
-                for row in phase_rows:
-                    if col_idx < len(row):
+            phase_total = 0.0
+            match_count = len(phase_rows)
+            
+            if match_count == 0:
+                phase_scores.append(0.0)
+                continue
+            
+            # Calculate enhanced score for this phase
+            for row in phase_rows:
+                match_score = 0.0
+                
+                # Coral scoring with level-based weights
+                coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
+                for level, weight in coral_weights.items():
+                    # Auto coral (higher multiplier)
+                    auto_col = f'Coral {level} (Auto)'
+                    auto_idx = self._column_indices.get(auto_col)
+                    if auto_idx is not None and auto_idx < len(row):
                         try:
-                            vals.append(float(row[col_idx]))
+                            auto_val = float(row[auto_idx])
+                            match_score += auto_val * weight * 2.0
                         except Exception:
                             pass
-            phase_avgs.append(self._average(vals) if vals else 0.0)
-        # Weighted sum
-        return sum(w * v for w, v in zip(phase_weights, phase_avgs))
+                    
+                    # Teleop coral
+                    teleop_col = f'Coral {level} (Teleop)'
+                    teleop_idx = self._column_indices.get(teleop_col)
+                    if teleop_idx is not None and teleop_idx < len(row):
+                        try:
+                            teleop_val = float(row[teleop_idx])
+                            match_score += teleop_val * weight
+                        except Exception:
+                            pass
+                    
+                    # Legacy format fallback
+                    legacy_col = f'Coral {level} Scored'
+                    legacy_idx = self._column_indices.get(legacy_col)
+                    if legacy_idx is not None and legacy_idx < len(row) and auto_idx is None and teleop_idx is None:
+                        try:
+                            legacy_val = float(row[legacy_idx])
+                            match_score += legacy_val * weight * 1.5
+                        except Exception:
+                            pass
+                
+                # Algae scoring
+                algae_configs = [
+                    ('Barge Algae (Auto)', 4.5),  # 3 points * 1.5 auto multiplier
+                    ('Barge Algae (Teleop)', 3),
+                    ('Processor Algae (Auto)', 9),  # 6 points * 1.5 auto multiplier
+                    ('Processor Algae (Teleop)', 6),
+                    ('Algae Scored in Barge', 3)  # Legacy
+                ]
+                
+                for col_name, points in algae_configs:
+                    col_idx = self._column_indices.get(col_name)
+                    if col_idx is not None and col_idx < len(row):
+                        try:
+                            val = float(row[col_idx])
+                            match_score += val * points
+                        except Exception:
+                            pass
+                
+                # Endgame scoring
+                end_pos_idx = self._column_indices.get('End Position')
+                climb_idx = self._column_indices.get('Climbed?')  # Legacy
+                
+                if end_pos_idx is not None and end_pos_idx < len(row):
+                    end_pos = str(row[end_pos_idx]).strip().lower()
+                    if 'deep' in end_pos:
+                        match_score += 12
+                    elif 'shallow' in end_pos:
+                        match_score += 6
+                    elif 'park' in end_pos:
+                        match_score += 2
+                elif climb_idx is not None and climb_idx < len(row):
+                    try:
+                        climb_val = float(row[climb_idx])
+                        if climb_val > 0:
+                            match_score += 8  # Estimated points for legacy
+                    except Exception:
+                        pass
+                
+                # Defense/activity bonus
+                defense_idx = self._column_indices.get('Crossed Field/Defense')
+                if defense_idx is None:
+                    defense_idx = self._column_indices.get('Crossed Feild/Played Defense?')
+                
+                if defense_idx is not None and defense_idx < len(row):
+                    defense_val = str(row[defense_idx]).strip().lower()
+                    if defense_val in ['true', 'yes', 'y', '1']:
+                        match_score += 5  # Defense bonus
+                
+                # Auto movement bonus
+                auto_moved_idx = self._column_indices.get('Moved (Auto)')
+                if auto_moved_idx is None:
+                    auto_moved_idx = self._column_indices.get('Did something?')
+                
+                if auto_moved_idx is not None and auto_moved_idx < len(row):
+                    moved_val = str(row[auto_moved_idx]).strip().lower()
+                    if moved_val in ['true', 'yes', 'y', '1']:
+                        match_score += 3  # Auto activity bonus
+                
+                phase_total += match_score
+            
+            # Average for this phase
+            phase_avg = phase_total / match_count if match_count > 0 else 0.0
+            phase_scores.append(phase_avg)
+        
+        # Weighted sum across phases
+        final_score = sum(w * s for w, s in zip(phase_weights, phase_scores))
+        return final_score
 
     def get_team_match_performance(self, team_numbers=None):
         """
