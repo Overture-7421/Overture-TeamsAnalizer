@@ -1,13 +1,15 @@
 import copy
 
-# Scoring weights (adjust as needed)
-W_AUTO = 1.2
-W_TELEOP = 1.0
-W_ENDGAME = 1.1
-W_DEFENSE = 15
+# Enhanced scoring weights based on comprehensive analysis
+W_AUTO = 1.5      # Increased weight for autonomous performance 
+W_TELEOP = 1.0    # Base teleop weight
+W_ENDGAME = 1.2   # Increased weight for endgame (critical for close matches)
+W_DEFENSE = 12    # Slightly reduced but still significant for defensive teams
+W_CONSISTENCY = 5 # New weight for consistency bonus
+W_CLUTCH = 8      # New weight for high-pressure performance
 
 class Team:
-    def __init__(self, num, rank, total_epa, auto_epa, teleop_epa, endgame_epa, defense=False, name=None):
+    def __init__(self, num, rank, total_epa, auto_epa, teleop_epa, endgame_epa, defense=False, name=None, robot_valuation=0, consistency_score=0, clutch_factor=0):
         self.team = int(num)
         self.rank = int(rank)
         self.total_epa = float(total_epa)
@@ -16,15 +18,37 @@ class Team:
         self.endgame_epa = float(endgame_epa)
         self.defense = bool(defense)
         self.name = name if name else str(num)
+        
+        # Enhanced attributes for better team evaluation
+        self.robot_valuation = float(robot_valuation) if robot_valuation else 0
+        self.consistency_score = float(consistency_score) if consistency_score else 0
+        self.clutch_factor = float(clutch_factor) if clutch_factor else 0
+        
         self.score = self.compute_score()
 
     def compute_score(self):
-        return (
+        """Enhanced scoring algorithm that considers multiple factors"""
+        base_score = (
             W_AUTO * self.auto_epa +
             W_TELEOP * self.teleop_epa +
-            W_ENDGAME * self.endgame_epa +
-            (W_DEFENSE if self.defense else 0)
+            W_ENDGAME * self.endgame_epa
         )
+        
+        # Defense bonus
+        defense_bonus = W_DEFENSE if self.defense else 0
+        
+        # Consistency bonus (higher is better, penalize inconsistent teams)
+        consistency_bonus = (self.consistency_score / 100) * W_CONSISTENCY
+        
+        # Clutch factor bonus (ability to perform under pressure)
+        clutch_bonus = (self.clutch_factor / 100) * W_CLUTCH
+        
+        # Robot valuation factor (scales with overall robot quality)
+        valuation_multiplier = 1.0 + (self.robot_valuation / 1000)  # Small but meaningful boost
+        
+        total_score = (base_score + defense_bonus + consistency_bonus + clutch_bonus) * valuation_multiplier
+        
+        return total_score
 
     def as_dict(self):
         return {
@@ -36,7 +60,10 @@ class Team:
             "endgame_epa": self.endgame_epa,
             "defense": self.defense,
             "name": self.name,
-            "score": self.score
+            "score": self.score,
+            "robot_valuation": self.robot_valuation,
+            "consistency_score": self.consistency_score,
+            "clutch_factor": self.clutch_factor
         }
 
 class Alliance:
@@ -231,6 +258,9 @@ def teams_from_dicts(team_dicts):
             teleop_epa=d.get("teleop_epa", 0),
             endgame_epa=d.get("endgame_epa", 0),
             defense=d.get("defense", False),
-            name=d.get("name", None)
+            name=d.get("name", None),
+            robot_valuation=d.get("robot_valuation", 0),
+            consistency_score=d.get("consistency_score", 0),
+            clutch_factor=d.get("clutch_factor", 0)
         ))
     return teams
