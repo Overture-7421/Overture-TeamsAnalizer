@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  alliance-simulator-web:
+    build: .
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data  # Para persistir datos si es necesario
+    environment:
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    
+  # Opcional: nginx como reverse proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - alliance-simulator-web
+    restart: unless-stopped
+    profiles: ["production"]

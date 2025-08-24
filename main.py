@@ -1,4 +1,5 @@
 import csv
+import json
 import math
 from collections import Counter, defaultdict
 import tkinter as tk
@@ -8,26 +9,34 @@ from tkinter import simpledialog
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from school_system import TeamScoring, BehaviorReportType
+from config_manager import ConfigManager
+from csv_converter import CSVFormatConverter
 
 class AnalizadorRobot:
-    def __init__(self, default_column_names=None):
+    def __init__(self, default_column_names=None, config_file="columnsConfig.json"):
         """
         Inicializa el analizador.
 
         Args:
             default_column_names (list, optional): Nombres de columna predeterminados.
-                                                  Si no se proveen, se esperará que el primer
-                                                  archivo CSV o QR defina los encabezados.
+                                                  Si no se proveen, se cargarán desde la configuración.
+            config_file (str): Archivo de configuración de columnas.
         """
-        self.default_column_names = default_column_names if default_column_names else [
-            "Lead Scouter", "Highlights Scouter Name", "Scouter Name", "Match Number",
-            "Future Alliance in Qualy?", "Team Number",
-            "Did something?", "Did Foul?", "Did auton worked?",
-            "Coral L1 Scored", "Coral L2 Scored", "Coral L3 Scored", "Coral L4 Scored",
-            "Played Algae?(Disloged NO COUNT)", "Algae Scored in Barge",
-            "Crossed Feild/Played Defense?", "Tipped/Fell Over?",
-            "Died?", "Was the robot Defended by someone?", "Yellow/Red Card", "Climbed?"
-        ]
+        # Initialize configuration manager
+        self.config_manager = ConfigManager(config_file)
+        self.csv_converter = CSVFormatConverter(self.config_manager)
+        
+        # Load column configuration
+        column_config = self.config_manager.get_column_config()
+        robot_config = self.config_manager.get_robot_valuation_config()
+        
+        self.default_column_names = default_column_names if default_column_names else column_config.headers
+        
+        # Configuración de columnas por fase del juego
+        self._autonomous_columns = column_config.autonomous_columns.copy()
+        self._teleop_columns = column_config.teleop_columns.copy()
+        self._endgame_columns = column_config.endgame_columns.copy()
         
         # sheetData es un List<List<String>> cuya primera fila es siempre el encabezado.
         self.sheet_data = []
@@ -40,18 +49,18 @@ class AnalizadorRobot:
 
         # El usuario puede afinar tres conjuntos de columnas:
         # Numéricas para cálculo global (_selectedNumericColumnsForOverall)
-        self._selected_numeric_columns_for_overall = []
+        self._selected_numeric_columns_for_overall = column_config.numeric_for_overall.copy()
         # Para la tabla de estadísticas (_selectedStatsColumns)
-        self._selected_stats_columns = []
+        self._selected_stats_columns = column_config.stats_columns.copy()
         # Booleanas cuyo modo (valor más frecuente) se muestre (_modeBooleanColumns)
-        self._mode_boolean_columns = []
+        self._mode_boolean_columns = column_config.mode_boolean_columns.copy()
         
         # Inicializar selecciones de columnas (podría ser más sofisticado)
         self._initialize_selected_columns()
 
         # --- RobotValuation phase weights and boundaries ---
-        self.robot_valuation_phase_weights = [0.2, 0.3, 0.5]  # Default: Q1=0.2, Q2=0.3, Q3=0.5
-        self.robot_valuation_phase_names = ["Q1", "Q2", "Q3"]
+        self.robot_valuation_phase_weights = robot_config.phase_weights.copy()
+        self.robot_valuation_phase_names = robot_config.phase_names.copy()
 
     def _update_column_indices(self):
         """
@@ -71,27 +80,204 @@ class AnalizadorRobot:
         for i, col_name in enumerate(header):
             self._column_indices[col_name.strip()] = i
         
+        # Auto-detectar columnas por fase del juego si no están configuradas
+        if not self._autonomous_columns or not self._teleop_columns or not self._endgame_columns:
+            self._auto_detect_game_phase_columns()
+        
         # Podríamos reinicializar las columnas seleccionadas aquí si el encabezado cambia.
         # self._initialize_selected_columns() # Descomentar si es necesario
 
     def _initialize_selected_columns(self):
         """
         Inicializa las listas de columnas seleccionadas con valores predeterminados,
-        siguiendo la lógica Dart: overall = corales, stats = todas menos identificadores,
-        mode = vacío (usuario elige).
+        usando la configuración cargada del ConfigManager.
         """
-        current_header = self.sheet_data[0] if self.sheet_data else self.default_column_names
-        default_overall_columns = [
-            'Coral L1 Scored', 'Coral L2 Scored', 'Coral L3 Scored', 'Coral L4 Scored', 'Climbed?'
-        ]
-        self._selected_numeric_columns_for_overall = [
-            col for col in default_overall_columns if col in current_header
-        ]
-        excluded_from_stats = ["Lead Scouter", "Scouter Name", "Highlights Scouter Name"]
-        self._selected_stats_columns = [
-            col for col in current_header if col not in excluded_from_stats
-        ]
-        self._mode_boolean_columns = []  # El usuario elige, por defecto vacío
+        # Use configuration from ConfigManager if available
+        if hasattr(self, 'config_manager'):
+            column_config = self.config_manager.get_column_config()
+            
+            current_header = self.sheet_data[0] if self.sheet_data else self.default_column_names
+            
+            # Filter columns that exist in current header
+            self._selected_numeric_columns_for_overall = [
+                col for col in column_config.numeric_for_overall if col in current_header
+            ]
+            self._selected_stats_columns = [
+                col for col in column_config.stats_columns if col in current_header
+            ]
+            self._mode_boolean_columns = [
+                col for col in column_config.mode_boolean_columns if col in current_header
+            ]
+        else:
+            # Fallback to legacy behavior
+            current_header = self.sheet_data[0] if self.sheet_data else self.default_column_names
+            default_overall_columns = [
+                'Coral L1 (Auto)', 'Coral L2 (Auto)', 'Coral L3 (Auto)', 'Coral L4 (Auto)', 
+                'Coral L1 (Teleop)', 'Coral L2 (Teleop)', 'Coral L3 (Teleop)', 'Coral L4 (Teleop)',
+                'Barge Algae (Auto)', 'Barge Algae (Teleop)', 'Processor Algae (Auto)', 'Processor Algae (Teleop)'
+            ]
+            self._selected_numeric_columns_for_overall = [
+                col for col in default_overall_columns if col in current_header
+            ]
+            excluded_from_stats = ["Scouter Initials", "Robot"]
+            self._selected_stats_columns = [
+                col for col in current_header if col not in excluded_from_stats
+            ]
+            self._mode_boolean_columns = []  # El usuario elige, por defecto vacío
+
+    def _auto_detect_game_phase_columns(self):
+        """
+        Auto-detecta columnas por fase del juego basándose en palabras clave en los nombres.
+        """
+        if not self.sheet_data or not self.sheet_data[0]:
+            return
+            
+        header = self.sheet_data[0]
+        
+        # Palabras clave para identificar fases del juego
+        autonomous_keywords = ['auton', 'auto', 'autonomous', 'did something', 'did foul', 'worked']
+        teleop_keywords = ['coral', 'algae', 'barge', 'processor', 'crossed', 'defense', 'defended', 'teleop']
+        endgame_keywords = ['climb', 'endgame', 'end game', 'tipped', 'fell over', 'died']
+        
+        # Limpiar listas actuales si están siendo auto-detectadas
+        if not self._autonomous_columns:
+            self._autonomous_columns = []
+        if not self._teleop_columns:
+            self._teleop_columns = []
+        if not self._endgame_columns:
+            self._endgame_columns = []
+            
+        for col_name in header:
+            col_lower = col_name.lower()
+            
+            # Verificar autonomous
+            if any(keyword in col_lower for keyword in autonomous_keywords):
+                if col_name not in self._autonomous_columns:
+                    self._autonomous_columns.append(col_name)
+            
+            # Verificar teleop
+            elif any(keyword in col_lower for keyword in teleop_keywords):
+                if col_name not in self._teleop_columns:
+                    self._teleop_columns.append(col_name)
+            
+            # Verificar endgame
+            elif any(keyword in col_lower for keyword in endgame_keywords):
+                if col_name not in self._endgame_columns:
+                    self._endgame_columns.append(col_name)
+
+    def set_autonomous_columns(self, column_names_list):
+        """Configura manualmente las columnas de autonomous"""
+        self._autonomous_columns = column_names_list.copy()
+        
+    def set_teleop_columns(self, column_names_list):
+        """Configura manualmente las columnas de teleop"""
+        self._teleop_columns = column_names_list.copy()
+        
+    def set_endgame_columns(self, column_names_list):
+        """Configura manualmente las columnas de endgame"""
+        self._endgame_columns = column_names_list.copy()
+        
+    def get_autonomous_columns(self):
+        """Obtiene la lista de columnas de autonomous"""
+        return self._autonomous_columns.copy()
+        
+    def get_teleop_columns(self):
+        """Obtiene la lista de columnas de teleop"""
+        return self._teleop_columns.copy()
+        
+    def get_endgame_columns(self):
+        """Obtiene la lista de columnas de endgame"""
+        return self._endgame_columns.copy()
+
+    def calculate_team_phase_scores(self, team_number):
+        """
+        Calcula los puntajes de autonomous, teleop y endgame para un equipo específico.
+        Retorna un diccionario con los puntajes promedio de cada fase.
+        """
+        team_data = self.get_team_data_grouped().get(str(team_number), [])
+        if not team_data:
+            return {"autonomous": 0, "teleop": 0, "endgame": 0}
+            
+        # Calcular promedios para cada fase
+        phase_scores = {"autonomous": 0, "teleop": 0, "endgame": 0}
+        
+        # Autonomous
+        if self._autonomous_columns:
+            auto_values = []
+            for row in team_data:
+                for col_name in self._autonomous_columns:
+                    if col_name in self._column_indices:
+                        col_idx = self._column_indices[col_name]
+                        if col_idx < len(row):
+                            try:
+                                # Convertir booleanos y strings a números
+                                val = row[col_idx]
+                                if isinstance(val, str):
+                                    if val.lower() in ['true', 'yes', 'y', '1', 'si', 'sí']:
+                                        auto_values.append(100)
+                                    elif val.lower() in ['false', 'no', 'n', '0']:
+                                        auto_values.append(0)
+                                    else:
+                                        auto_values.append(float(val))
+                                elif isinstance(val, bool):
+                                    auto_values.append(100 if val else 0)
+                                else:
+                                    auto_values.append(float(val))
+                            except (ValueError, TypeError):
+                                pass
+            phase_scores["autonomous"] = sum(auto_values) / len(auto_values) if auto_values else 0
+            
+        # Teleop
+        if self._teleop_columns:
+            teleop_values = []
+            for row in team_data:
+                for col_name in self._teleop_columns:
+                    if col_name in self._column_indices:
+                        col_idx = self._column_indices[col_name]
+                        if col_idx < len(row):
+                            try:
+                                val = row[col_idx]
+                                if isinstance(val, str):
+                                    if val.lower() in ['true', 'yes', 'y', '1', 'si', 'sí']:
+                                        teleop_values.append(100)
+                                    elif val.lower() in ['false', 'no', 'n', '0']:
+                                        teleop_values.append(0)
+                                    else:
+                                        teleop_values.append(float(val))
+                                elif isinstance(val, bool):
+                                    teleop_values.append(100 if val else 0)
+                                else:
+                                    teleop_values.append(float(val))
+                            except (ValueError, TypeError):
+                                pass
+            phase_scores["teleop"] = sum(teleop_values) / len(teleop_values) if teleop_values else 0
+            
+        # Endgame
+        if self._endgame_columns:
+            endgame_values = []
+            for row in team_data:
+                for col_name in self._endgame_columns:
+                    if col_name in self._column_indices:
+                        col_idx = self._column_indices[col_name]
+                        if col_idx < len(row):
+                            try:
+                                val = row[col_idx]
+                                if isinstance(val, str):
+                                    if val.lower() in ['true', 'yes', 'y', '1', 'si', 'sí']:
+                                        endgame_values.append(100)
+                                    elif val.lower() in ['false', 'no', 'n', '0']:
+                                        endgame_values.append(0)
+                                    else:
+                                        endgame_values.append(float(val))
+                                elif isinstance(val, bool):
+                                    endgame_values.append(100 if val else 0)
+                                else:
+                                    endgame_values.append(float(val))
+                            except (ValueError, TypeError):
+                                pass
+            phase_scores["endgame"] = sum(endgame_values) / len(endgame_values) if endgame_values else 0
+            
+        return phase_scores
 
     def _find_potential_numeric_columns(self, header, sample_data_row=None):
         """
@@ -176,7 +362,7 @@ class AnalizadorRobot:
 
     def load_csv(self, file_path):
         """
-        Carga datos desde un archivo CSV.
+        Carga un archivo CSV, detectando automáticamente el formato y convirtiéndolo si es necesario.
         Usa FilePicker para seleccionar un .csv, lee su contenido (bytes o ruta),
         lo parte por líneas y comas y lo añade a sheetData.
 
@@ -191,6 +377,32 @@ class AnalizadorRobot:
             if not csv_rows:
                 print("Archivo CSV está vacío o no contiene datos.")
                 return
+
+            csv_headers = csv_rows[0]
+            
+            # Detect CSV format
+            detected_format = self.config_manager.detect_csv_format(csv_headers)
+            
+            if detected_format == "legacy_format":
+                print(f"Detected legacy format. Converting to new format...")
+                
+                # Convert to new format
+                converted_rows = self.csv_converter.convert_rows_to_new_format(csv_headers, csv_rows[1:])
+                csv_rows = [self.config_manager.get_column_config().headers] + converted_rows
+                
+                print(f"Successfully converted {len(converted_rows)} data rows to new format.")
+                
+                # Optionally save converted file
+                converted_file_path = file_path.replace('.csv', '_converted.csv')
+                with open(converted_file_path, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerows(csv_rows)
+                print(f"Saved converted file as: {converted_file_path}")
+                
+            elif detected_format == "unknown_format":
+                print("Warning: Unknown CSV format detected. Loading as-is, but some features may not work correctly.")
+            else:
+                print("CSV file is already in the correct format.")
 
             # Si sheet_data está vacío o solo tiene el encabezado por defecto (y no datos reales)
             if not self.sheet_data or (len(self.sheet_data) == 1 and not any(self.sheet_data[0])): 
@@ -378,6 +590,8 @@ class AnalizadorRobot:
         base = col_name.replace('?', '') \
                        .replace('(Disloged NO COUNT)', '') \
                        .replace('(Disloged DOES NOT COUNT)', '') \
+                       .replace('(Auto)', '') \
+                       .replace('(Teleop)', '') \
                        .replace('/', '_') \
                        .replace(' ', '_') \
                        .lower()
@@ -387,12 +601,16 @@ class AnalizadorRobot:
             'Did something?': 'auto_did_something',
             'Did Foul?': 'auto_did_foul',
             'Did auton worked?': 'auto_worked',
+            'Moved (Auto)': 'auto_worked',
             'Barge Algae Scored': 'teleop_barge_algae',
+            'Barge Algae (Teleop)': 'teleop_barge_algae',
             'Algae Scored in Barge': 'teleop_barge_algae',
             'Processor Algae Scored': 'teleop_processor_algae',
+            'Processor Algae (Teleop)': 'teleop_processor_algae',
             'Played Algae?(Disloged NO COUNT)': 'teleop_played_algae',
             'Played Algae?(Disloged DOES NOT COUNT)': 'teleop_played_algae',
             'Crossed Feild/Played Defense?': 'teleop_crossed_played_defense',
+            'Crossed Field/Defense': 'teleop_crossed_played_defense',
             'Was the robot Defended by alguien?': 'defended_by_other'
         }
         if col_name in specific_renames:
@@ -407,12 +625,20 @@ class AnalizadorRobot:
         if not team_data_grouped:
             return []
         detailed_stats_list = []
+        # Updated coral_algae_groups to support both new and legacy formats
         coral_algae_groups = {
             'teleop_coral': [
+                # New format columns
+                'Coral L1 (Teleop)', 'Coral L2 (Teleop)',
+                'Coral L3 (Teleop)', 'Coral L4 (Teleop)',
+                # Legacy format columns for backward compatibility
                 'Coral L1 Scored', 'Coral L2 Scored',
                 'Coral L3 Scored', 'Coral L4 Scored'
             ],
             'teleop_algae': [
+                # New format columns
+                'Barge Algae (Teleop)', 'Processor Algae (Teleop)',
+                # Legacy format columns for backward compatibility
                 'Algae Scored in Barge'
             ]
         }
@@ -455,9 +681,13 @@ class AnalizadorRobot:
                 std_key = self._generate_stat_key(col_name, 'std')
                 team_stats[avg_key] = self._average(values) if values else 0.0
                 team_stats[std_key] = self._standard_deviation(values) if values else 0.0
-            # Defensa (rate)
-            defense_col = 'Crossed Feild/Played Defense?'
+            # Defensa (rate) - handle both new and legacy column names
+            defense_col = 'Crossed Field/Defense'  # Try new format first
             defense_idx = self._column_indices.get(defense_col)
+            if defense_idx is None:
+                defense_col = 'Crossed Feild/Played Defense?'  # Fall back to legacy format
+                defense_idx = self._column_indices.get(defense_col)
+            
             defense_values = []
             if defense_idx is not None:
                 for row in rows:
@@ -469,18 +699,94 @@ class AnalizadorRobot:
                             defense_values.append(0.0)
                 defense_key = self._generate_stat_key(defense_col, 'rate')
                 team_stats[defense_key] = self._average(defense_values) if defense_values else 0.0
-            # Overall avg y std (solo columnas seleccionadas)
+            # Enhanced Overall calculation with proper weighting
             overall_values = []
-            for col_name in self._selected_numeric_columns_for_overall:
-                col_idx = self._column_indices.get(col_name)
-                if col_idx is None:
-                    continue
-                for row in rows:
-                    if col_idx < len(row):
+            coral_values = []
+            algae_values = []
+            
+            # Calculate per-match performance across all matches for this team
+            for row in rows:
+                match_score = 0.0
+                
+                # Coral scoring with level-based weights (L1=2, L2=3, L3=4, L4=5 for teleop; double for auto)
+                coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
+                for level, weight in coral_weights.items():
+                    # Auto coral (higher value)
+                    auto_col = f'Coral {level} (Auto)'
+                    auto_idx = self._column_indices.get(auto_col)
+                    if auto_idx is not None and auto_idx < len(row):
                         try:
-                            overall_values.append(float(row[col_idx]))
+                            auto_val = float(row[auto_idx])
+                            match_score += auto_val * weight * 2  # Double points for auto
+                            coral_values.append(auto_val * weight * 2)
                         except Exception:
                             pass
+                    
+                    # Teleop coral
+                    teleop_col = f'Coral {level} (Teleop)'
+                    teleop_idx = self._column_indices.get(teleop_col)
+                    if teleop_idx is not None and teleop_idx < len(row):
+                        try:
+                            teleop_val = float(row[teleop_idx])
+                            match_score += teleop_val * weight
+                            coral_values.append(teleop_val * weight)
+                        except Exception:
+                            pass
+                    
+                    # Legacy format fallback
+                    legacy_col = f'Coral {level} Scored'
+                    legacy_idx = self._column_indices.get(legacy_col)
+                    if legacy_idx is not None and legacy_idx < len(row) and auto_idx is None and teleop_idx is None:
+                        try:
+                            legacy_val = float(row[legacy_idx])
+                            match_score += legacy_val * weight * 1.5  # Moderate weight for combined
+                            coral_values.append(legacy_val * weight * 1.5)
+                        except Exception:
+                            pass
+                
+                # Algae scoring (Barge=3 points, Processor=6 points)
+                algae_configs = [
+                    ('Barge Algae (Auto)', 3 * 1.5),  # Auto bonus
+                    ('Barge Algae (Teleop)', 3),
+                    ('Processor Algae (Auto)', 6 * 1.5),  # Auto bonus  
+                    ('Processor Algae (Teleop)', 6),
+                    ('Algae Scored in Barge', 3)  # Legacy
+                ]
+                
+                for col_name, points in algae_configs:
+                    col_idx = self._column_indices.get(col_name)
+                    if col_idx is not None and col_idx < len(row):
+                        try:
+                            val = float(row[col_idx])
+                            match_score += val * points
+                            algae_values.append(val * points)
+                        except Exception:
+                            pass
+                
+                # Add endgame scoring (climb bonus)
+                end_pos_idx = self._column_indices.get('End Position')
+                climb_idx = self._column_indices.get('Climbed?')  # Legacy
+                
+                if end_pos_idx is not None and end_pos_idx < len(row):
+                    end_pos = str(row[end_pos_idx]).strip().lower()
+                    if 'deep' in end_pos:
+                        match_score += 12
+                    elif 'shallow' in end_pos:
+                        match_score += 6
+                    elif 'park' in end_pos:
+                        match_score += 2
+                elif climb_idx is not None and climb_idx < len(row):
+                    try:
+                        climb_val = float(row[climb_idx])
+                        if climb_val > 0:
+                            match_score += 8  # Estimated climb points for legacy
+                    except Exception:
+                        pass
+                
+                if match_score > 0:
+                    overall_values.append(match_score)
+            
+            # Set overall stats
             team_stats['overall_avg'] = self._average(overall_values) if overall_values else 0.0
             team_stats['overall_std'] = self._standard_deviation(overall_values) if overall_values else 0.0
             # Booleanas: rate y mode si corresponde
@@ -565,6 +871,55 @@ class AnalizadorRobot:
             raise ValueError("Weights must sum to 1.0")
         self.robot_valuation_phase_weights = [float(w) for w in weights]
 
+    def save_configuration(self):
+        """Save current configuration to file"""
+        if hasattr(self, 'config_manager'):
+            # Update configuration with current selections
+            self.config_manager.update_column_config(
+                numeric_for_overall=self._selected_numeric_columns_for_overall,
+                stats_columns=self._selected_stats_columns,
+                mode_boolean_columns=self._mode_boolean_columns,
+                autonomous_columns=self._autonomous_columns,
+                teleop_columns=self._teleop_columns,
+                endgame_columns=self._endgame_columns
+            )
+            self.config_manager.update_robot_valuation_config(
+                phase_weights=self.robot_valuation_phase_weights,
+                phase_names=self.robot_valuation_phase_names
+            )
+            self.config_manager.save_configuration()
+            print("Configuration saved successfully.")
+        else:
+            print("Warning: No configuration manager available.")
+
+    def get_available_presets(self):
+        """Get available configuration presets"""
+        if hasattr(self, 'config_manager'):
+            return self.config_manager.get_configuration_presets()
+        return {}
+
+    def apply_configuration_preset(self, preset_name):
+        """Apply a configuration preset"""
+        if hasattr(self, 'config_manager'):
+            self.config_manager.apply_preset(preset_name)
+            # Reload configuration
+            column_config = self.config_manager.get_column_config()
+            robot_config = self.config_manager.get_robot_valuation_config()
+            
+            # Update local variables
+            self._selected_numeric_columns_for_overall = column_config.numeric_for_overall.copy()
+            self._selected_stats_columns = column_config.stats_columns.copy()
+            self._mode_boolean_columns = column_config.mode_boolean_columns.copy()
+            self._autonomous_columns = column_config.autonomous_columns.copy()
+            self._teleop_columns = column_config.teleop_columns.copy()
+            self._endgame_columns = column_config.endgame_columns.copy()
+            self.robot_valuation_phase_weights = robot_config.phase_weights.copy()
+            self.robot_valuation_phase_names = robot_config.phase_names.copy()
+            
+            print(f"Applied configuration preset: {preset_name}")
+        else:
+            print("Warning: No configuration manager available.")
+
     def get_robot_valuation_phase_weights(self):
         return list(self.robot_valuation_phase_weights)
 
@@ -582,27 +937,126 @@ class AnalizadorRobot:
         return [q1, q2, q3]
 
     def _robot_valuation(self, rows):
-        """Calculate RobotValuation as weighted avg of selected numeric columns, split by phases."""
-        if not rows or not self._selected_numeric_columns_for_overall:
+        """Calculate RobotValuation using enhanced weighted scoring across phases."""
+        if not rows:
             return 0.0
+        
         phases = self._split_rows_into_phases(rows)
         phase_weights = self.robot_valuation_phase_weights
-        phase_avgs = []
+        phase_scores = []
+        
         for phase_rows in phases:
-            vals = []
-            for col_name in self._selected_numeric_columns_for_overall:
-                col_idx = self._column_indices.get(col_name)
-                if col_idx is None:
-                    continue
-                for row in phase_rows:
-                    if col_idx < len(row):
+            phase_total = 0.0
+            match_count = len(phase_rows)
+            
+            if match_count == 0:
+                phase_scores.append(0.0)
+                continue
+            
+            # Calculate enhanced score for this phase
+            for row in phase_rows:
+                match_score = 0.0
+                
+                # Coral scoring with level-based weights
+                coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
+                for level, weight in coral_weights.items():
+                    # Auto coral (higher multiplier)
+                    auto_col = f'Coral {level} (Auto)'
+                    auto_idx = self._column_indices.get(auto_col)
+                    if auto_idx is not None and auto_idx < len(row):
                         try:
-                            vals.append(float(row[col_idx]))
+                            auto_val = float(row[auto_idx])
+                            match_score += auto_val * weight * 2.0
                         except Exception:
                             pass
-            phase_avgs.append(self._average(vals) if vals else 0.0)
-        # Weighted sum
-        return sum(w * v for w, v in zip(phase_weights, phase_avgs))
+                    
+                    # Teleop coral
+                    teleop_col = f'Coral {level} (Teleop)'
+                    teleop_idx = self._column_indices.get(teleop_col)
+                    if teleop_idx is not None and teleop_idx < len(row):
+                        try:
+                            teleop_val = float(row[teleop_idx])
+                            match_score += teleop_val * weight
+                        except Exception:
+                            pass
+                    
+                    # Legacy format fallback
+                    legacy_col = f'Coral {level} Scored'
+                    legacy_idx = self._column_indices.get(legacy_col)
+                    if legacy_idx is not None and legacy_idx < len(row) and auto_idx is None and teleop_idx is None:
+                        try:
+                            legacy_val = float(row[legacy_idx])
+                            match_score += legacy_val * weight * 1.5
+                        except Exception:
+                            pass
+                
+                # Algae scoring
+                algae_configs = [
+                    ('Barge Algae (Auto)', 4.5),  # 3 points * 1.5 auto multiplier
+                    ('Barge Algae (Teleop)', 3),
+                    ('Processor Algae (Auto)', 9),  # 6 points * 1.5 auto multiplier
+                    ('Processor Algae (Teleop)', 6),
+                    ('Algae Scored in Barge', 3)  # Legacy
+                ]
+                
+                for col_name, points in algae_configs:
+                    col_idx = self._column_indices.get(col_name)
+                    if col_idx is not None and col_idx < len(row):
+                        try:
+                            val = float(row[col_idx])
+                            match_score += val * points
+                        except Exception:
+                            pass
+                
+                # Endgame scoring
+                end_pos_idx = self._column_indices.get('End Position')
+                climb_idx = self._column_indices.get('Climbed?')  # Legacy
+                
+                if end_pos_idx is not None and end_pos_idx < len(row):
+                    end_pos = str(row[end_pos_idx]).strip().lower()
+                    if 'deep' in end_pos:
+                        match_score += 12
+                    elif 'shallow' in end_pos:
+                        match_score += 6
+                    elif 'park' in end_pos:
+                        match_score += 2
+                elif climb_idx is not None and climb_idx < len(row):
+                    try:
+                        climb_val = float(row[climb_idx])
+                        if climb_val > 0:
+                            match_score += 8  # Estimated points for legacy
+                    except Exception:
+                        pass
+                
+                # Defense/activity bonus
+                defense_idx = self._column_indices.get('Crossed Field/Defense')
+                if defense_idx is None:
+                    defense_idx = self._column_indices.get('Crossed Feild/Played Defense?')
+                
+                if defense_idx is not None and defense_idx < len(row):
+                    defense_val = str(row[defense_idx]).strip().lower()
+                    if defense_val in ['true', 'yes', 'y', '1']:
+                        match_score += 5  # Defense bonus
+                
+                # Auto movement bonus
+                auto_moved_idx = self._column_indices.get('Moved (Auto)')
+                if auto_moved_idx is None:
+                    auto_moved_idx = self._column_indices.get('Did something?')
+                
+                if auto_moved_idx is not None and auto_moved_idx < len(row):
+                    moved_val = str(row[auto_moved_idx]).strip().lower()
+                    if moved_val in ['true', 'yes', 'y', '1']:
+                        match_score += 3  # Auto activity bonus
+                
+                phase_total += match_score
+            
+            # Average for this phase
+            phase_avg = phase_total / match_count if match_count > 0 else 0.0
+            phase_scores.append(phase_avg)
+        
+        # Weighted sum across phases
+        final_score = sum(w * s for w, s in zip(phase_weights, phase_scores))
+        return final_score
 
     def get_team_match_performance(self, team_numbers=None):
         """
@@ -646,55 +1100,224 @@ class AnalizadorRobot:
             perf[team].sort(key=lambda x: x[0])
         return perf
 
+    def export_columns_config(self, file_path):
+        """
+        Exporta la configuración actual de columnas a un archivo JSON.
+        
+        Args:
+            file_path (str): Ruta donde guardar el archivo JSON
+        """
+        config = {
+            "version": "1.0",
+            "timestamp": f"{tk.TkVersion}",
+            "headers": self.get_current_headers(),
+            "column_configuration": {
+                "numeric_for_overall": self._selected_numeric_columns_for_overall,
+                "stats_columns": self._selected_stats_columns,
+                "mode_boolean_columns": self._mode_boolean_columns,
+                "autonomous_columns": self._autonomous_columns,
+                "teleop_columns": self._teleop_columns,
+                "endgame_columns": self._endgame_columns
+            },
+            "robot_valuation": {
+                "phase_weights": self.robot_valuation_phase_weights,
+                "phase_names": self.robot_valuation_phase_names
+            },
+            "metadata": {
+                "total_columns": len(self.get_current_headers()),
+                "description": "Alliance Simulator Column Configuration"
+            }
+        }
+        
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
+            print(f"Configuración exportada exitosamente a: {file_path}")
+            return True
+        except Exception as e:
+            print(f"Error al exportar configuración: {e}")
+            return False
+
+    def import_columns_config(self, file_path):
+        """
+        Importa la configuración de columnas desde un archivo JSON.
+        
+        Args:
+            file_path (str): Ruta del archivo JSON a importar
+            
+        Returns:
+            tuple: (success: bool, message: str)
+        """
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            # Validar estructura básica
+            if "column_configuration" not in config:
+                return False, "Archivo JSON no contiene configuración de columnas válida"
+            
+            col_config = config["column_configuration"]
+            current_headers = self.get_current_headers()
+            
+            # Validar que las columnas en el archivo existen en los datos actuales
+            missing_columns = []
+            
+            # Validar columnas numéricas para overall
+            if "numeric_for_overall" in col_config:
+                numeric_cols = col_config["numeric_for_overall"]
+                missing = [col for col in numeric_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._selected_numeric_columns_for_overall = numeric_cols
+            
+            # Validar columnas de estadísticas
+            if "stats_columns" in col_config:
+                stats_cols = col_config["stats_columns"]
+                missing = [col for col in stats_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._selected_stats_columns = stats_cols
+            
+            # Validar columnas booleanas de modo
+            if "mode_boolean_columns" in col_config:
+                mode_cols = col_config["mode_boolean_columns"]
+                missing = [col for col in mode_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._mode_boolean_columns = mode_cols
+            
+            # Validar columnas de autonomous
+            if "autonomous_columns" in col_config:
+                auto_cols = col_config["autonomous_columns"]
+                missing = [col for col in auto_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._autonomous_columns = auto_cols
+            
+            # Validar columnas de teleop
+            if "teleop_columns" in col_config:
+                teleop_cols = col_config["teleop_columns"]
+                missing = [col for col in teleop_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._teleop_columns = teleop_cols
+            
+            # Validar columnas de endgame
+            if "endgame_columns" in col_config:
+                endgame_cols = col_config["endgame_columns"]
+                missing = [col for col in endgame_cols if col not in current_headers]
+                if missing:
+                    missing_columns.extend(missing)
+                else:
+                    self._endgame_columns = endgame_cols
+            
+            # Importar configuración de RobotValuation si existe
+            if "robot_valuation" in config:
+                robot_val = config["robot_valuation"]
+                if "phase_weights" in robot_val and len(robot_val["phase_weights"]) == 3:
+                    weights = robot_val["phase_weights"]
+                    if abs(sum(weights) - 1.0) < 0.01:  # Verificar que sumen ~1.0
+                        self.robot_valuation_phase_weights = weights
+            
+            if missing_columns:
+                missing_unique = list(set(missing_columns))
+                return False, f"Las siguientes columnas no existen en los datos actuales: {', '.join(missing_unique)}"
+            
+            print(f"Configuración importada exitosamente desde: {file_path}")
+            return True, "Configuración importada exitosamente"
+            
+        except FileNotFoundError:
+            return False, "Archivo no encontrado"
+        except json.JSONDecodeError:
+            return False, "Error al decodificar JSON - archivo corrupto o formato inválido"
+        except Exception as e:
+            return False, f"Error al importar configuración: {str(e)}"
+
+    def get_columns_config_summary(self):
+        """
+        Retorna un resumen de la configuración actual de columnas.
+        
+        Returns:
+            dict: Resumen de la configuración
+        """
+        return {
+            "total_headers": len(self.get_current_headers()),
+            "numeric_for_overall_count": len(self._selected_numeric_columns_for_overall),
+            "stats_columns_count": len(self._selected_stats_columns),
+            "mode_boolean_count": len(self._mode_boolean_columns),
+            "autonomous_columns_count": len(self._autonomous_columns),
+            "teleop_columns_count": len(self._teleop_columns),
+            "endgame_columns_count": len(self._endgame_columns),
+            "robot_valuation_weights": self.robot_valuation_phase_weights,
+            "game_phases_configured": {
+                "autonomous": self._autonomous_columns,
+                "teleop": self._teleop_columns,
+                "endgame": self._endgame_columns
+            }
+        }
+
 # GUI Application
 class AnalizadorGUI:
     def __init__(self, root, analizador):
         self.root = root
         self.analizador = analizador
         self.root.title("Alliance Simulator Analyzer")
+        # Initialize SchoolSystem
+        self.school_system = TeamScoring()
         self.create_widgets()
 
     def create_widgets(self):
-        # Mejoras visuales y de disposición
+        # Layout container
         frame = ttk.Frame(self.root, padding=8)
         frame.pack(fill=tk.BOTH, expand=True)
 
+        # Top buttons
         btn_frame = ttk.Frame(frame)
         btn_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
-        ttk.Button(btn_frame, text="Load CSV", command=self.load_csv).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Real-Time QR Scanner", command=self.scan_and_load_qr).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Test Camera", command=self.test_camera).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Paste QR Data", command=self.load_qr).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Update Header", command=self.update_header).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Configure Columns", command=self.configure_columns).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="RobotValuation Weights", command=self.configure_robot_valuation_weights).pack(side=tk.LEFT, padx=4, pady=2)
-        ttk.Button(btn_frame, text="Plot Team Performance", command=self.open_team_performance_plot).pack(side=tk.LEFT, padx=4, pady=2)
+        buttons = [
+            ("Load CSV", self.load_csv),
+            ("Real-Time QR Scanner", self.scan_and_load_qr),
+            ("Camera Settings", self.configure_camera),
+            ("Paste QR Data", self.load_qr),
+            ("System Configuration", self.open_system_configuration),
+            ("Plot Team Performance", self.open_team_performance_plot),
+            ("SchoolSystem", self.open_school_system),
+            ("Foreshadowing", self.open_foreshadowing),
+        ]
+        for text, cmd in buttons:
+            ttk.Button(btn_frame, text=text, command=cmd).pack(side=tk.LEFT, padx=4, pady=2)
         ttk.Button(btn_frame, text="About", command=self.show_about).pack(side=tk.RIGHT, padx=4, pady=2)
 
+        # Status bar
         self.status_var = tk.StringVar()
         status_bar = ttk.Label(frame, textvariable=self.status_var, relief=tk.SUNKEN, anchor=tk.W)
         status_bar.pack(side=tk.BOTTOM, fill=tk.X)
 
+        # Notebook
         self.notebook = ttk.Notebook(frame)
         self.notebook.pack(fill=tk.BOTH, expand=True, pady=5)
 
         # Raw Data Tab
         self.raw_frame = ttk.Frame(self.notebook)
-        
-        # Add editing controls for raw data
         raw_controls = ttk.Frame(self.raw_frame)
         raw_controls.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
-        ttk.Button(raw_controls, text="Edit Selected Row", command=self.edit_raw_data_row).pack(side=tk.LEFT, padx=2)
-        ttk.Button(raw_controls, text="Delete Selected Row", command=self.delete_raw_data_row).pack(side=tk.LEFT, padx=2)
-        ttk.Button(raw_controls, text="Add New Row", command=self.add_raw_data_row).pack(side=tk.LEFT, padx=2)
-        ttk.Button(raw_controls, text="Save Changes", command=self.save_raw_data_changes).pack(side=tk.RIGHT, padx=2)
-        
+        raw_btns = [
+            ("Edit Selected Row", self.edit_raw_data_row),
+            ("Delete Selected Row", self.delete_raw_data_row),
+            ("Add New Row", self.add_raw_data_row),
+            ("Save Changes", self.save_raw_data_changes),
+        ]
+        for txt, cmd in raw_btns[:-1]:
+            ttk.Button(raw_controls, text=txt, command=cmd).pack(side=tk.LEFT, padx=2)
+        ttk.Button(raw_controls, text=raw_btns[-1][0], command=raw_btns[-1][1]).pack(side=tk.RIGHT, padx=2)
         self.tree_raw = ttk.Treeview(self.raw_frame, show='headings')
         self.tree_raw.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-        
-        # Add double-click binding for editing
         self.tree_raw.bind("<Double-1>", self.on_raw_data_double_click)
-        
         scrollbar_raw_y = ttk.Scrollbar(self.raw_frame, orient=tk.VERTICAL, command=self.tree_raw.yview)
         scrollbar_raw_x = ttk.Scrollbar(self.raw_frame, orient=tk.HORIZONTAL, command=self.tree_raw.xview)
         self.tree_raw.configure(yscroll=scrollbar_raw_y.set, xscroll=scrollbar_raw_x.set)
@@ -751,12 +1374,33 @@ class AnalizadorGUI:
                 self.alliance_canvas.xview_scroll(int(-1*(event.delta/120)), "units")
         self.alliance_canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
+        # Honor Roll System Tab
+        self.honor_roll_frame = ttk.Frame(self.notebook)
+        
+        # Honor Roll controls
+        honor_controls = ttk.Frame(self.honor_roll_frame)
+        honor_controls.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+        ttk.Button(honor_controls, text="Auto-populate from Team Data", command=self.auto_populate_school_system).pack(side=tk.LEFT, padx=2)
+        ttk.Button(honor_controls, text="Manual Team Entry", command=self.manual_team_entry).pack(side=tk.LEFT, padx=2)
+        ttk.Button(honor_controls, text="Edit Team Scores", command=self.edit_team_scores).pack(side=tk.LEFT, padx=2)
+        ttk.Button(honor_controls, text="Export Honor Roll", command=self.export_honor_roll).pack(side=tk.RIGHT, padx=2)
+        
+        self.tree_honor_roll = ttk.Treeview(self.honor_roll_frame, show='headings')
+        self.tree_honor_roll.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
+        
+        scrollbar_honor_y = ttk.Scrollbar(self.honor_roll_frame, orient=tk.VERTICAL, command=self.tree_honor_roll.yview)
+        scrollbar_honor_x = ttk.Scrollbar(self.honor_roll_frame, orient=tk.HORIZONTAL, command=self.tree_honor_roll.xview)
+        self.tree_honor_roll.configure(yscroll=scrollbar_honor_y.set, xscroll=scrollbar_honor_x.set)
+        scrollbar_honor_y.pack(side=tk.RIGHT, fill=tk.Y)
+        scrollbar_honor_x.pack(side=tk.BOTTOM, fill=tk.X)
+        self.notebook.add(self.honor_roll_frame, text="Honor Roll System")
+
         # For dropdowns in the alliance selector
         self.alliance_selector = None
         self.alliance_pick_vars = []  # List of (pick1_var, pick2_var) for each alliance
 
         # Mejorar resize de columnas
-        for tree in [self.tree_raw, self.tree_stats, self.tree_def, self.tree_alliance]:
+        for tree in [self.tree_raw, self.tree_stats, self.tree_def, self.tree_alliance, self.tree_honor_roll]:
             tree["displaycolumns"] = "#all"
             tree.tag_configure('highlight', background='#f0f0ff')
 
@@ -904,40 +1548,153 @@ class AnalizadorGUI:
         cfg.title("Configure Columns")
         cfg.transient(self.root)
         cfg.grab_set()
+        cfg.geometry("800x600")
+        
         headers = self.analizador.get_current_headers()
+
+        # Frame principal con scroll
+        main_frame = tk.Frame(cfg)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        # Frame para botones de Import/Export en la parte superior
+        import_export_frame = tk.Frame(main_frame)
+        import_export_frame.pack(fill=tk.X, pady=(0, 10))
+
+        tk.Label(import_export_frame, text="Gestión de Configuraciones:", 
+                font=("Arial", 12, "bold")).pack(anchor=tk.W)
+        
+        buttons_frame = tk.Frame(import_export_frame)
+        buttons_frame.pack(fill=tk.X, pady=5)
+
+        def export_config():
+            file_path = filedialog.asksaveasfilename(
+                title="Exportar Configuración de Columnas",
+                defaultextension=".json",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+            if file_path:
+                if self.analizador.export_columns_config(file_path):
+                    messagebox.showinfo("Éxito", f"Configuración exportada exitosamente a:\n{file_path}")
+                else:
+                    messagebox.showerror("Error", "Error al exportar la configuración")
+
+        def import_config():
+            file_path = filedialog.askopenfilename(
+                title="Importar Configuración de Columnas",
+                filetypes=[("JSON files", "*.json"), ("All files", "*.*")]
+            )
+            if file_path:
+                success, message = self.analizador.import_columns_config(file_path)
+                if success:
+                    messagebox.showinfo("Éxito", message)
+                    # Actualizar las variables de checkboxes con la nueva configuración
+                    for h in headers:
+                        var_nums[h].set(h in self.analizador._selected_numeric_columns_for_overall)
+                        var_stats[h].set(h in self.analizador._selected_stats_columns)
+                        var_modes[h].set(h in self.analizador._mode_boolean_columns)
+                        # Actualizar variables de fases del juego
+                        var_auto[h].set(h in self.analizador.get_autonomous_columns())
+                        var_teleop[h].set(h in self.analizador.get_teleop_columns())
+                        var_endgame[h].set(h in self.analizador.get_endgame_columns())
+                else:
+                    messagebox.showerror("Error", message)
+
+        tk.Button(buttons_frame, text="📤 Exportar Configuración", command=export_config, 
+                 bg="#4CAF50", fg="white", font=("Arial", 10, "bold")).pack(side=tk.LEFT, padx=(0, 10))
+        tk.Button(buttons_frame, text="📥 Importar Configuración", command=import_config,
+                 bg="#2196F3", fg="white", font=("Arial", 10, "bold")).pack(side=tk.LEFT)
+
+        # Separador
+        separator = tk.Frame(main_frame, height=2, bg="gray")
+        separator.pack(fill=tk.X, pady=10)
 
         # Variables para checkboxes
         var_nums = {h: tk.BooleanVar(value=h in self.analizador._selected_numeric_columns_for_overall) for h in headers}
         var_stats = {h: tk.BooleanVar(value=h in self.analizador._selected_stats_columns) for h in headers}
         var_modes = {h: tk.BooleanVar(value=h in self.analizador._mode_boolean_columns) for h in headers}
+        
+        # Variables para fases del juego
+        var_auto = {h: tk.BooleanVar(value=h in self.analizador.get_autonomous_columns()) for h in headers}
+        var_teleop = {h: tk.BooleanVar(value=h in self.analizador.get_teleop_columns()) for h in headers}
+        var_endgame = {h: tk.BooleanVar(value=h in self.analizador.get_endgame_columns()) for h in headers}
 
-        frm = ttk.Frame(cfg)
+        # Frame con scroll para los checkboxes
+        canvas = tk.Canvas(main_frame)
+        scrollbar = tk.Scrollbar(main_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        frm = ttk.Frame(scrollable_frame)
         frm.pack(padx=10, pady=10)
 
-        ttk.Label(frm, text="Numeric for overall").grid(row=0, column=0, padx=5, pady=5)
-        ttk.Label(frm, text="Stats columns").grid(row=0, column=1, padx=5, pady=5)
-        ttk.Label(frm, text="Mode boolean").grid(row=0, column=2, padx=5, pady=5)
+        # Add a title and headers
+        ttk.Label(frm, text="Select columns for each category:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=6, pady=(0,8))
+        
+        # Headers para columnas generales
+        ttk.Label(frm, text="Numeric for overall", font=("Segoe UI", 9, "bold")).grid(row=1, column=0, padx=5, pady=5)
+        ttk.Label(frm, text="Stats columns", font=("Segoe UI", 9, "bold")).grid(row=1, column=1, padx=5, pady=5)
+        ttk.Label(frm, text="Mode boolean", font=("Segoe UI", 9, "bold")).grid(row=1, column=2, padx=5, pady=5)
+        
+        # Headers para fases del juego
+        tk.Label(frm, text="Autonomous", font=("Segoe UI", 9, "bold"), fg="blue").grid(row=1, column=3, padx=5, pady=5)
+        tk.Label(frm, text="Teleop", font=("Segoe UI", 9, "bold"), fg="green").grid(row=1, column=4, padx=5, pady=5)
+        tk.Label(frm, text="Endgame", font=("Segoe UI", 9, "bold"), fg="red").grid(row=1, column=5, padx=5, pady=5)
 
         # Crear columnas de checkboxes
         for i, h in enumerate(headers):
-            ttk.Checkbutton(frm, text=h, variable=var_nums[h]).grid(row=i+1, column=0, sticky='w')
-            ttk.Checkbutton(frm, text=h, variable=var_stats[h]).grid(row=i+1, column=1, sticky='w')
-            ttk.Checkbutton(frm, text=h, variable=var_modes[h]).grid(row=i+1, column=2, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_nums[h]).grid(row=i+2, column=0, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_stats[h]).grid(row=i+2, column=1, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_modes[h]).grid(row=i+2, column=2, sticky='w')
+            # Checkboxes para fases del juego
+            ttk.Checkbutton(frm, text=h, variable=var_auto[h]).grid(row=i+2, column=3, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_teleop[h]).grid(row=i+2, column=4, sticky='w')
+            ttk.Checkbutton(frm, text=h, variable=var_endgame[h]).grid(row=i+2, column=5, sticky='w')
 
         def apply_cfg():
             sel_nums  = [h for h in headers if var_nums[h].get()]
             sel_stats = [h for h in headers if var_stats[h].get()]
             sel_modes = [h for h in headers if var_modes[h].get()]
+            
+            # Aplicar configuración de fases del juego
+            sel_auto = [h for h in headers if var_auto[h].get()]
+            sel_teleop = [h for h in headers if var_teleop[h].get()]
+            sel_endgame = [h for h in headers if var_endgame[h].get()]
+            
             self.analizador.set_selected_numeric_columns_for_overall(sel_nums)
             self.analizador.set_selected_stats_columns(sel_stats)
             self.analizador.set_mode_boolean_columns(sel_modes)
+            
+            # Configurar fases del juego
+            self.analizador.set_autonomous_columns(sel_auto)
+            self.analizador.set_teleop_columns(sel_teleop)
+            self.analizador.set_endgame_columns(sel_endgame)
+            
             cfg.destroy()
             self.refresh_all()
 
-        # Add a title and a close button for better UX
-        ttk.Label(frm, text="Select columns for each category:", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, columnspan=3, pady=(0,8))
-        ttk.Button(frm, text="Close", command=cfg.destroy).grid(row=len(headers)+2, column=2, pady=10, sticky='e')
-        ttk.Button(frm, text="Apply", command=apply_cfg).grid(row=len(headers)+1, column=1, pady=10)
+        # Botones en la parte inferior
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=10)
+        
+        ttk.Button(button_frame, text="Apply", command=apply_cfg).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Close", command=cfg.destroy).pack(side=tk.RIGHT, padx=5)
+
+        # Configurar el canvas y scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Bind mousewheel to canvas
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        
         cfg.wait_window()
 
     def configure_robot_valuation_weights(self):
@@ -971,6 +1728,99 @@ class AnalizadorGUI:
         ttk.Button(cfg, text="Apply", command=apply).pack(pady=(0,10))
         ttk.Button(cfg, text="Close", command=cfg.destroy).pack()
         cfg.wait_window()
+
+    def show_phase_config(self):
+        """Show current game phase column configuration"""
+        cfg = tk.Toplevel(self.root)
+        cfg.title("Game Phase Column Configuration")
+        cfg.transient(self.root)
+        cfg.grab_set()
+        cfg.geometry("600x500")
+        
+        main_frame = tk.Frame(cfg)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Title
+        ttk.Label(main_frame, text="Current Game Phase Column Configuration", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        # Create notebook for different phases
+        phase_notebook = ttk.Notebook(main_frame)
+        phase_notebook.pack(fill=tk.BOTH, expand=True)
+        
+        # Autonomous tab
+        auto_frame = ttk.Frame(phase_notebook)
+        phase_notebook.add(auto_frame, text="Autonomous")
+        
+        ttk.Label(auto_frame, text="Autonomous Columns:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=5)
+        auto_columns = self.analizador.get_autonomous_columns()
+        if auto_columns:
+            for col in auto_columns:
+                ttk.Label(auto_frame, text=f"• {col}").pack(anchor=tk.W, padx=20)
+        else:
+            ttk.Label(auto_frame, text="No autonomous columns configured", 
+                     foreground="gray").pack(anchor=tk.W, padx=20)
+        
+        # Teleop tab
+        teleop_frame = ttk.Frame(phase_notebook)
+        phase_notebook.add(teleop_frame, text="Teleop")
+        
+        ttk.Label(teleop_frame, text="Teleop Columns:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=5)
+        teleop_columns = self.analizador.get_teleop_columns()
+        if teleop_columns:
+            for col in teleop_columns:
+                ttk.Label(teleop_frame, text=f"• {col}").pack(anchor=tk.W, padx=20)
+        else:
+            ttk.Label(teleop_frame, text="No teleop columns configured", 
+                     foreground="gray").pack(anchor=tk.W, padx=20)
+        
+        # Endgame tab
+        endgame_frame = ttk.Frame(phase_notebook)
+        phase_notebook.add(endgame_frame, text="Endgame")
+        
+        ttk.Label(endgame_frame, text="Endgame Columns:", font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=5)
+        endgame_columns = self.analizador.get_endgame_columns()
+        if endgame_columns:
+            for col in endgame_columns:
+                ttk.Label(endgame_frame, text=f"• {col}").pack(anchor=tk.W, padx=20)
+        else:
+            ttk.Label(endgame_frame, text="No endgame columns configured", 
+                     foreground="gray").pack(anchor=tk.W, padx=20)
+        
+        # Summary tab
+        summary_frame = ttk.Frame(phase_notebook)
+        phase_notebook.add(summary_frame, text="Summary")
+        
+        ttk.Label(summary_frame, text="Configuration Summary:", 
+                 font=("Arial", 10, "bold")).pack(anchor=tk.W, pady=5)
+        
+        summary = self.analizador.get_columns_config_summary()
+        summary_text = f"""
+        Total Headers: {summary['total_headers']}
+        
+        Game Phase Columns:
+        • Autonomous: {summary['autonomous_columns_count']} columns
+        • Teleop: {summary['teleop_columns_count']} columns  
+        • Endgame: {summary['endgame_columns_count']} columns
+        
+        Other Columns:
+        • Numeric for Overall: {summary['numeric_for_overall_count']} columns
+        • Stats Columns: {summary['stats_columns_count']} columns
+        • Mode Boolean: {summary['mode_boolean_count']} columns
+        """
+        
+        ttk.Label(summary_frame, text=summary_text, justify=tk.LEFT).pack(anchor=tk.W, padx=20)
+        
+        # Buttons
+        button_frame = tk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Button(button_frame, text="Configure Columns", 
+                  command=lambda: [cfg.destroy(), self.configure_columns()]).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Auto-detect Phases", 
+                  command=lambda: [self.analizador._auto_detect_game_phase_columns(), 
+                                   cfg.destroy(), self.show_phase_config()]).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Close", command=cfg.destroy).pack(side=tk.RIGHT, padx=5)
 
     def refresh_table(self, tree, columns, rows):
         tree.delete(*tree.get_children())
@@ -1092,6 +1942,7 @@ class AnalizadorGUI:
                 rows.append(row)
             self.refresh_table(self.tree_def, columns, rows)
         self.refresh_alliance_selector_tab()
+        self.refresh_honor_roll_tab()
         self.status_var.set("BELIEVE")
 
     def refresh_raw_data_only(self):
@@ -1123,39 +1974,112 @@ class AnalizadorGUI:
 
         team_dicts = []
         for idx, s in enumerate(stats):
+            # Use enhanced team stats with proper phase scoring and robot valuation
+            team_num = s.get("team")
+            
+            # Calculate enhanced phase scores using the same logic as team stats
+            phase_scores = self.analizador.calculate_team_phase_scores(int(team_num))
+            
+            # Get robot valuation for better ranking assessment
+            robot_valuation = s.get("robot_valuation", 0)
+            
+            # Enhanced EPA calculation with weighted scoring
+            auto_epa = phase_scores["autonomous"] * 2.0  # Auto gets 2x multiplier
+            teleop_epa = phase_scores["teleop"] * 1.0
+            endgame_epa = phase_scores["endgame"] * 1.1  # Endgame gets 1.1x multiplier
+            
+            # Calculate total EPA with proper weighting
+            total_epa = (auto_epa * 0.3) + (teleop_epa * 0.5) + (endgame_epa * 0.2)
+            
+            # Enhanced defense detection using multiple indicators
+            defense_rate = s.get("teleop_crossed_played_defense_rate", 0)
+            died_rate = s.get("died_rate", 0)
+            consistency = s.get("overall_std", float('inf'))
+            
+            # A team is defensive if they play defense regularly OR have low death/high consistency
+            is_defensive = (defense_rate > 0.3) or (died_rate < 0.1 and consistency < 15)
+            
+            # Calculate enhanced team metrics
+            consistency_score = max(0, min(100, 100 - (consistency * 2)))  # Convert std to 0-100 scale
+            clutch_factor = min(100, max(0, (robot_valuation * 0.8) + (50 - consistency)))  # Combination of skill and consistency
+            
             team_dicts.append({
-                "num": s.get("team"),
+                "num": team_num,
                 "rank": idx + 1,
-                "total_epa": s.get("overall_avg", 0),
-                "auto_epa": s.get("teleop_coral_avg", 0),
-                "teleop_epa": s.get("teleop_algae_avg", 0),
-                "endgame_epa": 0,
-                "defense": s.get("teleop_crossed_played_defense_rate", 0) > 0.5,
-                "name": s.get("team")
+                "total_epa": total_epa,
+                "auto_epa": auto_epa,
+                "teleop_epa": teleop_epa,
+                "endgame_epa": endgame_epa,
+                "defense": is_defensive,
+                "name": team_num,
+                "robot_valuation": robot_valuation,
+                "overall_avg": s.get("overall_avg", 0),
+                "phase_scores": phase_scores,
+                "consistency_score": consistency_score,
+                "clutch_factor": clutch_factor
             })
         teams = teams_from_dicts(team_dicts)
 
         if not hasattr(self, 'alliance_selector') or self.alliance_selector is None or len(self.alliance_selector.teams) != len(teams):
             self.alliance_selector = AllianceSelector(teams)
+        else:
+            # Update existing selector with new team data
+            self.alliance_selector.update_teams(teams)
         selector = self.alliance_selector
 
         table = selector.get_alliance_table()
-        columns = ["Alliance #", "Captain", "Pick 1", "Recommendation 1", "Pick 2", "Recommendation 2", "Alliance Score"]
+        columns = ["Alliance #", "Captain", "Pick 1", "Recommendation 1", "Pick 2", "Recommendation 2", "Alliance Score", "Combined EPA", "Strategy Notes"]
         self.tree_alliance.delete(*self.tree_alliance.get_children())
         self.tree_alliance["columns"] = columns
         for col in columns:
             self.tree_alliance.heading(col, text=col)
-            self.tree_alliance.column(col, width=120, anchor=tk.W)
+            if col in ["Strategy Notes"]:
+                self.tree_alliance.column(col, width=200, anchor=tk.W)
+            elif col in ["Combined EPA"]:
+                self.tree_alliance.column(col, width=100, anchor=tk.W)
+            else:
+                self.tree_alliance.column(col, width=120, anchor=tk.W)
 
+        # Enhanced alliance table with strategic insights
         for row in table:
+            alliance_num = row["Alliance #"]
+            captain = row["Captain"]
+            pick1 = row["Pick 1"]
+            pick2 = row["Pick 2"]
+            alliance_score = row["Alliance Score"]
+            
+            # Calculate combined EPA and strategic notes
+            combined_epa = 0
+            strategy_notes = []
+            
+            for team_num in [captain, pick1, pick2]:
+                if team_num:
+                    team_data = next((t for t in team_dicts if t["num"] == team_num), None)
+                    if team_data:
+                        combined_epa += team_data["total_epa"]
+                        if team_data["defense"]:
+                            strategy_notes.append(f"{team_num}:DEF")
+                        if team_data["robot_valuation"] > 85:
+                            strategy_notes.append(f"{team_num}:ELITE")
+                        if team_data["auto_epa"] > 50:
+                            strategy_notes.append(f"{team_num}:AUTO")
+                        if team_data["consistency_score"] > 80:
+                            strategy_notes.append(f"{team_num}:CONSISTENT")
+                        if team_data["clutch_factor"] > 75:
+                            strategy_notes.append(f"{team_num}:CLUTCH")
+            
+            strategy_text = " | ".join(strategy_notes) if strategy_notes else "Balanced"
+            
             values = [
-                row["Alliance #"],
-                row["Captain"],
-                row["Pick 1"],
+                alliance_num,
+                captain,
+                pick1,
                 row["Recommendation 1"],
-                row["Pick 2"],
+                pick2,
                 row["Recommendation 2"],
-                row["Alliance Score"]
+                alliance_score,
+                f"{combined_epa:.1f}",
+                strategy_text
             ]
             self.tree_alliance.insert("", tk.END, values=values)
 
@@ -1166,13 +2090,25 @@ class AnalizadorGUI:
         self.alliance_selector_controls = ttk.Frame(self.alliance_frame)
         self.alliance_selector_controls.pack(fill=tk.X, padx=4, pady=4)
 
-        ttk.Label(self.alliance_selector_controls, text="Alliance #").grid(row=0, column=0)
-        ttk.Label(self.alliance_selector_controls, text="Pick 1").grid(row=0, column=1)
-        ttk.Label(self.alliance_selector_controls, text="Pick 2").grid(row=0, column=2)
+        # Enhanced alliance selection controls with optimization
+        optimization_frame = ttk.LabelFrame(self.alliance_selector_controls, text="Alliance Optimization")
+        optimization_frame.grid(row=0, column=3, columnspan=2, padx=10, pady=5, sticky='ew')
+        
+        ttk.Button(optimization_frame, text="Auto-Optimize All", 
+                  command=self.auto_optimize_alliances).pack(side=tk.LEFT, padx=2)
+        ttk.Button(optimization_frame, text="Balance Strategies", 
+                  command=self.balance_alliance_strategies).pack(side=tk.LEFT, padx=2)
+        ttk.Button(optimization_frame, text="Reset Picks", 
+                  command=lambda: [selector.reset_picks(), self.refresh_alliance_selector_tab()]).pack(side=tk.LEFT, padx=2)
+
+        # Alliance selector grid
+        ttk.Label(self.alliance_selector_controls, text="Alliance #").grid(row=1, column=0)
+        ttk.Label(self.alliance_selector_controls, text="Pick 1").grid(row=1, column=1)
+        ttk.Label(self.alliance_selector_controls, text="Pick 2").grid(row=1, column=2)
 
         self._alliance_selector_combos = []
         for idx, a in enumerate(selector.alliances):
-            ttk.Label(self.alliance_selector_controls, text=str(a.allianceNumber)).grid(row=idx+1, column=0, sticky='w')
+            ttk.Label(self.alliance_selector_controls, text=str(a.allianceNumber)).grid(row=idx+2, column=0, sticky='w')
 
             # Pick 1 Combobox
             pick1_var = tk.StringVar(value=str(a.pick1) if a.pick1 else "")
@@ -1207,7 +2143,7 @@ class AnalizadorGUI:
                 selector.update_recommendations()
                 self.refresh_alliance_selector_tab()
             pick1_combo.bind("<<ComboboxSelected>>", on_pick1)
-            pick1_combo.grid(row=idx+1, column=1, sticky='w')
+            pick1_combo.grid(row=idx+2, column=1, sticky='w')
             self._alliance_selector_combos.append(pick1_combo)
 
             # Pick 2 Combobox
@@ -1242,7 +2178,7 @@ class AnalizadorGUI:
                 selector.update_recommendations()
                 self.refresh_alliance_selector_tab()
             pick2_combo.bind("<<ComboboxSelected>>", on_pick2)
-            pick2_combo.grid(row=idx+1, column=2, sticky='w')
+            pick2_combo.grid(row=idx+2, column=2, sticky='w')
             self._alliance_selector_combos.append(pick2_combo)
 
     def open_alliance_selector(self):
@@ -1321,31 +2257,376 @@ class AnalizadorGUI:
         ttk.Button(win, text="Close", command=win.destroy).pack()
         win.wait_window()
 
-    def test_camera(self):
-        """Test camera access without starting the full QR scanner."""
+    def configure_camera(self):
+        """Configure camera settings and selection."""
         try:
             import cv2
         except ImportError:
             messagebox.showerror("Missing Dependencies", 
                                "OpenCV not found. Please install: pip install opencv-python")
             return
+
+        camera_win = tk.Toplevel(self.root)
+        camera_win.title("Camera Configuration")
+        camera_win.transient(self.root)
+        camera_win.grab_set()
+        camera_win.geometry("400x300")
         
+        main_frame = ttk.Frame(camera_win, padding=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(main_frame, text="Camera Configuration", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        # Camera selection
+        camera_frame = ttk.LabelFrame(main_frame, text="Camera Selection")
+        camera_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(camera_frame, text="Select Camera:").pack(anchor=tk.W, padx=5, pady=2)
+        
+        camera_var = tk.IntVar(value=0)
+        camera_combo = ttk.Combobox(camera_frame, textvariable=camera_var, state="readonly")
+        camera_combo.pack(fill=tk.X, padx=5, pady=2)
+        
+        # Detect available cameras
+        available_cameras = []
+        for i in range(5):  # Check first 5 camera indices
+            try:
+                cap = cv2.VideoCapture(i)
+                if cap.isOpened():
+                    available_cameras.append(f"Camera {i}")
+                    cap.release()
+            except:
+                pass
+        
+        if not available_cameras:
+            available_cameras = ["No cameras detected"]
+        
+        camera_combo['values'] = available_cameras
+        camera_combo.current(0)
+        
+        # Camera settings
+        settings_frame = ttk.LabelFrame(main_frame, text="Camera Settings")
+        settings_frame.pack(fill=tk.X, pady=5)
+        
+        # Resolution
+        ttk.Label(settings_frame, text="Resolution:").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+        resolution_var = tk.StringVar(value="640x480")
+        resolution_combo = ttk.Combobox(settings_frame, textvariable=resolution_var, 
+                                       values=["320x240", "640x480", "800x600", "1024x768", "1280x720", "1920x1080"],
+                                       state="readonly")
+        resolution_combo.grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
+        resolution_combo.current(1)
+        
+        # Test camera function
+        def test_selected_camera():
+            try:
+                camera_index = camera_combo.current()
+                if camera_index < 0 or "No cameras" in camera_combo.get():
+                    messagebox.showerror("Error", "No camera selected or available")
+                    return
+                
+                cap = cv2.VideoCapture(camera_index)
+                if not cap.isOpened():
+                    messagebox.showerror("Camera Error", f"Could not open Camera {camera_index}")
+                    return
+                
+                # Set resolution
+                resolution = resolution_var.get().split('x')
+                width, height = int(resolution[0]), int(resolution[1])
+                cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
+                cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+                
+                # Test capture
+                ret, frame = cap.read()
+                cap.release()
+                
+                if ret:
+                    messagebox.showinfo("Camera Test", 
+                                      f"Camera {camera_index} test successful!\n"
+                                      f"Resolution: {width}x{height}")
+                else:
+                    messagebox.showerror("Camera Test", "Failed to capture frame from camera")
+                    
+            except Exception as e:
+                messagebox.showerror("Camera Test Failed", f"Error: {e}")
+        
+        # Buttons
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill=tk.X, pady=10)
+        
+        ttk.Button(button_frame, text="Test Camera", command=test_selected_camera).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Save Settings", 
+                  command=lambda: self._save_camera_settings(camera_var.get(), resolution_var.get(), camera_win)).pack(side=tk.LEFT, padx=5)
+        ttk.Button(button_frame, text="Close", command=camera_win.destroy).pack(side=tk.RIGHT, padx=5)
+        
+        # Instructions
+        instructions = """
+Instructions:
+1. Select your preferred camera from the dropdown
+2. Choose the desired resolution
+3. Test the camera to ensure it works
+4. Save settings to apply for QR scanning
+        """
+        ttk.Label(main_frame, text=instructions, justify=tk.LEFT, foreground="gray").pack(pady=5)
+    
+    def _save_camera_settings(self, camera_index, resolution, window):
+        """Save camera settings to configuration."""
         try:
-            cap = cv2.VideoCapture(0)
-            if not cap.isOpened():
-                messagebox.showerror("Camera Error", 
-                                   "Could not open camera. Please check:\n"
-                                   "- Camera is connected\n"
-                                   "- Camera is not being used by another application\n"
-                                   "- Camera permissions are granted")
-                return
-            
-            cap.release()
-            messagebox.showinfo("Camera Test", "Camera test successful! Your camera is working properly.")
-            self.status_var.set("Camera test passed.")
+            # Store camera settings (you can expand this to save to config file)
+            self.camera_index = camera_index
+            self.camera_resolution = resolution
+            messagebox.showinfo("Settings Saved", 
+                              f"Camera settings saved:\nCamera: {camera_index}\nResolution: {resolution}")
+            window.destroy()
         except Exception as e:
-            messagebox.showerror("Camera Test Failed", f"Camera test failed: {e}")
-            self.status_var.set("Camera test failed.")
+            messagebox.showerror("Save Error", f"Failed to save settings: {e}")
+
+    def open_system_configuration(self):
+        """Comprehensive system configuration window."""
+        config_win = tk.Toplevel(self.root)
+        config_win.title("System Configuration")
+        config_win.transient(self.root)
+        config_win.grab_set()
+        config_win.geometry("800x600")
+        
+        # Create notebook for different configuration sections
+        notebook = ttk.Notebook(config_win)
+        notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Column Configuration Tab
+        column_frame = ttk.Frame(notebook)
+        notebook.add(column_frame, text="📋 Columns & Data")
+        self._create_column_config_tab(column_frame)
+        
+        # Game Phases Tab
+        phases_frame = ttk.Frame(notebook)
+        notebook.add(phases_frame, text="🎮 Game Phases")
+        self._create_phases_config_tab(phases_frame)
+        
+        # Robot Valuation Tab
+        valuation_frame = ttk.Frame(notebook)
+        notebook.add(valuation_frame, text="🤖 Robot Valuation")
+        self._create_valuation_config_tab(valuation_frame)
+        
+        # Import/Export Tab
+        io_frame = ttk.Frame(notebook)
+        notebook.add(io_frame, text="💾 Import/Export")
+        self._create_io_config_tab(io_frame)
+        
+        # System Info Tab
+        info_frame = ttk.Frame(notebook)
+        notebook.add(info_frame, text="ℹ️ System Info")
+        self._create_info_tab(info_frame)
+    
+    def _create_column_config_tab(self, parent):
+        """Create column configuration tab content."""
+        frame = ttk.Frame(parent, padding=10)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text="Column Configuration", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        # Quick actions
+        actions_frame = ttk.LabelFrame(frame, text="Quick Actions")
+        actions_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Button(actions_frame, text="Configure Columns", 
+                  command=self.configure_columns).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(actions_frame, text="Update Headers", 
+                  command=self.update_header).pack(side=tk.LEFT, padx=5, pady=5)
+        ttk.Button(actions_frame, text="Auto-detect Phases", 
+                  command=self._auto_detect_phases).pack(side=tk.LEFT, padx=5, pady=5)
+        
+        # Current configuration summary
+        summary_frame = ttk.LabelFrame(frame, text="Current Configuration")
+        summary_frame.pack(fill=tk.BOTH, expand=True, pady=5)
+        
+        # Create text widget with scrollbar
+        text_frame = ttk.Frame(summary_frame)
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        summary_text = tk.Text(text_frame, wrap=tk.WORD, height=15)
+        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=summary_text.yview)
+        summary_text.configure(yscrollcommand=scrollbar.set)
+        
+        summary_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Populate summary
+        config_summary = self.analizador.get_columns_config_summary()
+        summary_content = f"""Configuration Summary:
+
+Total Headers: {config_summary['total_headers']}
+
+Column Categories:
+• Numeric for Overall: {config_summary['numeric_for_overall_count']} columns
+• Stats Columns: {config_summary['stats_columns_count']} columns  
+• Mode Boolean: {config_summary['mode_boolean_count']} columns
+
+Game Phases:
+• Autonomous: {config_summary['autonomous_columns_count']} columns
+• Teleop: {config_summary['teleop_columns_count']} columns
+• Endgame: {config_summary['endgame_columns_count']} columns
+
+Autonomous Columns:
+{chr(10).join('• ' + col for col in config_summary['game_phases_configured']['autonomous'])}
+
+Teleop Columns:
+{chr(10).join('• ' + col for col in config_summary['game_phases_configured']['teleop'])}
+
+Endgame Columns:
+{chr(10).join('• ' + col for col in config_summary['game_phases_configured']['endgame'])}
+
+Robot Valuation Weights: {config_summary['robot_valuation_weights']}
+"""
+        
+        summary_text.insert(tk.END, summary_content)
+        summary_text.config(state=tk.DISABLED)
+    
+    def _create_phases_config_tab(self, parent):
+        """Create game phases configuration tab content."""
+        frame = ttk.Frame(parent, padding=10)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text="Game Phases Configuration", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        ttk.Button(frame, text="Open Game Phase Configuration", 
+                  command=self.show_phase_config).pack(pady=5)
+        
+        # Phase summary
+        ttk.Label(frame, text="Current phases are automatically detected based on column names.\n"
+                             "You can manually configure them using the button above.",
+                 justify=tk.CENTER).pack(pady=10)
+    
+    def _create_valuation_config_tab(self, parent):
+        """Create robot valuation configuration tab content."""
+        frame = ttk.Frame(parent, padding=10)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text="Robot Valuation Configuration", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        ttk.Button(frame, text="Configure Robot Valuation Weights", 
+                  command=self.configure_robot_valuation_weights).pack(pady=5)
+        
+        # Current weights display
+        weights = self.analizador.get_robot_valuation_phase_weights()
+        weight_text = f"Current Weights:\nEarly Season: {weights[0]:.2f}\nMid Season: {weights[1]:.2f}\nLate Season: {weights[2]:.2f}"
+        ttk.Label(frame, text=weight_text, justify=tk.CENTER).pack(pady=10)
+    
+    def _create_io_config_tab(self, parent):
+        """Create import/export configuration tab content."""
+        frame = ttk.Frame(parent, padding=10)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text="Import/Export Configuration", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        # Export section
+        export_frame = ttk.LabelFrame(frame, text="Export Configuration")
+        export_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Button(export_frame, text="Export Current Configuration", 
+                  command=self._export_config).pack(pady=5)
+        
+        # Import section
+        import_frame = ttk.LabelFrame(frame, text="Import Configuration")
+        import_frame.pack(fill=tk.X, pady=5)
+        
+        ttk.Button(import_frame, text="Import Configuration File", 
+                  command=self._import_config).pack(pady=5)
+        
+        # Presets section
+        presets_frame = ttk.LabelFrame(frame, text="Configuration Presets")
+        presets_frame.pack(fill=tk.X, pady=5)
+        
+        presets = self.analizador.get_available_presets()
+        for preset_name in presets.keys():
+            ttk.Button(presets_frame, text=f"Apply {preset_name.title()} Format", 
+                      command=lambda p=preset_name: self._apply_preset(p)).pack(side=tk.LEFT, padx=5, pady=5)
+    
+    def _create_info_tab(self, parent):
+        """Create system information tab content."""
+        frame = ttk.Frame(parent, padding=10)
+        frame.pack(fill=tk.BOTH, expand=True)
+        
+        ttk.Label(frame, text="System Information", 
+                 font=("Arial", 12, "bold")).pack(pady=(0, 10))
+        
+        info_text = f"""Alliance Simulator - Team Stats and Selector
+
+Current Data:
+• Total rows: {len(self.analizador.sheet_data) - 1 if self.analizador.sheet_data else 0}
+• Headers: {len(self.analizador.get_current_headers())}
+• Teams analyzed: {len(self.analizador.get_team_data_grouped()) if self.analizador.sheet_data else 0}
+
+Features:
+• CSV data import and QR code scanning
+• Comprehensive team statistics analysis  
+• Alliance selection optimization
+• Honor roll scoring system
+• Match prediction (Foreshadowing)
+• Robot performance valuation
+
+Configuration:
+• Format detection and conversion
+• Customizable column mapping
+• Game phase analysis
+• Export/import settings
+"""
+        
+        ttk.Label(frame, text=info_text, justify=tk.LEFT).pack(anchor=tk.W)
+    
+    def _auto_detect_phases(self):
+        """Auto-detect game phases."""
+        self.analizador._auto_detect_game_phase_columns()
+        messagebox.showinfo("Auto-detection", "Game phases have been auto-detected based on column names.")
+        self.refresh_all()
+    
+    def _export_config(self):
+        """Export configuration to file."""
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            title="Export Configuration"
+        )
+        if file_path:
+            if self.analizador.export_columns_config(file_path):
+                messagebox.showinfo("Export", f"Configuration exported to {file_path}")
+    
+    def _import_config(self):
+        """Import configuration from file."""
+        file_path = filedialog.askopenfilename(
+            filetypes=[("JSON files", "*.json"), ("All files", "*.*")],
+            title="Import Configuration"
+        )
+        if file_path:
+            success, message = self.analizador.import_columns_config(file_path)
+            if success:
+                messagebox.showinfo("Import", "Configuration imported successfully!")
+                self.refresh_all()
+            else:
+                messagebox.showerror("Import Error", f"Failed to import: {message}")
+    
+    def _apply_preset(self, preset_name):
+        """Apply a configuration preset."""
+        if self.analizador.apply_configuration_preset(preset_name):
+            messagebox.showinfo("Preset Applied", f"{preset_name.title()} configuration applied successfully!")
+            self.refresh_all()
+        else:
+            messagebox.showerror("Preset Error", f"Failed to apply {preset_name} preset")
+
+    def open_foreshadowing(self):
+        def _launch():
+            try:
+                from foreshadowing import ForeshadowingLauncher
+            except ImportError as e:
+                messagebox.showerror("Foreshadowing", f"No se pudo importar módulo: {e}")
+                return
+            ForeshadowingLauncher(self.root, analyzer=self.analizador)
+        _launch()
 
     def edit_raw_data_row(self):
         """Edit the selected row in the raw data table."""
@@ -1474,6 +2755,784 @@ class AnalizadorGUI:
     def on_raw_data_double_click(self, event):
         """Handle double-click on raw data table to edit row."""
         self.edit_raw_data_row()
+
+    def open_school_system(self):
+        """Open SchoolSystem Honor Roll configuration window"""
+        school_window = tk.Toplevel(self.root)
+        school_window.title("SchoolSystem - Honor Roll Configuration")
+        school_window.geometry("800x600")
+        school_window.transient(self.root)
+        
+        # Create notebook for different configuration sections
+        school_notebook = ttk.Notebook(school_window)
+        school_notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Team Management Tab
+        team_mgmt_frame = ttk.Frame(school_notebook)
+        school_notebook.add(team_mgmt_frame, text="Team Management")
+        
+        # Team list
+        ttk.Label(team_mgmt_frame, text="Teams in SchoolSystem:").pack(anchor=tk.W, padx=5, pady=5)
+        
+        team_listbox = tk.Listbox(team_mgmt_frame, height=8)
+        team_listbox.pack(fill=tk.X, padx=5, pady=5)
+        
+        # Populate team list
+        for team_num in self.school_system.teams.keys():
+            team_listbox.insert(tk.END, f"Team {team_num}")
+        
+        # Team management buttons
+        team_btn_frame = ttk.Frame(team_mgmt_frame)
+        team_btn_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        def add_team():
+            team_num = simpledialog.askstring("Add Team", "Enter team number:")
+            if team_num:
+                self.school_system.add_team(team_num)
+                team_listbox.insert(tk.END, f"Team {team_num}")
+                self.refresh_honor_roll_tab()
+        
+        def remove_team():
+            selection = team_listbox.curselection()
+            if selection:
+                team_text = team_listbox.get(selection[0])
+                team_num = team_text.replace("Team ", "")
+                if team_num in self.school_system.teams:
+                    del self.school_system.teams[team_num]
+                    del self.school_system.calculated_scores[team_num]
+                team_listbox.delete(selection[0])
+                self.refresh_honor_roll_tab()
+        
+        ttk.Button(team_btn_frame, text="Add Team", command=add_team).pack(side=tk.LEFT, padx=2)
+        ttk.Button(team_btn_frame, text="Remove Selected", command=remove_team).pack(side=tk.LEFT, padx=2)
+        ttk.Button(team_btn_frame, text="Auto-populate from Raw Data", command=self.auto_populate_school_system).pack(side=tk.LEFT, padx=2)
+        
+        # Quick Configuration Tab
+        quick_config_frame = ttk.Frame(school_notebook)
+        school_notebook.add(quick_config_frame, text="Quick Configuration")
+        
+        ttk.Label(quick_config_frame, text="SchoolSystem Configuration", font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Configuration options
+        config_frame = ttk.LabelFrame(quick_config_frame, text="Multipliers and Thresholds")
+        config_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Multipliers
+        mult_frame = ttk.Frame(config_frame)
+        mult_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(mult_frame, text="Competencies Multiplier:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        comp_mult_var = tk.IntVar(value=self.school_system.competencies_multiplier)
+        ttk.Entry(mult_frame, textvariable=comp_mult_var, width=10).grid(row=0, column=1, padx=5)
+        
+        ttk.Label(mult_frame, text="Subcompetencies Multiplier:").grid(row=1, column=0, sticky=tk.W, padx=5)
+        subcomp_mult_var = tk.IntVar(value=self.school_system.subcompetencies_multiplier)
+        ttk.Entry(mult_frame, textvariable=subcomp_mult_var, width=10).grid(row=1, column=1, padx=5)
+        
+        # Thresholds
+        thresh_frame = ttk.Frame(config_frame)
+        thresh_frame.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(thresh_frame, text="Min Competencies:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        min_comp_var = tk.IntVar(value=self.school_system.min_competencies_count)
+        ttk.Entry(thresh_frame, textvariable=min_comp_var, width=10).grid(row=0, column=1, padx=5)
+        
+        ttk.Label(thresh_frame, text="Min Subcompetencies:").grid(row=1, column=0, sticky=tk.W, padx=5)
+        min_subcomp_var = tk.IntVar(value=self.school_system.min_subcompetencies_count)
+        ttk.Entry(thresh_frame, textvariable=min_subcomp_var, width=10).grid(row=1, column=1, padx=5)
+        
+        ttk.Label(thresh_frame, text="Min Honor Roll Score:").grid(row=2, column=0, sticky=tk.W, padx=5)
+        min_score_var = tk.DoubleVar(value=self.school_system.min_honor_roll_score)
+        ttk.Entry(thresh_frame, textvariable=min_score_var, width=10).grid(row=2, column=1, padx=5)
+        
+        def apply_config():
+            self.school_system.competencies_multiplier = comp_mult_var.get()
+            self.school_system.subcompetencies_multiplier = subcomp_mult_var.get()
+            self.school_system.min_competencies_count = min_comp_var.get()
+            self.school_system.min_subcompetencies_count = min_subcomp_var.get()
+            self.school_system.min_honor_roll_score = min_score_var.get()
+            self.refresh_honor_roll_tab()
+            messagebox.showinfo("Configuration", "Settings updated successfully!")
+        
+        ttk.Button(config_frame, text="Apply Settings", command=apply_config).pack(pady=10)
+        
+        # Results Preview Tab
+        results_frame = ttk.Frame(school_notebook)
+        school_notebook.add(results_frame, text="Results Preview")
+        
+        # Results tree
+        results_tree = ttk.Treeview(results_frame, show='headings')
+        results_tree.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        
+        # Populate results
+        def refresh_results():
+            rankings = self.school_system.get_honor_roll_ranking()
+            
+            columns = ["Rank", "Team", "Final Points", "Honor Roll Score", "Curved Score", "C/SC/RP", "Status"]
+            results_tree["columns"] = columns
+            
+            for col in columns:
+                results_tree.heading(col, text=col)
+                results_tree.column(col, width=100)
+            
+            results_tree.delete(*results_tree.get_children())
+            
+            for rank, (team_num, results) in enumerate(rankings, 1):
+                c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+                status = "Qualified"
+                
+                results_tree.insert("", tk.END, values=[
+                    rank, team_num, results.final_points,
+                    f"{results.honor_roll_score:.1f}", f"{results.curved_score:.1f}",
+                    f"{c}/{sc}/{rp}", status
+                ])
+            
+            # Add disqualified teams
+            disqualified = self.school_system.get_disqualified_teams()
+            for team_num, reason in disqualified:
+                c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+                results_tree.insert("", tk.END, values=[
+                    "DQ", team_num, "0", "0.0", "0.0", f"{c}/{sc}/{rp}", reason[:30]
+                ])
+        
+        ttk.Button(results_frame, text="Refresh Results", command=refresh_results).pack(pady=5)
+        refresh_results()
+
+    def auto_populate_school_system(self):
+        """Auto-populate SchoolSystem with teams from raw data using enhanced calculated phase scores"""
+        team_data = self.analizador.get_team_data_grouped()
+        if not team_data:
+            messagebox.showwarning("No Data", "No team data available. Please load some data first.")
+            return
+        
+        teams_added = 0
+        teams_with_calculated_scores = 0
+        
+        # Get enhanced team stats for better scoring
+        team_stats_dict = {}
+        detailed_stats = self.analizador.get_detailed_team_stats()
+        for stat in detailed_stats:
+            team_stats_dict[str(stat["team"])] = stat
+        
+        for team_number in team_data.keys():
+            self.school_system.add_team(team_number)
+            
+            # Calculate enhanced scores from game phases with proper weighting
+            phase_scores = self.analizador.calculate_team_phase_scores(int(team_number))
+            
+            if any(score > 0 for score in phase_scores.values()):
+                # Use calculated scores from actual data with enhanced scaling
+                # Scale phase scores to 0-100 range for honor roll system
+                auto_scaled = min(100, max(0, phase_scores["autonomous"] * 1.2))  # Slight boost for auto
+                teleop_scaled = min(100, max(0, phase_scores["teleop"] * 1.0))
+                endgame_scaled = min(100, max(0, phase_scores["endgame"] * 1.1))  # Slight boost for endgame
+                
+                self.school_system.update_autonomous_score(team_number, auto_scaled)
+                self.school_system.update_teleop_score(team_number, teleop_scaled)
+                self.school_system.update_endgame_score(team_number, endgame_scaled)
+                teams_with_calculated_scores += 1
+            else:
+                # Use enhanced default values based on ranking
+                rank_factor = max(0.5, 1.0 - (teams_added * 0.05))  # Decreasing factor for lower teams
+                self.school_system.update_autonomous_score(team_number, 75.0 * rank_factor)
+                self.school_system.update_teleop_score(team_number, 80.0 * rank_factor)
+                self.school_system.update_endgame_score(team_number, 70.0 * rank_factor)
+            
+            # Enhanced pit scouting scores based on team performance
+            team_stat = team_stats_dict.get(team_number, {})
+            robot_valuation = team_stat.get("robot_valuation", 50)
+            overall_avg = team_stat.get("overall_avg", 50)
+            
+            # Scale pit scores based on robot valuation and performance
+            base_electrical = 85.0
+            base_mechanical = 80.0
+            performance_factor = min(1.3, max(0.7, robot_valuation / 70))  # Scale based on robot quality
+            
+            self.school_system.update_electrical_score(team_number, base_electrical * performance_factor)
+            self.school_system.update_mechanical_score(team_number, base_mechanical * performance_factor)
+            self.school_system.update_driver_station_layout_score(team_number, 75.0 + (overall_avg * 0.3))
+            self.school_system.update_tools_score(team_number, 70.0 + (robot_valuation * 0.2))
+            self.school_system.update_spare_parts_score(team_number, 65.0 + (robot_valuation * 0.15))
+            
+            # Enhanced during event scores based on team behavior and performance
+            consistency = 100 - team_stat.get("overall_std", 20)  # Lower std = higher organization
+            collaboration_base = 85.0
+            
+            self.school_system.update_team_organization_score(team_number, max(60, min(95, consistency)))
+            self.school_system.update_collaboration_score(team_number, collaboration_base)
+            
+            # Enhanced competency inference from performance data
+            if team_number in team_stats_dict:
+                stats = team_stats_dict[team_number]
+                
+                # Enhanced reliability detection
+                died_rate = stats.get("died_rate", 0.5)
+                if died_rate < 0.15:  # Very low death rate
+                    self.school_system.update_competency(team_number, "no_deaths", True)
+                    self.school_system.update_competency(team_number, "reliability", True)
+                
+                # Enhanced driving skills detection
+                teleop_score = phase_scores["teleop"]
+                if teleop_score > 70:
+                    self.school_system.update_competency(team_number, "driving_skills", True)
+                
+                # Enhanced autonomous competency
+                auto_score = phase_scores["autonomous"]
+                if auto_score > 60:
+                    self.school_system.update_competency(team_number, "pasar_inspeccion_primera", True)
+                
+                # Enhanced subcompetencies based on overall performance
+                if overall_avg > 75:
+                    self.school_system.update_competency(team_number, "win_most_games", True)
+                
+                if robot_valuation > 80:
+                    self.school_system.update_competency(team_number, "commitment", True)
+                
+                # Consistency and pressure performance
+                overall_std = stats.get("overall_std", float('inf'))
+                if overall_std < 10:  # Very consistent performance
+                    self.school_system.update_competency(team_number, "working_under_pressure", True)
+            
+            # Set enhanced default competencies
+            self.school_system.update_competency(team_number, "team_communication", True)
+            
+            teams_added += 1
+        
+        self.refresh_honor_roll_tab()
+        
+        message = f"Enhanced auto-population complete!\n\n"
+        message += f"📊 Teams added: {teams_added}\n"
+        message += f"🎯 Teams with calculated scores: {teams_with_calculated_scores}\n"
+        message += f"⚙️ Teams with defaults: {teams_added - teams_with_calculated_scores}\n\n"
+        message += f"🔧 Enhanced Features:\n"
+        message += f"• Pit scores scaled by robot valuation\n"
+        message += f"• Competencies inferred from performance\n"
+        message += f"• Organization based on consistency\n"
+        message += f"• Phase scores properly weighted\n\n"
+        message += f"💡 Note: Review and adjust pit scouting scores as needed."
+        
+        messagebox.showinfo("Enhanced Auto-populate Complete", message)
+
+    def manual_team_entry(self):
+        """Open manual team entry dialog"""
+        team_num = simpledialog.askstring("Manual Entry", "Enter team number:")
+        if not team_num:
+            return
+        
+        self.school_system.add_team(team_num)
+        self.edit_team_scores_for_team(team_num)
+
+    def edit_team_scores(self):
+        """Open team selection for score editing"""
+        if not self.school_system.teams:
+            messagebox.showwarning("No Teams", "No teams in SchoolSystem. Please add teams first.")
+            return
+        
+        # Create team selection dialog
+        selection_window = tk.Toplevel(self.root)
+        selection_window.title("Select Team to Edit")
+        selection_window.geometry("300x400")
+        selection_window.transient(self.root)
+        
+        ttk.Label(selection_window, text="Select a team to edit:").pack(pady=10)
+        
+        team_listbox = tk.Listbox(selection_window)
+        team_listbox.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        for team_num in sorted(self.school_system.teams.keys()):
+            team_listbox.insert(tk.END, team_num)
+        
+        def edit_selected():
+            selection = team_listbox.curselection()
+            if selection:
+                team_num = team_listbox.get(selection[0])
+                selection_window.destroy()
+                self.edit_team_scores_for_team(team_num)
+        
+        ttk.Button(selection_window, text="Edit Selected Team", command=edit_selected).pack(pady=10)
+
+    def edit_team_scores_for_team(self, team_number):
+        """Open detailed score editing window for a specific team"""
+        edit_window = tk.Toplevel(self.root)
+        edit_window.title(f"Edit Scores - Team {team_number}")
+        edit_window.geometry("600x700")
+        edit_window.transient(self.root)
+        
+        # Create scrollable frame
+        canvas = tk.Canvas(edit_window)
+        scrollbar = ttk.Scrollbar(edit_window, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Get current scores
+        current_scores = self.school_system.teams[team_number]
+        
+        # Variables for all scores
+        score_vars = {}
+        
+        # Match Performance Section
+        match_frame = ttk.LabelFrame(scrollable_frame, text="Match Performance (50%)")
+        match_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        score_vars['autonomous'] = tk.DoubleVar(value=current_scores.autonomous_score)
+        score_vars['teleop'] = tk.DoubleVar(value=current_scores.teleop_score)
+        score_vars['endgame'] = tk.DoubleVar(value=current_scores.endgame_score)
+        
+        ttk.Label(match_frame, text="Autonomous Score (20%):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(match_frame, textvariable=score_vars['autonomous'], width=10).grid(row=0, column=1, padx=5, pady=2)
+        
+        ttk.Label(match_frame, text="Teleop Score (60%):").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(match_frame, textvariable=score_vars['teleop'], width=10).grid(row=1, column=1, padx=5, pady=2)
+        
+        ttk.Label(match_frame, text="Endgame Score (20%):").grid(row=2, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(match_frame, textvariable=score_vars['endgame'], width=10).grid(row=2, column=1, padx=5, pady=2)
+        
+        # Pit Scouting Section
+        pit_frame = ttk.LabelFrame(scrollable_frame, text="Pit Scouting (30%)")
+        pit_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        score_vars['electrical'] = tk.DoubleVar(value=current_scores.electrical_score)
+        score_vars['mechanical'] = tk.DoubleVar(value=current_scores.mechanical_score)
+        score_vars['driver_station'] = tk.DoubleVar(value=current_scores.driver_station_layout_score)
+        score_vars['tools'] = tk.DoubleVar(value=current_scores.tools_score)
+        score_vars['spare_parts'] = tk.DoubleVar(value=current_scores.spare_parts_score)
+        
+        pit_scores = [
+            ("Electrical (33.33%):", 'electrical'),
+            ("Mechanical (25%):", 'mechanical'),
+            ("Driver Station Layout (16.67%):", 'driver_station'),
+            ("Tools (16.67%):", 'tools'),
+            ("Spare Parts (8.33%):", 'spare_parts')
+        ]
+        
+        for i, (label, var_key) in enumerate(pit_scores):
+            ttk.Label(pit_frame, text=label).grid(row=i, column=0, sticky=tk.W, padx=5, pady=2)
+            ttk.Entry(pit_frame, textvariable=score_vars[var_key], width=10).grid(row=i, column=1, padx=5, pady=2)
+        
+        # During Event Section
+        event_frame = ttk.LabelFrame(scrollable_frame, text="During Event (20%)")
+        event_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        score_vars['organization'] = tk.DoubleVar(value=current_scores.team_organization_score)
+        score_vars['collaboration'] = tk.DoubleVar(value=current_scores.collaboration_score)
+        
+        ttk.Label(event_frame, text="Team Organization (50%):").grid(row=0, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(event_frame, textvariable=score_vars['organization'], width=10).grid(row=0, column=1, padx=5, pady=2)
+        
+        ttk.Label(event_frame, text="Collaboration (50%):").grid(row=1, column=0, sticky=tk.W, padx=5, pady=2)
+        ttk.Entry(event_frame, textvariable=score_vars['collaboration'], width=10).grid(row=1, column=1, padx=5, pady=2)
+        
+        # Competencies Section
+        comp_frame = ttk.LabelFrame(scrollable_frame, text="Competencies & Subcompetencies")
+        comp_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        competencies = current_scores.competencies
+        comp_vars = {}
+        
+        # Competencies
+        comp_items = [
+            ("Team Communication", 'team_communication'),
+            ("Driving Skills", 'driving_skills'),
+            ("Reliability", 'reliability'),
+            ("No Deaths", 'no_deaths'),
+            ("Pasar Inspección Primera", 'pasar_inspeccion_primera'),
+            ("Human Player", 'human_player'),
+            ("Necessary Drivers Fix", 'necessary_drivers_fix')
+        ]
+        
+        ttk.Label(comp_frame, text="Competencies:", font=("Arial", 10, "bold")).grid(row=0, column=0, columnspan=2, pady=5)
+        
+        for i, (label, attr) in enumerate(comp_items, 1):
+            comp_vars[attr] = tk.BooleanVar(value=getattr(competencies, attr))
+            ttk.Checkbutton(comp_frame, text=label, variable=comp_vars[attr]).grid(row=i, column=0, sticky=tk.W, padx=5, pady=1)
+        
+        # Subcompetencies
+        subcomp_items = [
+            ("Working Under Pressure", 'working_under_pressure'),
+            ("Commitment", 'commitment'),
+            ("Win Most Games", 'win_most_games'),
+            ("Never Ask Pit Admin", 'never_ask_pit_admin'),
+            ("Knows the Rules", 'knows_the_rules')
+        ]
+        
+        ttk.Label(comp_frame, text="Subcompetencies:", font=("Arial", 10, "bold")).grid(row=0, column=2, columnspan=2, pady=5)
+        
+        for i, (label, attr) in enumerate(subcomp_items, 1):
+            comp_vars[attr] = tk.BooleanVar(value=getattr(competencies, attr))
+            ttk.Checkbutton(comp_frame, text=label, variable=comp_vars[attr]).grid(row=i, column=2, sticky=tk.W, padx=5, pady=1)
+        
+        # Behavior Reports Section
+        behavior_frame = ttk.LabelFrame(scrollable_frame, text="Behavior Reports")
+        behavior_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Label(behavior_frame, text=f"Current penalty points: {competencies.get_behavior_reports_points()}").pack(pady=5)
+        
+        def add_low_conduct():
+            self.school_system.add_behavior_report(team_number, BehaviorReportType.LOW_CONDUCT)
+            refresh_behavior_display()
+        
+        def add_very_low_conduct():
+            self.school_system.add_behavior_report(team_number, BehaviorReportType.VERY_LOW_CONDUCT)
+            refresh_behavior_display()
+        
+        def clear_reports():
+            self.school_system.teams[team_number].competencies.behavior_reports.clear()
+            refresh_behavior_display()
+        
+        def refresh_behavior_display():
+            current_points = self.school_system.teams[team_number].competencies.get_behavior_reports_points()
+            ttk.Label(behavior_frame, text=f"Current penalty points: {current_points}").pack(pady=5)
+        
+        behavior_btn_frame = ttk.Frame(behavior_frame)
+        behavior_btn_frame.pack(pady=5)
+        
+        ttk.Button(behavior_btn_frame, text="Add Low Conduct (+2)", command=add_low_conduct).pack(side=tk.LEFT, padx=2)
+        ttk.Button(behavior_btn_frame, text="Add Very Low Conduct (+5)", command=add_very_low_conduct).pack(side=tk.LEFT, padx=2)
+        ttk.Button(behavior_btn_frame, text="Clear All Reports", command=clear_reports).pack(side=tk.LEFT, padx=2)
+        
+        # Save button
+        def save_scores():
+            # Update all scores
+            self.school_system.update_autonomous_score(team_number, score_vars['autonomous'].get())
+            self.school_system.update_teleop_score(team_number, score_vars['teleop'].get())
+            self.school_system.update_endgame_score(team_number, score_vars['endgame'].get())
+            self.school_system.update_electrical_score(team_number, score_vars['electrical'].get())
+            self.school_system.update_mechanical_score(team_number, score_vars['mechanical'].get())
+            self.school_system.update_driver_station_layout_score(team_number, score_vars['driver_station'].get())
+            self.school_system.update_tools_score(team_number, score_vars['tools'].get())
+            self.school_system.update_spare_parts_score(team_number, score_vars['spare_parts'].get())
+            self.school_system.update_team_organization_score(team_number, score_vars['organization'].get())
+            self.school_system.update_collaboration_score(team_number, score_vars['collaboration'].get())
+            
+            # Update competencies
+            for attr, var in comp_vars.items():
+                self.school_system.update_competency(team_number, attr, var.get())
+            
+            self.refresh_honor_roll_tab()
+            messagebox.showinfo("Saved", f"Scores updated for Team {team_number}")
+            edit_window.destroy()
+        
+        ttk.Button(scrollable_frame, text="Save All Changes", command=save_scores).pack(pady=20)
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+    def refresh_honor_roll_tab(self):
+        """Refresh the Honor Roll System tab"""
+        if not hasattr(self, 'tree_honor_roll'):
+            return
+        
+        rankings = self.school_system.get_honor_roll_ranking()
+        disqualified = self.school_system.get_disqualified_teams()
+        
+        columns = ["Rank", "Team", "Final Points", "Honor Roll", "Curved", "Match Perf", "Pit Scout", "During Event", "C/SC/RP", "Status"]
+        self.tree_honor_roll["columns"] = columns
+        
+        for col in columns:
+            self.tree_honor_roll.heading(col, text=col)
+            if col in ["Team", "Status"]:
+                self.tree_honor_roll.column(col, width=80)
+            else:
+                self.tree_honor_roll.column(col, width=90)
+        
+        self.tree_honor_roll.delete(*self.tree_honor_roll.get_children())
+        
+        # Add qualified teams
+        for rank, (team_num, results) in enumerate(rankings, 1):
+            c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+            
+            self.tree_honor_roll.insert("", tk.END, values=[
+                rank,
+                team_num,
+                results.final_points,
+                f"{results.honor_roll_score:.1f}",
+                f"{results.curved_score:.1f}",
+                f"{results.match_performance_score:.1f}",
+                f"{results.pit_scouting_score:.1f}",
+                f"{results.during_event_score:.1f}",
+                f"{c}/{sc}/{rp}",
+                "Qualified"
+            ])
+        
+        # Add disqualified teams
+        for team_num, reason in disqualified:
+            calculated = self.school_system.calculated_scores.get(team_num)
+            c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+            
+            if calculated:
+                self.tree_honor_roll.insert("", tk.END, values=[
+                    "DQ",
+                    team_num,
+                    "0",
+                    f"{calculated.honor_roll_score:.1f}",
+                    "0.0",
+                    f"{calculated.match_performance_score:.1f}",
+                    f"{calculated.pit_scouting_score:.1f}",
+                    f"{calculated.during_event_score:.1f}",
+                    f"{c}/{sc}/{rp}",
+                    reason[:20] + "..." if len(reason) > 20 else reason
+                ])
+
+    def export_honor_roll(self):
+        """Export Honor Roll results to CSV"""
+        if not self.school_system.teams:
+            messagebox.showwarning("No Data", "No teams in SchoolSystem to export.")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+            title="Export Honor Roll Results"
+        )
+        
+        if file_path:
+            try:
+                rankings = self.school_system.get_honor_roll_ranking()
+                disqualified = self.school_system.get_disqualified_teams()
+                
+                with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    
+                    # Write header
+                    writer.writerow([
+                        "Rank", "Team", "Final Points", "Honor Roll Score", "Curved Score",
+                        "Match Performance", "Pit Scouting", "During Event",
+                        "Competencies", "Subcompetencies", "Behavior Reports", "Status", "Notes"
+                    ])
+                    
+                    # Write qualified teams
+                    for rank, (team_num, results) in enumerate(rankings, 1):
+                        c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+                        
+                        writer.writerow([
+                            rank, team_num, results.final_points,
+                            f"{results.honor_roll_score:.2f}", f"{results.curved_score:.2f}",
+                            f"{results.match_performance_score:.2f}",
+                            f"{results.pit_scouting_score:.2f}",
+                            f"{results.during_event_score:.2f}",
+                            c, sc, rp, "Qualified", ""
+                        ])
+                    
+                    # Write disqualified teams
+                    for team_num, reason in disqualified:
+                        calculated = self.school_system.calculated_scores.get(team_num)
+                        c, sc, rp = self.school_system.calculate_competencies_score(team_num)
+                        
+                        if calculated:
+                            writer.writerow([
+                                "DQ", team_num, 0,
+                                f"{calculated.honor_roll_score:.2f}", "0.00",
+                                f"{calculated.match_performance_score:.2f}",
+                                f"{calculated.pit_scouting_score:.2f}",
+                                f"{calculated.during_event_score:.2f}",
+                                c, sc, rp, "Disqualified", reason
+                            ])
+                
+                # Export summary statistics
+                stats = self.school_system.get_summary_stats()
+                summary_path = file_path.replace('.csv', '_summary.txt')
+                
+                with open(summary_path, 'w', encoding='utf-8') as summary_file:
+                    summary_file.write("SchoolSystem Honor Roll Summary\n")
+                    summary_file.write("=" * 40 + "\n\n")
+                    summary_file.write(f"Total Teams: {stats['total_teams']}\n")
+                    summary_file.write(f"Qualified Teams: {stats['qualified_teams']}\n")
+                    summary_file.write(f"Disqualified Teams: {stats['disqualified_teams']}\n")
+                    summary_file.write(f"Average Honor Roll Score: {stats['avg_honor_roll_score']:.2f}\n")
+                    summary_file.write(f"Average Final Points: {stats['avg_final_points']:.2f}\n\n")
+                    
+                    summary_file.write("Configuration:\n")
+                    summary_file.write(f"  Competencies Multiplier: {self.school_system.competencies_multiplier}\n")
+                    summary_file.write(f"  Subcompetencies Multiplier: {self.school_system.subcompetencies_multiplier}\n")
+                    summary_file.write(f"  Min Competencies: {self.school_system.min_competencies_count}\n")
+                    summary_file.write(f"  Min Subcompetencies: {self.school_system.min_subcompetencies_count}\n")
+                    summary_file.write(f"  Min Honor Roll Score: {self.school_system.min_honor_roll_score}\n")
+                
+                messagebox.showinfo("Export Complete", 
+                                  f"Honor Roll results exported to:\n{file_path}\n\n"
+                                  f"Summary exported to:\n{summary_path}")
+                self.status_var.set(f"Honor Roll exported to {os.path.basename(file_path)}")
+                
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Failed to export Honor Roll: {e}")
+
+    def auto_optimize_alliances(self):
+        """Automatically optimize alliance selections using enhanced algorithm"""
+        if not hasattr(self, 'alliance_selector') or not self.alliance_selector:
+            messagebox.showwarning("No Data", "Alliance selector not initialized.")
+            return
+        
+        selector = self.alliance_selector
+        
+        # Reset current picks to start fresh
+        selector.reset_picks()
+        
+        # Enhanced optimization algorithm
+        available_teams = [t for t in selector.teams if t.team not in [a.captain for a in selector.alliances if a.captain]]
+        available_teams.sort(key=lambda t: (-t.score, t.rank))  # Sort by score desc, rank asc
+        
+        # Assign picks using enhanced strategy balancing
+        pick_index = 0
+        
+        # Pick 1 round (1-8)
+        for alliance in selector.alliances:
+            if pick_index < len(available_teams):
+                try:
+                    best_pick = self._find_optimal_pick(alliance, available_teams, "pick1")
+                    if best_pick:
+                        selector.set_pick(alliance.allianceNumber - 1, 'pick1', best_pick.team)
+                        available_teams.remove(best_pick)
+                except Exception as e:
+                    print(f"Error setting pick1 for alliance {alliance.allianceNumber}: {e}")
+        
+        # Pick 2 round (8-1)
+        for alliance in reversed(selector.alliances):
+            if available_teams:
+                try:
+                    best_pick = self._find_optimal_pick(alliance, available_teams, "pick2")
+                    if best_pick:
+                        selector.set_pick(alliance.allianceNumber - 1, 'pick2', best_pick.team)
+                        available_teams.remove(best_pick)
+                except Exception as e:
+                    print(f"Error setting pick2 for alliance {alliance.allianceNumber}: {e}")
+        
+        self.refresh_alliance_selector_tab()
+        messagebox.showinfo("Auto-Optimization", "Alliance selections have been optimized using enhanced algorithm!")
+    
+    def _find_optimal_pick(self, alliance, available_teams, pick_type):
+        """Find the optimal pick for an alliance considering team synergy"""
+        if not available_teams:
+            return None
+        
+        captain_team = next((t for t in self.alliance_selector.teams if t.team == alliance.captain), None)
+        if not captain_team:
+            return available_teams[0]  # Fallback to best available
+        
+        # Score each available team based on synergy with captain
+        scored_teams = []
+        for team in available_teams:
+            synergy_score = self._calculate_team_synergy(captain_team, team, alliance, pick_type)
+            scored_teams.append((team, synergy_score))
+        
+        # Sort by synergy score and return best match
+        scored_teams.sort(key=lambda x: x[1], reverse=True)
+        return scored_teams[0][0] if scored_teams else None
+    
+    def _calculate_team_synergy(self, captain, candidate, alliance, pick_type):
+        """Calculate synergy score between captain and candidate team"""
+        base_score = candidate.score
+        
+        # Synergy bonuses
+        synergy_bonus = 0
+        
+        # Complement defensive strategies
+        if captain.defense and not candidate.defense:
+            synergy_bonus += 15  # Defensive captain with offensive pick
+        elif not captain.defense and candidate.defense:
+            synergy_bonus += 10  # Offensive captain with defensive pick
+        
+        # Complement autonomous strengths
+        if captain.auto_epa > 40 and candidate.auto_epa > 40:
+            synergy_bonus += 8  # Both strong in auto
+        
+        # Endgame synergy
+        if captain.endgame_epa > 30 and candidate.endgame_epa > 30:
+            synergy_bonus += 12  # Both strong in endgame
+        
+        # Consistency and clutch factor synergy
+        if hasattr(candidate, 'consistency_score') and candidate.consistency_score > 80:
+            synergy_bonus += 5  # Reliable performance
+        
+        if hasattr(candidate, 'clutch_factor') and candidate.clutch_factor > 75:
+            synergy_bonus += 8  # Clutch performance
+        
+        # Robot valuation synergy
+        if hasattr(candidate, 'robot_valuation') and candidate.robot_valuation > 85:
+            synergy_bonus += 10  # Elite robot
+        
+        return base_score + synergy_bonus
+    
+    def balance_alliance_strategies(self):
+        """Balance alliance strategies to ensure diverse approaches"""
+        if not hasattr(self, 'alliance_selector') or not self.alliance_selector:
+            messagebox.showwarning("No Data", "Alliance selector not initialized.")
+            return
+        
+        selector = self.alliance_selector
+        
+        # Analyze current strategy distribution
+        defensive_alliances = 0
+        offensive_alliances = 0
+        balanced_alliances = 0
+        
+        for alliance in selector.alliances:
+            strategy = self._analyze_alliance_strategy(alliance)
+            if strategy == "defensive":
+                defensive_alliances += 1
+            elif strategy == "offensive":
+                offensive_alliances += 1
+            else:
+                balanced_alliances += 1
+        
+        # Provide strategic recommendations
+        total_alliances = len(selector.alliances)
+        message = f"Current Alliance Strategy Analysis:\n\n"
+        message += f"🛡️ Defensive Alliances: {defensive_alliances}/{total_alliances}\n"
+        message += f"⚔️ Offensive Alliances: {offensive_alliances}/{total_alliances}\n"
+        message += f"⚖️ Balanced Alliances: {balanced_alliances}/{total_alliances}\n\n"
+        
+        # Strategic recommendations
+        if defensive_alliances > total_alliances * 0.4:
+            message += "⚠️ Too many defensive alliances. Consider more offensive picks.\n"
+        elif offensive_alliances > total_alliances * 0.6:
+            message += "⚠️ Too many offensive alliances. Consider more defensive picks.\n"
+        else:
+            message += "✅ Good strategic balance achieved!\n"
+        
+        message += f"\nRecommendation: Aim for 30% defensive, 50% offensive, 20% balanced."
+        
+        messagebox.showinfo("Strategy Balance Analysis", message)
+    
+    def _analyze_alliance_strategy(self, alliance):
+        """Analyze the strategic approach of an alliance"""
+        if not alliance.captain:
+            return "unknown"
+        
+        # Get team data for analysis
+        teams_in_alliance = [alliance.captain]
+        if alliance.pick1:
+            teams_in_alliance.append(alliance.pick1)
+        if alliance.pick2:
+            teams_in_alliance.append(alliance.pick2)
+        
+        defensive_count = 0
+        high_auto_count = 0
+        high_endgame_count = 0
+        
+        for team_num in teams_in_alliance:
+            team = next((t for t in self.alliance_selector.teams if t.team == team_num), None)
+            if team:
+                if team.defense:
+                    defensive_count += 1
+                if team.auto_epa > 40:
+                    high_auto_count += 1
+                if team.endgame_epa > 30:
+                    high_endgame_count += 1
+        
+        # Classify strategy
+        if defensive_count >= 2:
+            return "defensive"
+        elif high_auto_count >= 2 or high_endgame_count >= 2:
+            return "offensive"
+        else:
+            return "balanced"
 
     def test_camera(self):
         """Test camera access without starting the full QR scanner."""

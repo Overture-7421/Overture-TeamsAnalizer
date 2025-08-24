@@ -1,0 +1,141 @@
+{
+    "version": "1.0",
+    "timestamp": "8.6",
+    "headers": [
+        "Scouter Initials",
+        "Match Number",
+        "Robot",
+        "Future Alliance",
+        "Team Number",
+        "Starting Position",
+        "No Show",
+        "Moved (Auto)",
+        "Coral L1 (Auto)",
+        "Coral L2 (Auto)",
+        "Coral L3 (Auto)",
+        "Coral L4 (Auto)",
+        "Barge Algae (Auto)",
+        "Processor Algae (Auto)",
+        "Dislodged Algae (Auto)",
+        "Foul (Auto)",
+        "Dislodged Algae (Teleop)",
+        "Pickup Location",
+        "Coral L1 (Teleop)",
+        "Coral L2 (Teleop)",
+        "Coral L3 (Teleop)",
+        "Coral L4 (Teleop)",
+        "Barge Algae (Teleop)",
+        "Processor Algae (Teleop)",
+        "Crossed Field/Defense",
+        "Tipped/Fell",
+        "Touched Opposing Cage",
+        "Died",
+        "End Position",
+        "Broke",
+        "Defended",
+        "Coral HP Mistake",
+        "Yellow/Red Card"
+    ],
+    "column_configuration": {
+        "numeric_for_overall": [
+            "Coral L1 (Auto)",
+            "Coral L2 (Auto)",
+            "Coral L3 (Auto)",
+            "Coral L4 (Auto)",
+            "Barge Algae (Auto)",
+            "Processor Algae (Auto)",
+            "Dislodged Algae (Auto)",
+            "Coral L1 (Teleop)",
+            "Coral L2 (Teleop)",
+            "Coral L3 (Teleop)",
+            "Coral L4 (Teleop)",
+            "Barge Algae (Teleop)",
+            "Processor Algae (Teleop)"
+        ],
+        "stats_columns": [
+            "No Show",
+            "Moved (Auto)",
+            "Coral L1 (Auto)",
+            "Coral L2 (Auto)",
+            "Coral L3 (Auto)",
+            "Coral L4 (Auto)",
+            "Barge Algae (Auto)",
+            "Processor Algae (Auto)",
+            "Dislodged Algae (Auto)",
+            "Foul (Auto)",
+            "Dislodged Algae (Teleop)",
+            "Pickup Location",
+            "Coral L1 (Teleop)",
+            "Coral L2 (Teleop)",
+            "Coral L3 (Teleop)",
+            "Coral L4 (Teleop)",
+            "Barge Algae (Teleop)",
+            "Processor Algae (Teleop)",
+            "Crossed Field/Defense",
+            "Tipped/Fell",
+            "Touched Opposing Cage",
+            "Died",
+            "End Position",
+            "Broke",
+            "Defended",
+            "Coral HP Mistake",
+            "Yellow/Red Card"
+        ],
+        "mode_boolean_columns": [
+            "No Show",
+            "Moved (Auto)",
+            "Foul (Auto)",
+            "Dislodged Algae (Teleop)",
+            "Crossed Field/Defense",
+            "Tipped/Fell",
+            "Touched Opposing Cage",
+            "Died",
+            "Broke",
+            "Defended",
+            "Coral HP Mistake"
+        ],
+        "autonomous_columns": [
+            "Moved (Auto)",
+            "Coral L1 (Auto)",
+            "Coral L2 (Auto)",
+            "Coral L3 (Auto)",
+            "Coral L4 (Auto)",
+            "Barge Algae (Auto)",
+            "Processor Algae (Auto)",
+            "Dislodged Algae (Auto)",
+            "Foul (Auto)"
+        ],
+        "teleop_columns": [
+            "Dislodged Algae (Teleop)",
+            "Coral L1 (Teleop)",
+            "Coral L2 (Teleop)",
+            "Coral L3 (Teleop)",
+            "Coral L4 (Teleop)",
+            "Barge Algae (Teleop)",
+            "Processor Algae (Teleop)",
+            "Crossed Field/Defense",
+            "Defended",
+            "Coral HP Mistake"
+        ],
+        "endgame_columns": [
+            "Tipped/Fell",
+            "Died"
+        ]
+    },
+    "robot_valuation": {
+        "phase_weights": [
+            0.2,
+            0.3,
+            0.5
+        ],
+        "phase_names": [
+            "Q1",
+            "Q2",
+            "Q3"
+        ]
+    },
+    "metadata": {
+        "total_columns": 33,
+        "description": "Alliance Simulator Column Configuration"
+    }
+}
