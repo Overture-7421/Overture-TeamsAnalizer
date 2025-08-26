@@ -90,9 +90,9 @@ class Alliance:
 class AllianceSelector:
     def __init__(self, teams):
         self.teams = sorted(teams, key=lambda t: t.rank)
-        # Official FIRST competitions always have exactly 8 alliances
-        # However, if there are fewer than 8 teams, we adjust accordingly
-        max_alliances = min(8, len(teams))
+        # For testing purposes, create reasonable number of alliances
+        # In real FRC: 8 alliances for events with 24+ teams, fewer for smaller events
+        max_alliances = min(8, max(1, len(teams) // 3))  # At least 3 teams per alliance
         self.alliances = [Alliance(i+1) for i in range(max_alliances)]
         self.update_alliance_captains()
         self.update_recommendations()
@@ -117,13 +117,39 @@ class AllianceSelector:
                 a.captainRank = None
 
     def get_available_teams(self, drafting_captain_rank, pick_type):
-        selected = self.get_selected_picks()
-        captains = [a.captain for a in self.alliances if a.captain]
+        selected_picks = self.get_selected_picks()
         
-        # For both pick1 and pick2, exclude:
-        # 1. Already selected picks
-        # 2. Current alliance captains (captains can never be picked)
-        available = [t for t in self.teams if t.team not in selected and t.team not in captains]
+        # Find which alliance is making this pick
+        drafting_alliance = None
+        for a in self.alliances:
+            if a.captainRank == drafting_captain_rank:
+                drafting_alliance = a
+                break
+        
+        available = []
+        for team in self.teams:
+            # Exclude already selected picks
+            if team.team in selected_picks:
+                continue
+            
+            # Check if this team is a captain
+            is_captain = False
+            captain_alliance = None
+            for a in self.alliances:
+                if a.captain == team.team:
+                    is_captain = True
+                    captain_alliance = a
+                    break
+            
+            if is_captain:
+                # If team is a captain, it can only be picked by OTHER alliances
+                if drafting_alliance and captain_alliance and drafting_alliance.allianceNumber == captain_alliance.allianceNumber:
+                    # Same alliance - captain cannot pick themselves
+                    continue
+                # Different alliance - captain can be picked
+            
+            # Team is available
+            available.append(team)
         
         # Sort by score descending, then by rank ascending for tie-breaker
         available.sort(key=lambda t: (-t.score, t.rank))
@@ -139,15 +165,15 @@ class AllianceSelector:
         # For each alliance, recommend the best available pick for pick1 and pick2
         # Each recommendation must be unique (no team recommended to multiple alliances for the same pick)
         # We simulate the draft order: pick1 (1-8), pick2 (8-1)
-        # We use a copy of the current picks to simulate the draft
-        picks_sim = {a.allianceNumber: {'pick1': a.pick1, 'pick2': a.pick2} for a in self.alliances}
         recommended_pick1 = set()
         recommended_pick2 = set()
 
         # Pick 1 (1-8)
         for idx, a in enumerate(self.alliances):
             if not a.pick1:
-                available = [t for t in self.get_available_teams(a.captainRank, 'pick1') if t.team not in recommended_pick1]
+                available = self.get_available_teams(a.captainRank, 'pick1')
+                # Filter out already recommended teams
+                available = [t for t in available if t.team not in recommended_pick1]
                 if available:
                     a.pick1Rec = available[0].team
                     recommended_pick1.add(available[0].team)
@@ -160,7 +186,9 @@ class AllianceSelector:
         for idx in reversed(range(len(self.alliances))):
             a = self.alliances[idx]
             if not a.pick2:
-                available = [t for t in self.get_available_teams(a.captainRank, 'pick2') if t.team not in recommended_pick2 and t.team not in recommended_pick1]
+                available = self.get_available_teams(a.captainRank, 'pick2')
+                # Filter out already recommended teams for both pick types
+                available = [t for t in available if t.team not in recommended_pick2 and t.team not in recommended_pick1]
                 if available:
                     a.pick2Rec = available[0].team
                     recommended_pick2.add(available[0].team)
@@ -172,10 +200,12 @@ class AllianceSelector:
     def set_pick(self, alliance_index, pick_type, team_number):
         team_number = int(team_number)
         
-        # Check if the team is already a captain (captains cannot be picked)
-        captains = [a.captain for a in self.alliances if a.captain]
-        if team_number in captains:
-            raise ValueError(f"Cannot pick team {team_number} - it is already an alliance captain.")
+        # Get the alliance that is making this pick
+        picking_alliance = self.alliances[alliance_index]
+        
+        # Check if the team is the captain of the SAME alliance (captains cannot pick themselves)
+        if team_number == picking_alliance.captain:
+            raise ValueError(f"Cannot pick team {team_number} - alliance captains cannot pick themselves.")
         
         # Check if the team is already selected as a pick
         selected = self.get_selected_picks()

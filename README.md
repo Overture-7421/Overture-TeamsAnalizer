@@ -27,19 +27,27 @@ Alliance Simulator es una aplicación integral para el análisis de datos de com
 - ✅ Predicción "Forshadowing" de rendimiento futuro
 - ✅ Exportación de reportes académicos
 
-### 4. **Simulador de Alianzas**
+### 4. **Sistema de Tier List con Imágenes**
+- ✅ Exportación de rankings en formato tier list compatible con Dart/Flutter
+- ✅ Categorización automática: 1st Pick, 2nd Pick, 3rd Pick, Defense Pick, etc.
+- ✅ Soporte completo para imágenes de robots en base64
+- ✅ Generación automática de imágenes por defecto personalizadas
+- ✅ Integración con carpetas de imágenes personalizadas
+- ✅ Formato compatible con aplicaciones móviles
+
+### 5. **Simulador de Alianzas**
 - ✅ Selección inteligente de alianzas basada en estadísticas
 - ✅ Algoritmos de optimización para formación de equipos
 - ✅ Análisis de compatibilidad entre equipos
 - ✅ Simulación de escenarios de competencia
 
-### 5. **Configuración Avanzada**
+### 6. **Configuración Avanzada**
 - ✅ Importar/Exportar configuraciones de columnas en formato JSON
 - ✅ Configuración personalizable de pesos para RobotValuation
 - ✅ Selección intuitiva de columnas para diferentes análisis
 - ✅ Respaldo y restauración de configuraciones
 
-### 6. **Interfaz de Usuario**
+### 7. **Interfaz de Usuario**
 - ✅ Interfaz gráfica intuitiva con múltiples pestañas
 - ✅ Tablas interactivas con capacidades de edición
 - ✅ Visualizaciones gráficas de rendimiento
@@ -120,38 +128,7 @@ AllianceSimulator/
 
 ##### Edición de Datos Crudos
 - **Función**: Modificación interactiva de datos
-- **Uso**: 
-  - Doble clic en celda para editar
-  - "Edit Selected Row" para edición completa
-  - "Add New Row" para nuevas entradas
-  - "Delete Selected Row" para eliminar
-  - "Save Changes" para guardar
 
-#### B. **Análisis Estadístico**
-
-##### Estadísticas por Equipo
-- **Ubicación**: Pestaña "Team Stats"
-- **Contenido**:
-  - Team Number
-  - RobotValuation (ponderado por fases)
-  - Overall (avg±std)
-  - Estadísticas individuales por columna
-  - Tasas para columnas booleanas
-  - Modos para columnas seleccionadas
-
-##### RobotValuation
-- **Concepto**: Evaluación ponderada por fases temporales
-- **Configuración**: RobotValuation Weights → Ajustar Q1, Q2, Q3
-- **Fórmula**: Q1×peso1 + Q2×peso2 + Q3×peso3 (pesos suman 1.0)
-- **Uso**: Evaluar mejora/deterioro a lo largo de la competencia
-
-##### Ranking Defensivo
-- **Ubicación**: Pestaña "Defensive Ranking"
-- **Criterios**:
-  - Tasa de defensa ("Crossed Field/Played Defense?")
-  - Puntaje general promedio
-  - Tasa de "muerte" del robot
-  - Tasa de movimiento/actividad
 
 #### C. **Sistema de Honor Roll (SchoolSystem)**
 
@@ -370,6 +347,54 @@ Honor Roll Score = (
 - **Alta Defense Rate**: Equipo especializado en defensa
 - **Alto Honor Roll**: Excelencia académica integral
 
+## 🎯 Sistema de Tier List con Imágenes
+
+### Funcionalidad de Exportación
+
+#### Categorías de Tier List
+- **1st Pick**: Los 33% mejores equipos calificados (más alto Honor Roll Score)
+- **2nd Pick**: El 33% medio de equipos calificados
+- **3rd Pick**: El 33% inferior de equipos calificados
+- **Ojito**: Categoría especial (vacía por defecto)
+- **- (Dash)**: Equipos descalificados NO defensivos
+- **Defense Pick**: TODOS los equipos defensivos (calificados o no)
+- **Unassigned**: Categoría para equipos sin asignar (vacía por defecto)
+
+#### Formato de Salida
+```
+Tier: 1st Pick
+  Image: [base64_encoded_image]
+    Title: Team 1234 (Honor Roll Score: 85.50)
+    Text: {"honor_score": 85.5, "final_points": 120, "overall_avg": 85.2, ...}
+    DriverSkills: Offensive
+    ImageList:
+```
+
+### Sistema de Imágenes
+
+#### Generación Automática
+- **Imágenes por defecto**: Se crean automáticamente con el número del equipo
+- **Diseño personalizado**: Robot estilizado con colores corporativos
+- **Codificación base64**: Compatible con aplicaciones móviles Dart/Flutter
+
+#### Integración con Carpetas de Imágenes
+1. **Selección opcional**: Al exportar, opción de seleccionar carpeta de imágenes
+2. **Nomenclatura**: Las imágenes deben nombrarse con el número del equipo (ej: `1234.png`)
+3. **Formatos soportados**: PNG, JPG, JPEG, GIF, BMP
+4. **Fallback automático**: Si no se encuentra imagen, usa la generada por defecto
+
+#### Proceso de Exportación
+1. Ejecutar Honor Roll para obtener rankings
+2. Hacer clic en "Export to Tier List"
+3. Opcionalmente seleccionar carpeta con imágenes de robots
+4. Guardar archivo `tier_list.txt`
+5. El archivo es compatible con aplicaciones Dart/Flutter
+
+### Archivos de Ejemplo
+- **`example_tier_list_with_images.txt`**: Muestra el formato esperado
+- **`example_robot_images/`**: Carpeta con imágenes de ejemplo
+- **`default_robot_image.py`**: Generador de imágenes por defecto
+
 ## 🤝 Contribución y Desarrollo
 
 ### Arquitectura del Código
@@ -385,8 +410,12 @@ Honor Roll Score = (
 
 ## 📝 Notas de Versión
 
-### Versión Actual: 2.0
+### Versión Actual: 2.1
 - ✅ Sistema completo de Honor Roll
+- ✅ **NUEVO**: Exportación de Tier List con imágenes
+- ✅ **NUEVO**: Generación automática de imágenes por defecto
+- ✅ **NUEVO**: Soporte para carpetas de imágenes personalizadas
+- ✅ **NUEVO**: Formato compatible con Dart/Flutter
 - ✅ Importar/Exportar configuraciones JSON
 - ✅ Escaneo QR en tiempo real
 - ✅ Edición interactiva de datos

@@ -1,0 +1,35 @@
+Tier: 1st Pick
+  Image: iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAAA8AXHiAAAA40lEQVR...
+    Title: Team 1234 (Honor Roll Score: 85.50)
+    Text: {"honor_score": 85.5, "final_points": 120, "overall_avg": 85.2, "robot_valuation": 90.1, "defense_rate": 0.1, "died_rate": 0.05, "matches_played": 12}
+    DriverSkills: Offensive
+    ImageList:
+
+Tier: 2nd Pick
+  Image: iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAAA8AXHiAAAA...
+    Title: Team 5678 (Honor Roll Score: 75.20)
+    Text: {"honor_score": 75.2, "final_points": 95, "overall_avg": 72.8, "robot_valuation": 78.5, "defense_rate": 0.2, "died_rate": 0.08, "matches_played": 10}
+    DriverSkills: Offensive
+    ImageList:
+
+Tier: 3rd Pick
+
+Tier: Ojito
+
+Tier: -
+  Image: iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAAA8AXHiAAAA...
+    Title: Team 9999 (Honor Roll Score: 45.00)
+    Text: {"honor_score": 45.0, "final_points": 30, "overall_avg": 42.1, "robot_valuation": 35.2, "defense_rate": 0.0, "died_rate": 0.25, "matches_played": 8}
+    DriverSkills: Offensive
+    ImageList:
+
+Tier: Defense Pick
+  Image: iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAYAAAA8AXHiAAAA...
+    Title: Team 3333 (Honor Roll Score: 70.00)
+    Text: {"honor_score": 70.0, "final_points": 80, "overall_avg": 68.5, "robot_valuation": 72.0, "defense_rate": 0.6, "died_rate": 0.1, "matches_played": 15}
+    DriverSkills: Defensive
+    ImageList:
+
+Tier: Unassigned
+
+Nota: Las imágenes están codificadas en base64. Se usarán imágenes por defecto si no se encuentra una imagen específica para el equipo.

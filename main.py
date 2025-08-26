@@ -1,6 +1,7 @@
 import csv
 import json
 import math
+import base64
 from collections import Counter, defaultdict
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -12,6 +13,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from school_system import TeamScoring, BehaviorReportType
 from config_manager import ConfigManager
 from csv_converter import CSVFormatConverter
+from default_robot_image import load_team_image
 
 class AnalizadorRobot:
     def __init__(self, default_column_names=None, config_file="columnsConfig.json"):
@@ -1383,6 +1385,7 @@ class AnalizadorGUI:
         ttk.Button(honor_controls, text="Auto-populate from Team Data", command=self.auto_populate_school_system).pack(side=tk.LEFT, padx=2)
         ttk.Button(honor_controls, text="Manual Team Entry", command=self.manual_team_entry).pack(side=tk.LEFT, padx=2)
         ttk.Button(honor_controls, text="Edit Team Scores", command=self.edit_team_scores).pack(side=tk.LEFT, padx=2)
+        ttk.Button(honor_controls, text="Export to Tier List", command=self.export_tier_list).pack(side=tk.RIGHT, padx=2)
         ttk.Button(honor_controls, text="Export Honor Roll", command=self.export_honor_roll).pack(side=tk.RIGHT, padx=2)
         
         self.tree_honor_roll = ttk.Treeview(self.honor_roll_frame, show='headings')
@@ -2027,6 +2030,20 @@ class AnalizadorGUI:
             self.alliance_selector.update_teams(teams)
         selector = self.alliance_selector
 
+        # Update alliance table
+        self.update_alliance_table()
+        
+        # Create controls only if they don't exist
+        self.create_alliance_selector_controls()
+
+    def update_alliance_table(self):
+        """Update only the alliance table without recreating controls"""
+        if not hasattr(self, 'alliance_selector') or self.alliance_selector is None:
+            return
+            
+        self.update_alliance_combobox_options()  # Update combobox options first
+        
+        selector = self.alliance_selector
         table = selector.get_alliance_table()
         columns = ["Alliance #", "Captain", "Pick 1", "Recommendation 1", "Pick 2", "Recommendation 2", "Alliance Score", "Combined EPA", "Strategy Notes"]
         self.tree_alliance.delete(*self.tree_alliance.get_children())
@@ -2039,6 +2056,30 @@ class AnalizadorGUI:
                 self.tree_alliance.column(col, width=100, anchor=tk.W)
             else:
                 self.tree_alliance.column(col, width=120, anchor=tk.W)
+
+        # Get team_dicts for strategic insights
+        stats = self.analizador.get_detailed_team_stats()
+        team_dicts = []
+        for idx, s in enumerate(stats):
+            team_num = s.get("team")
+            phase_scores = self.analizador.calculate_team_phase_scores(int(team_num))
+            robot_valuation = s.get("robot_valuation", 0)
+            auto_epa = phase_scores["autonomous"] * 2.0
+            teleop_epa = phase_scores["teleop"] * 1.0
+            endgame_epa = phase_scores["endgame"] * 1.1
+            total_epa = (auto_epa * 0.3) + (teleop_epa * 0.5) + (endgame_epa * 0.2)
+            defense_rate = s.get("teleop_crossed_played_defense_rate", 0)
+            died_rate = s.get("died_rate", 0)
+            consistency = s.get("overall_std", float('inf'))
+            is_defensive = (defense_rate > 0.3) or (died_rate < 0.1 and consistency < 15)
+            
+            team_dicts.append({
+                "num": team_num,
+                "total_epa": total_epa,
+                "auto_epa": auto_epa,
+                "defense": is_defensive,
+                "robot_valuation": robot_valuation
+            })
 
         # Enhanced alliance table with strategic insights
         for row in table:
@@ -2063,26 +2104,69 @@ class AnalizadorGUI:
                             strategy_notes.append(f"{team_num}:ELITE")
                         if team_data["auto_epa"] > 50:
                             strategy_notes.append(f"{team_num}:AUTO")
-                        if team_data["consistency_score"] > 80:
-                            strategy_notes.append(f"{team_num}:CONSISTENT")
-                        if team_data["clutch_factor"] > 75:
-                            strategy_notes.append(f"{team_num}:CLUTCH")
             
-            strategy_text = " | ".join(strategy_notes) if strategy_notes else "Balanced"
+            strategy_text = ", ".join(strategy_notes) if strategy_notes else "Standard"
             
-            values = [
-                alliance_num,
-                captain,
-                pick1,
-                row["Recommendation 1"],
-                pick2,
-                row["Recommendation 2"],
-                alliance_score,
-                f"{combined_epa:.1f}",
-                strategy_text
-            ]
-            self.tree_alliance.insert("", tk.END, values=values)
+            self.tree_alliance.insert("", "end", values=[
+                alliance_num, captain, pick1, row["Recommendation 1"], pick2, row["Recommendation 2"], 
+                f"{alliance_score:.1f}", f"{combined_epa:.1f}", strategy_text
+            ])
 
+    def update_alliance_combobox_options(self):
+        """Update the available options in alliance selector comboboxes"""
+        if not hasattr(self, 'alliance_selector') or not self.alliance_selector:
+            return
+        if not hasattr(self, '_alliance_selector_combos') or not self._alliance_selector_combos:
+            return
+            
+        selector = self.alliance_selector
+        combo_index = 0
+        
+        for idx, alliance in enumerate(selector.alliances):
+            # Update Pick 1 combobox
+            if combo_index < len(self._alliance_selector_combos):
+                pick1_combo = self._alliance_selector_combos[combo_index]
+                available_pick1 = selector.get_available_teams(alliance.captainRank, 'pick1')
+                pick1_options = [("", "No selection")] + [(str(t.team), f"{t.team} (Score: {t.score:.1f})") for t in available_pick1]
+                pick1_combo['values'] = [label for _, label in pick1_options]
+                
+                # Preserve current selection if it's still valid
+                current_value = pick1_combo.get()
+                if alliance.pick1:
+                    for val, label in pick1_options:
+                        if val == str(alliance.pick1):
+                            pick1_combo.set(label)
+                            break
+                else:
+                    pick1_combo.set(pick1_options[0][1] if pick1_options else "No selection")
+                
+                combo_index += 1
+            
+            # Update Pick 2 combobox
+            if combo_index < len(self._alliance_selector_combos):
+                pick2_combo = self._alliance_selector_combos[combo_index]
+                available_pick2 = selector.get_available_teams(alliance.captainRank, 'pick2')
+                pick2_options = [("", "No selection")] + [(str(t.team), f"{t.team} (Score: {t.score:.1f})") for t in available_pick2]
+                pick2_combo['values'] = [label for _, label in pick2_options]
+                
+                # Preserve current selection if it's still valid
+                if alliance.pick2:
+                    for val, label in pick2_options:
+                        if val == str(alliance.pick2):
+                            pick2_combo.set(label)
+                            break
+                else:
+                    pick2_combo.set(pick2_options[0][1] if pick2_options else "No selection")
+                
+                combo_index += 1
+
+    def create_alliance_selector_controls(self):
+        """Create alliance selector controls only if they don't exist"""
+        if hasattr(self, 'alliance_selector_controls') and self.alliance_selector_controls:
+            return  # Controls already exist, don't recreate them
+        
+        selector = self.alliance_selector
+        
         # --- Add Comboboxes for interactive pick selection ---
         # Remove previous controls if any
         if hasattr(self, 'alliance_selector_controls') and self.alliance_selector_controls:
@@ -2124,13 +2208,19 @@ class AnalizadorGUI:
                         break
             else:
                 pick1_combo.set(pick1_options[0][1])
-            def on_pick1(event, idx=idx, pick1_var=pick1_var, pick1_options=pick1_options):
+            def on_pick1(event, idx=idx, pick1_var=pick1_var):
                 selected_label = pick1_var.get()
                 selected_team = ""
-                for val, label in pick1_options:
+                
+                # Get current available teams dynamically
+                current_available = selector.get_available_teams(selector.alliances[idx].captainRank, 'pick1')
+                current_options = [("", "No selection")] + [(str(t.team), f"{t.team} (Score: {t.score:.1f})") for t in current_available]
+                
+                for val, label in current_options:
                     if label == selected_label:
                         selected_team = val
                         break
+                
                 if selected_team == "":
                     selector.alliances[idx].pick1 = None
                 else:
@@ -2141,7 +2231,7 @@ class AnalizadorGUI:
                         selector.alliances[idx].pick1 = None
                 selector.update_alliance_captains()
                 selector.update_recommendations()
-                self.refresh_alliance_selector_tab()
+                self.update_alliance_table()
             pick1_combo.bind("<<ComboboxSelected>>", on_pick1)
             pick1_combo.grid(row=idx+2, column=1, sticky='w')
             self._alliance_selector_combos.append(pick1_combo)
@@ -2159,13 +2249,19 @@ class AnalizadorGUI:
                         break
             else:
                 pick2_combo.set(pick2_options[0][1])
-            def on_pick2(event, idx=idx, pick2_var=pick2_var, pick2_options=pick2_options):
+            def on_pick2(event, idx=idx, pick2_var=pick2_var):
                 selected_label = pick2_var.get()
                 selected_team = ""
-                for val, label in pick2_options:
+                
+                # Get current available teams dynamically
+                current_available = selector.get_available_teams(selector.alliances[idx].captainRank, 'pick2')
+                current_options = [("", "No selection")] + [(str(t.team), f"{t.team} (Score: {t.score:.1f})") for t in current_available]
+                
+                for val, label in current_options:
                     if label == selected_label:
                         selected_team = val
                         break
+                
                 if selected_team == "":
                     selector.alliances[idx].pick2 = None
                 else:
@@ -2176,7 +2272,7 @@ class AnalizadorGUI:
                         selector.alliances[idx].pick2 = None
                 selector.update_alliance_captains()
                 selector.update_recommendations()
-                self.refresh_alliance_selector_tab()
+                self.update_alliance_table()
             pick2_combo.bind("<<ComboboxSelected>>", on_pick2)
             pick2_combo.grid(row=idx+2, column=2, sticky='w')
             self._alliance_selector_combos.append(pick2_combo)
@@ -2922,10 +3018,37 @@ Configuration:
             
             if any(score > 0 for score in phase_scores.values()):
                 # Use calculated scores from actual data with enhanced scaling
-                # Scale phase scores to 0-100 range for honor roll system
-                auto_scaled = min(100, max(0, phase_scores["autonomous"] * 1.2))  # Slight boost for auto
-                teleop_scaled = min(100, max(0, phase_scores["teleop"] * 1.0))
-                endgame_scaled = min(100, max(0, phase_scores["endgame"] * 1.1))  # Slight boost for endgame
+                # Match performance should reflect actual game performance similar to overall and robot valuation
+                
+                # Get the stats for comparison with robot valuation and overall
+                team_stat = team_stats_dict.get(team_number, {})
+                overall_avg = team_stat.get("overall_avg", 0)
+                robot_valuation = team_stat.get("RobotValuation", 0)
+                
+                # Instead of arbitrary scaling, use the relationship between phase scores and overall performance
+                # Phase scores are raw averages, but match performance should be scaled to be comparable to overall/robot_valuation
+                
+                # Calculate scaling factor based on the relationship between raw scores and final metrics
+                if overall_avg > 0:
+                    # Scale phase scores to be in a similar range as overall performance
+                    # Typical overall scores are 20-100, phase scores might be 0-20
+                    total_phase_score = sum(phase_scores.values())
+                    if total_phase_score > 0:
+                        # Scale factor to make match performance comparable to overall
+                        # Increased multiplier to get closer to the 0.8x target ratio
+                        scale_factor = overall_avg / total_phase_score * 2.5  # Increased from 0.8 to 2.5
+                    else:
+                        scale_factor = 1.0
+                else:
+                    # Fallback scaling based on typical game scoring
+                    scale_factor = 5.0  # Increased from 3.0 to 5.0
+                
+                # Apply scaling with reasonable bounds
+                scale_factor = max(2.0, min(10.0, scale_factor))  # Increased minimum from 1.0 to 2.0
+                
+                auto_scaled = min(100, max(0, phase_scores["autonomous"] * scale_factor))
+                teleop_scaled = min(100, max(0, phase_scores["teleop"] * scale_factor))
+                endgame_scaled = min(100, max(0, phase_scores["endgame"] * scale_factor))
                 
                 self.school_system.update_autonomous_score(team_number, auto_scaled)
                 self.school_system.update_teleop_score(team_number, teleop_scaled)
@@ -3363,6 +3486,259 @@ Configuration:
             except Exception as e:
                 messagebox.showerror("Export Error", f"Failed to export Honor Roll: {e}")
 
+    def export_tier_list(self):
+        """Export Honor Roll results to tier_list.txt format with detailed team information"""
+        if not self.school_system.teams:
+            messagebox.showwarning("No Data", "No teams in SchoolSystem to export.")
+            return
+        
+        # Ask for images folder
+        images_folder = None
+        result = messagebox.askyesno("Robot Images", 
+                                   "¿Quieres seleccionar una carpeta con las imágenes de los robots?\n\n"
+                                   "Las imágenes deben tener el nombre del número del equipo (ej: 1234.png)\n"
+                                   "Si no seleccionas carpeta, se usarán imágenes por defecto.")
+        
+        if result:
+            images_folder = filedialog.askdirectory(title="Seleccionar carpeta con imágenes de robots")
+            if images_folder:
+                messagebox.showinfo("Carpeta seleccionada", f"Usando imágenes de: {images_folder}")
+            else:
+                messagebox.showinfo("Sin carpeta", "Se usarán imágenes por defecto")
+        
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".txt",
+            filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")],
+            title="Export Tier List",
+            initialfile="tier_list.txt"
+        )
+        
+        if file_path:
+            try:
+                # Debug information
+                print(f"Starting tier list export...")
+                
+                rankings = self.school_system.get_honor_roll_ranking()
+                disqualified = self.school_system.get_disqualified_teams()
+                
+                print(f"Found {len(rankings)} qualified teams, {len(disqualified)} disqualified teams")
+                
+                # Get all teams stats for additional information
+                all_team_stats = {}
+                if hasattr(self, 'analizador') and self.analizador:
+                    try:
+                        stats = self.analizador.get_detailed_team_stats()
+                        for stat in stats:
+                            team_num = str(stat.get('team_number', 'unknown'))
+                            if team_num != 'unknown':
+                                all_team_stats[team_num] = stat
+                        print(f"Loaded stats for {len(all_team_stats)} teams")
+                    except Exception as e:
+                        print(f"Warning: Could not load team stats: {e}")
+                        all_team_stats = {}
+                
+                # Get defensive teams info from the analyzer (ALL defensive teams, not just disqualified)
+                defensive_teams = set()
+                if hasattr(self, 'analizador') and self.analizador:
+                    try:
+                        defensive_ranking = self.analizador.get_defensive_robot_ranking()
+                        # Teams with defense rate > 0.3 are considered defensive
+                        defensive_teams = {str(team.get('team_number', '')) for team in defensive_ranking if team.get('defense_rate', 0) > 0.3}
+                        # Remove empty team numbers
+                        defensive_teams.discard('')
+                        print(f"Found {len(defensive_teams)} defensive teams: {defensive_teams}")
+                    except Exception as e:
+                        print(f"Warning: Could not load defensive teams: {e}")
+                        defensive_teams = set()
+                
+                # Categorize qualified teams into picks
+                qualified_teams = [team_num for team_num, _ in rankings]
+                total_qualified = len(qualified_teams)
+                
+                print(f"Qualified teams: {qualified_teams}")
+                
+                # Remove defensive teams from qualified teams (they go to Defense Pick regardless of qualification)
+                qualified_non_defensive = [team for team in qualified_teams if team not in defensive_teams]
+                
+                print(f"Qualified non-defensive teams: {qualified_non_defensive}")
+                
+                # Divide non-defensive qualified teams into 3 tiers
+                if qualified_non_defensive:
+                    tier_1_size = max(1, len(qualified_non_defensive) // 3)
+                    tier_2_size = max(1, len(qualified_non_defensive) // 3)
+                    
+                    tier_1_teams = qualified_non_defensive[:tier_1_size]
+                    tier_2_teams = qualified_non_defensive[tier_1_size:tier_1_size + tier_2_size]
+                    tier_3_teams = qualified_non_defensive[tier_1_size + tier_2_size:]
+                else:
+                    tier_1_teams = []
+                    tier_2_teams = []
+                    tier_3_teams = []
+                
+                # All disqualified non-defensive teams go to dash tier
+                disqualified_teams = [team_num for team_num, _ in disqualified]
+                disqualified_non_defensive = [team for team in disqualified_teams if team not in defensive_teams]
+                
+                print(f"Tier distribution: 1st={tier_1_teams}, 2nd={tier_2_teams}, 3rd={tier_3_teams}")
+                print(f"Defense={defensive_teams}, Dash={disqualified_non_defensive}")
+                
+                # Function to get team information for detailed export
+                def get_team_info(team_num):
+                    """Get detailed team information for tier list export"""
+                    try:
+                        # Ensure team_num is string
+                        team_num = str(team_num)
+                        
+                        # Get honor roll data (always available if we got here)
+                        honor_result = self.school_system.get_team_results(team_num)
+                        
+                        # Get team stats (may not be available)
+                        team_stats = all_team_stats.get(team_num, {})
+                        
+                        # Create team information with safe defaults
+                        team_info = {
+                            'title': f"Team {team_num}",
+                            'text': {
+                                'honor_score': round(honor_result.honor_roll_score, 1) if honor_result else 0.0,
+                                'final_points': honor_result.final_points if honor_result else 0,
+                                'overall_avg': round(float(team_stats.get('overall_avg', 0.0)), 2),
+                                'robot_valuation': round(float(team_stats.get('robot_valuation', 0.0)), 2),
+                                'defense_rate': round(float(team_stats.get('teleop_crossed_played_defense_rate', 0.0)), 3),
+                                'died_rate': round(float(team_stats.get('died_rate', 0.0)), 3),
+                                'matches_played': int(team_stats.get('matches_played', 0))
+                            },
+                            'driverSkills': 'Defensive' if team_num in defensive_teams else 'Offensive'
+                        }
+                        return team_info
+                    except Exception as e:
+                        print(f"Error getting team info for {team_num}: {e}")
+                        # Return minimal safe info if there's any error
+                        return {
+                            'title': f"Team {team_num}",
+                            'text': {
+                                'honor_score': 0.0,
+                                'final_points': 0,
+                                'overall_avg': 0.0,
+                                'robot_valuation': 0.0,
+                                'defense_rate': 0.0,
+                                'died_rate': 0.0,
+                                'matches_played': 0
+                            },
+                            'driverSkills': 'Offensive'
+                        }
+                
+                # Write tier_list.txt in the detailed format
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    try:
+                        # 1st Pick tier
+                        f.write("Tier: 1st Pick\n")
+                        for team_num in tier_1_teams:
+                            try:
+                                team_info = get_team_info(team_num)
+                                # Get team image (from folder or default)
+                                team_image_base64 = load_team_image(team_num, images_folder)
+                                f.write(f"  Image: {team_image_base64}\n")
+                                f.write(f"    Title: {team_info['title']}\n")
+                                f.write(f"    Text: {json.dumps(team_info['text'])}\n")
+                                f.write(f"    DriverSkills: {team_info['driverSkills']}\n")
+                                f.write(f"    ImageList:\n")
+                            except Exception as e:
+                                print(f"Error writing team {team_num} to 1st Pick: {e}")
+                        f.write("\n")
+                        
+                        # 2nd Pick tier
+                        f.write("Tier: 2nd Pick\n")
+                        for team_num in tier_2_teams:
+                            try:
+                                team_info = get_team_info(team_num)
+                                # Get team image (from folder or default)
+                                team_image_base64 = load_team_image(team_num, images_folder)
+                                f.write(f"  Image: {team_image_base64}\n")
+                                f.write(f"    Title: {team_info['title']}\n")
+                                f.write(f"    Text: {json.dumps(team_info['text'])}\n")
+                                f.write(f"    DriverSkills: {team_info['driverSkills']}\n")
+                                f.write(f"    ImageList:\n")
+                            except Exception as e:
+                                print(f"Error writing team {team_num} to 2nd Pick: {e}")
+                        f.write("\n")
+                        
+                        # 3rd Pick tier
+                        f.write("Tier: 3rd Pick\n")
+                        for team_num in tier_3_teams:
+                            try:
+                                team_info = get_team_info(team_num)
+                                # Get team image (from folder or default)
+                                team_image_base64 = load_team_image(team_num, images_folder)
+                                f.write(f"  Image: {team_image_base64}\n")
+                                f.write(f"    Title: {team_info['title']}\n")
+                                f.write(f"    Text: {json.dumps(team_info['text'])}\n")
+                                f.write(f"    DriverSkills: {team_info['driverSkills']}\n")
+                                f.write(f"    ImageList:\n")
+                            except Exception as e:
+                                print(f"Error writing team {team_num} to 3rd Pick: {e}")
+                        f.write("\n")
+                        
+                        # Ojito tier (empty by default)
+                        f.write("Tier: Ojito\n")
+                        f.write("\n")
+                        
+                        # Dash tier (disqualified non-defensive teams)
+                        f.write("Tier: -\n")
+                        for team_num in disqualified_non_defensive:
+                            try:
+                                team_info = get_team_info(team_num)
+                                # Get team image (from folder or default)
+                                team_image_base64 = load_team_image(team_num, images_folder)
+                                f.write(f"  Image: {team_image_base64}\n")
+                                f.write(f"    Title: {team_info['title']}\n")
+                                f.write(f"    Text: {json.dumps(team_info['text'])}\n")
+                                f.write(f"    DriverSkills: {team_info['driverSkills']}\n")
+                                f.write(f"    ImageList:\n")
+                            except Exception as e:
+                                print(f"Error writing team {team_num} to Dash tier: {e}")
+                        f.write("\n")
+                        
+                        # Defense Pick tier (ALL defensive teams, qualified or not)
+                        f.write("Tier: Defense Pick\n")
+                        for team_num in sorted(defensive_teams):
+                            try:
+                                team_info = get_team_info(team_num)
+                                # Get team image (from folder or default)
+                                team_image_base64 = load_team_image(team_num, images_folder)
+                                f.write(f"  Image: {team_image_base64}\n")
+                                f.write(f"    Title: {team_info['title']}\n")
+                                f.write(f"    Text: {json.dumps(team_info['text'])}\n")
+                                f.write(f"    DriverSkills: {team_info['driverSkills']}\n")
+                                f.write(f"    ImageList:\n")
+                            except Exception as e:
+                                print(f"Error writing team {team_num} to Defense Pick: {e}")
+                        f.write("\n")
+                        
+                        # Unassigned tier (empty by default)
+                        f.write("Tier: Unassigned\n")
+                        f.write("\n")
+                        
+                    except Exception as e:
+                        raise Exception(f"Error writing to file: {e}")
+                
+                # Show summary of categorization
+                summary_msg = (
+                    f"Tier List exported successfully!\n\n"
+                    f"📊 Team Distribution:\n"
+                    f"• 1st Pick: {len(tier_1_teams)} teams\n"
+                    f"• 2nd Pick: {len(tier_2_teams)} teams\n"
+                    f"• 3rd Pick: {len(tier_3_teams)} teams\n"
+                    f"• Defense Pick: {len(defensive_teams)} teams (ALL defensive)\n"
+                    f"• Dash (-): {len(disqualified_non_defensive)} teams\n\n"
+                    f"📁 File saved to:\n{file_path}"
+                )
+                
+                messagebox.showinfo("Export Complete", summary_msg)
+                self.status_var.set(f"Tier List exported to {os.path.basename(file_path)}")
+                
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Failed to export Tier List: {e}")
+
     def auto_optimize_alliances(self):
         """Automatically optimize alliance selections using enhanced algorithm"""
         if not hasattr(self, 'alliance_selector') or not self.alliance_selector:
@@ -3374,36 +3750,29 @@ Configuration:
         # Reset current picks to start fresh
         selector.reset_picks()
         
-        # Enhanced optimization algorithm
-        available_teams = [t for t in selector.teams if t.team not in [a.captain for a in selector.alliances if a.captain]]
-        available_teams.sort(key=lambda t: (-t.score, t.rank))  # Sort by score desc, rank asc
-        
-        # Assign picks using enhanced strategy balancing
-        pick_index = 0
-        
         # Pick 1 round (1-8)
         for alliance in selector.alliances:
-            if pick_index < len(available_teams):
+            available_teams = selector.get_available_teams(alliance.captainRank, 'pick1')
+            if available_teams:
                 try:
                     best_pick = self._find_optimal_pick(alliance, available_teams, "pick1")
                     if best_pick:
                         selector.set_pick(alliance.allianceNumber - 1, 'pick1', best_pick.team)
-                        available_teams.remove(best_pick)
                 except Exception as e:
                     print(f"Error setting pick1 for alliance {alliance.allianceNumber}: {e}")
-        
+
         # Pick 2 round (8-1)
         for alliance in reversed(selector.alliances):
+            available_teams = selector.get_available_teams(alliance.captainRank, 'pick2')
             if available_teams:
                 try:
                     best_pick = self._find_optimal_pick(alliance, available_teams, "pick2")
                     if best_pick:
                         selector.set_pick(alliance.allianceNumber - 1, 'pick2', best_pick.team)
-                        available_teams.remove(best_pick)
                 except Exception as e:
                     print(f"Error setting pick2 for alliance {alliance.allianceNumber}: {e}")
         
-        self.refresh_alliance_selector_tab()
+        self.update_alliance_table()
         messagebox.showinfo("Auto-Optimization", "Alliance selections have been optimized using enhanced algorithm!")
     
     def _find_optimal_pick(self, alliance, available_teams, pick_type):
