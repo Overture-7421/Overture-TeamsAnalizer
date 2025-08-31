@@ -1268,6 +1268,7 @@ class AnalizadorGUI:
     def __init__(self, root, analizador):
         self.root = root
         self.analizador = analizador
+        self.modified_rows = set()  # Track which rows have been manually modified
         self.root.title("Alliance Simulator Analyzer")
         # Initialize SchoolSystem
         self.school_system = TeamScoring()
@@ -1288,7 +1289,6 @@ class AnalizadorGUI:
             ("Paste QR Data", self.load_qr),
             ("System Configuration", self.open_system_configuration),
             ("Plot Team Performance", self.open_team_performance_plot),
-            ("SchoolSystem", self.open_school_system),
             ("Foreshadowing", self.open_foreshadowing),
         ]
         for text, cmd in buttons:
@@ -1952,6 +1952,7 @@ class AnalizadorGUI:
         """
         Actualiza solo la tabla Raw Data sin recalcular estadísticas.
         Optimizada para actualizaciones en tiempo real durante el escaneo QR.
+        Preserva las filas que han sido modificadas manualmente.
         """
         # Update column indices in case data structure changed
         self.analizador._update_column_indices()
@@ -1961,8 +1962,33 @@ class AnalizadorGUI:
         if raw:
             headers = raw[0]
             data = raw[1:]
-            self.refresh_table(self.tree_raw, headers, data)
-            print(f"Raw data table refreshed with {len(data)} rows")
+            
+            # Store current modified data from sheet_data to preserve user edits
+            modified_data = {}
+            for row_index in self.modified_rows:
+                if 0 < row_index < len(self.analizador.sheet_data):
+                    modified_data[row_index - 1] = self.analizador.sheet_data[row_index]  # -1 because tree index
+            
+            # Clear and rebuild tree
+            self.tree_raw.delete(*self.tree_raw.get_children())
+            self.tree_raw["columns"] = headers
+            for header in headers:
+                self.tree_raw.heading(header, text=header)
+                self.tree_raw.column(header, width=100)
+            
+            # Add data, preserving manually modified rows
+            for i, row_data in enumerate(data):
+                # If this row was manually modified, use the modified version from sheet_data
+                if i in modified_data:
+                    self.tree_raw.insert("", "end", values=modified_data[i])
+                else:
+                    self.tree_raw.insert("", "end", values=row_data)
+            
+            print(f"Raw data table refreshed with {len(data)} rows (preserved {len(self.modified_rows)} modified rows)")
+        else:
+            # No data available, clear the tree
+            self.tree_raw.delete(*self.tree_raw.get_children())
+            self.tree_raw["columns"] = []
 
     def refresh_alliance_selector_tab(self):
         stats = self.analizador.get_detailed_team_stats()
@@ -2717,11 +2743,11 @@ Configuration:
     def open_foreshadowing(self):
         def _launch():
             try:
-                from foreshadowing import ForeshadowingLauncher
+                from foreshadowing import launch_foreshadowing
             except ImportError as e:
                 messagebox.showerror("Foreshadowing", f"No se pudo importar módulo: {e}")
                 return
-            ForeshadowingLauncher(self.root, analyzer=self.analizador)
+            launch_foreshadowing(self.root, self.analizador)
         _launch()
 
     def edit_raw_data_row(self):
@@ -2739,35 +2765,72 @@ Configuration:
             messagebox.showerror("Error", "No data available to edit.")
             return
         
+        # Calculate correct row index in sheet_data
+        # tree_raw items are indexed starting from 0, sheet_data[0] is headers, so data starts at index 1
+        row_index = self.tree_raw.index(item) + 1
+        
         # Create edit dialog
         edit_window = tk.Toplevel(self.root)
         edit_window.title("Edit Row")
         edit_window.transient(self.root)
         edit_window.grab_set()
+        edit_window.geometry("500x600")
+        
+        # Create scrollable frame for many fields
+        canvas = tk.Canvas(edit_window)
+        scrollbar = ttk.Scrollbar(edit_window, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
         
         # Create form fields
         entries = {}
         for i, (header, value) in enumerate(zip(headers, current_values)):
-            ttk.Label(edit_window, text=f"{header}:").grid(row=i, column=0, sticky='e', padx=5, pady=2)
-            entry = ttk.Entry(edit_window, width=30)
+            ttk.Label(scrollable_frame, text=f"{header}:").grid(row=i, column=0, sticky='e', padx=5, pady=2)
+            entry = ttk.Entry(scrollable_frame, width=40)
             entry.insert(0, str(value))
             entry.grid(row=i, column=1, padx=5, pady=2)
             entries[header] = entry
         
-        # Buttons
-        def save_changes():
-            new_values = [entries[header].get() for header in headers]
-            # Update treeview
-            self.tree_raw.item(item, values=new_values)
-            # Update analyzer data
-            row_index = int(item) + 1  # +1 because item IDs start from 0, but data rows start from 1 (after header)
-            if row_index < len(self.analizador.sheet_data):
-                self.analizador.sheet_data[row_index] = new_values
-                self.status_var.set("Row updated. Click 'Save Changes' to persist modifications.")
-            edit_window.destroy()
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
         
+        # Buttons frame
         btn_frame = ttk.Frame(edit_window)
-        btn_frame.grid(row=len(headers), column=0, columnspan=2, pady=10)
+        btn_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        def save_changes():
+            try:
+                new_values = [entries[header].get() for header in headers]
+                
+                # Update treeview
+                self.tree_raw.item(item, values=new_values)
+                
+                # Update analyzer data - ensure we have enough space
+                while len(self.analizador.sheet_data) <= row_index:
+                    self.analizador.sheet_data.append([''] * len(headers))
+                
+                self.analizador.sheet_data[row_index] = new_values
+                
+                # Mark this row as modified
+                self.modified_rows.add(row_index)
+                
+                # Update column indices in case structure changed
+                self.analizador._update_column_indices()
+                
+                messagebox.showinfo("Success", "Row updated successfully!")
+                self.status_var.set("Row updated. Changes are saved in memory. Use 'Save Changes' to export to file.")
+                edit_window.destroy()
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to save changes: {e}")
+        
         ttk.Button(btn_frame, text="Save", command=save_changes).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="Cancel", command=edit_window.destroy).pack(side=tk.LEFT, padx=5)
 
@@ -2778,17 +2841,45 @@ Configuration:
             messagebox.showwarning("No Selection", "Please select a row to delete.")
             return
         
-        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected row?"):
+        # Confirm deletion
+        result = messagebox.askyesno("Confirm Delete", "Are you sure you want to delete the selected row?")
+        if not result:
+            return
+        
+        try:
             item = selection[0]
-            row_index = int(item) + 1  # +1 because item IDs start from 0, but data rows start from 1
+            # Get the correct row index in sheet_data
+            row_index = self.tree_raw.index(item) + 1  # +1 because sheet_data[0] is headers
             
-            # Remove from analyzer data
-            if row_index < len(self.analizador.sheet_data):
-                del self.analizador.sheet_data[row_index]
-            
-            # Remove from treeview
-            self.tree_raw.delete(item)
-            self.status_var.set("Row deleted. Click 'Save Changes' to persist modifications.")
+            # Validate row index
+            if row_index < len(self.analizador.sheet_data) and row_index > 0:
+                # Remove from analyzer data first
+                self.analizador.sheet_data.pop(row_index)
+                
+                # Remove from treeview
+                self.tree_raw.delete(item)
+                
+                # Update tracking sets - shift indices down for rows after deleted row
+                new_modified_rows = set()
+                for mod_row in self.modified_rows:
+                    if mod_row < row_index:
+                        new_modified_rows.add(mod_row)
+                    elif mod_row > row_index:
+                        new_modified_rows.add(mod_row - 1)
+                    # Don't add mod_row if it equals row_index (it's being deleted)
+                self.modified_rows = new_modified_rows
+                
+                # Update column indices in case structure changed
+                self.analizador._update_column_indices()
+                
+                messagebox.showinfo("Success", "Row deleted successfully!")
+                self.status_var.set("Row deleted. Changes are saved in memory. Use 'Save Changes' to export to file.")
+            else:
+                messagebox.showerror("Error", f"Invalid row index: {row_index}")
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to delete row: {e}")
+            print(f"Delete error: {e}")  # Debug info
 
     def add_raw_data_row(self):
         """Add a new row to the raw data table."""
@@ -2843,6 +2934,10 @@ Configuration:
                 with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
                     writer = csv.writer(csvfile)
                     writer.writerows(self.analizador.sheet_data)
+                
+                # Clear modification tracking since data has been saved
+                self.modified_rows.clear()
+                
                 messagebox.showinfo("Success", f"Data saved to {file_path}")
                 self.status_var.set(f"Data saved to {os.path.basename(file_path)}")
             except Exception as e:

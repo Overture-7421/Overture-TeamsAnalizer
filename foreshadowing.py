@@ -1,724 +1,800 @@
-"""Foreshadowing (Match Prediction) System
-
-Permite ingresar 3 equipos por alianza (Red / Blue) y predecir puntajes
-basados en valores configurables para cada tipo de acción.
-
-Reglas provistas por el usuario:
-  - Coral Levels:
-       L1: 3 puntos Auto / 2 TeleOp
-       L2: 4 puntos Auto / 3 TeleOp
-       L3: 6 puntos Auto / 4 TeleOp
-       L4: 7 puntos Auto / 5 TeleOp
-  - Processor: 6 puntos (Auto y TeleOp) *además el otro equipo gana 4 puntos* (swing opcional)
-  - Net: 4 puntos (TeleOp)
-  - Climb (endgame): Parked=2, Shallow=6, Deep=12
-  - Coopertition Bonus: >=2 ALGAE en cada PROCESSOR => indicador (no RP directo)
-  - AUTO RP: todos los robots dejan zona inicial + >=1 CORAL en Auto
-  - CORAL RP: >=7 CORAL por nivel (sin coop) ó >=7 en 3 niveles (con coop)
-  - Win=3 RP, Tie=1 RP, Loss=0 RP
-
-Este módulo es autónomo pero se integra creando ForeshadowingLauncher.
 """
-from __future__ import annotations
+Sistema de Foreshadowing
+=========================
 
+Predice con precisión:
+1. Piezas individuales hechas por cada robot
+2. Puntos totales de cada alianza
+3. Ranking Points (RP) posibles
+4. Probabilidades de victoria
+
+Características:
+- Predicción basada en estadísticas reales de cada equipo
+- Cálculo preciso de puntos por nivel de coral
+- Análisis de probabilidades de Autonomous y Cooperation
+- Simulación Monte Carlo para resultados más realistas
+- Cálculo de Ranking Points según reglas de juego
+
+Marco Lopez - Overture 7421
+"""
+
+import math
+import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Callable, Optional
+from typing import Dict, List, Optional, Tuple
 import tkinter as tk
 from tkinter import ttk, messagebox
-import math, random
 
 
-# --------------------------- Data Models ------------------------------------ #
-
-@dataclass
-class ScoringConfig:
-    coral_auto: Dict[str, int] = field(default_factory=lambda: {"L1": 3, "L2": 4, "L3": 6, "L4": 7})
-    coral_teleop: Dict[str, int] = field(default_factory=lambda: {"L1": 2, "L2": 3, "L3": 4, "L4": 5})
-    processor_auto: int = 6
-    processor_teleop: int = 6
-    processor_opponent_gain: int = 4  # Puntos que gana el oponente (swing)
-    net_teleop: int = 4
-    climb_points: Dict[str, int] = field(default_factory=lambda: {"none": 0, "park": 2, "shallow": 6, "deep": 12})
-    enable_processor_swing: bool = True
-
-    def clone(self) -> 'ScoringConfig':
-        return ScoringConfig(
-            coral_auto=self.coral_auto.copy(),
-            coral_teleop=self.coral_teleop.copy(),
-            processor_auto=self.processor_auto,
-            processor_teleop=self.processor_teleop,
-            processor_opponent_gain=self.processor_opponent_gain,
-            net_teleop=self.net_teleop,
-            climb_points=self.climb_points.copy(),
-            enable_processor_swing=self.enable_processor_swing
-        )
-
+# ============================= CONFIGURACIÓN DE JUEGO ============================= #
 
 @dataclass
-class AlliancePrediction:
-    teams: List[str] = field(default_factory=list)  # 3 teams
-    auto_coral: Dict[str, int] = field(default_factory=lambda: {"L1": 0, "L2": 0, "L3": 0, "L4": 0})
-    teleop_coral: Dict[str, int] = field(default_factory=lambda: {"L1": 0, "L2": 0, "L3": 0, "L4": 0})
-    processor_auto: int = 0
-    processor_teleop: int = 0
-    net_teleop: int = 0
-    algae_processor: int = 0  # Para coopertition
-    robot_climbs: List[str] = field(default_factory=lambda: ["none", "none", "none"])  # uno por robot
-    all_leave_auto: bool = True
-
-    total_points: int = 0
-    rp_auto: int = 0
-    rp_coral: int = 0
-    rp_coop: int = 0  # Indicador solamente
-    rp_win_tie: int = 0
-    ranking_points_total: int = 0
-
-
-# --------------------------- Calculator ------------------------------------- #
-
-class ForeshadowingCalculator:
-    def __init__(self, config: ScoringConfig):
-        self.config = config
-
-    def compute_alliance_points(self, pred: AlliancePrediction, coop_enabled: bool) -> AlliancePrediction:
-        points = 0
-        for level, cnt in pred.auto_coral.items():
-            points += cnt * self.config.coral_auto.get(level, 0)
-        for level, cnt in pred.teleop_coral.items():
-            points += cnt * self.config.coral_teleop.get(level, 0)
-        points += pred.processor_auto * self.config.processor_auto
-        points += pred.processor_teleop * self.config.processor_teleop
-        points += pred.net_teleop * self.config.net_teleop
-        for status in pred.robot_climbs:
-            points += self.config.climb_points.get(status.lower(), 0)
-        pred.total_points = points
-
-        pred.rp_coop = 1 if pred.algae_processor >= 2 else 0
-        auto_total_coral = sum(pred.auto_coral.values())
-        pred.rp_auto = 1 if pred.all_leave_auto and auto_total_coral >= 1 else 0
-
-        levels_meeting = [lvl for lvl, cnt in {lvl: pred.auto_coral[lvl] + pred.teleop_coral[lvl] for lvl in pred.auto_coral}.items() if cnt >= 7]
-        if coop_enabled:
-            pred.rp_coral = 1 if len(levels_meeting) >= 3 else 0
-        else:
-            pred.rp_coral = 1 if len(levels_meeting) == 4 else 0
-        return pred
-
-    def apply_win_tie_rp(self, red: AlliancePrediction, blue: AlliancePrediction):
-        if red.total_points > blue.total_points:
-            red.rp_win_tie = 3; blue.rp_win_tie = 0
-        elif blue.total_points > red.total_points:
-            blue.rp_win_tie = 3; red.rp_win_tie = 0
-        else:
-            red.rp_win_tie = 1; blue.rp_win_tie = 1
-        for a in (red, blue):
-            a.ranking_points_total = a.rp_auto + a.rp_coral + a.rp_win_tie
-
-
-# --------------------------- GUI Components --------------------------------- #
-
-class ForeshadowingLauncher:
-    def __init__(self, master, on_close: Optional[Callable] = None, analyzer=None):
-        """Launcher de Foreshadowing.
-
-        analyzer: instancia de AnalizadorRobot (opcional) para extraer datos históricos
-        y generar predicciones automáticas.
-        """
-        self.master = master
-        self.on_close = on_close
-        self.analyzer = analyzer
-        self.config = ScoringConfig()
-        self.calc = ForeshadowingCalculator(self.config)
-        self.pred_red = AlliancePrediction()
-        self.pred_blue = AlliancePrediction()
-        # Cache de estadísticas por equipo para evitar recomputar
-        self._team_stats_cache = {}
-        self._build_team_entry()
-        # Construir modelo estadístico si hay datos
-        if self.analyzer:
-            self._build_statistical_model()
-
-    # --------------------------- Modelo Estadístico --------------------- #
-    def _build_statistical_model(self):
-        """Construye parámetros por equipo usando un enfoque Poisson para conteos.
-        Parámetros:
-          - lambda_{nivel}: media de piezas (L1..L4) por match
-          - p_auto: prob. al menos 1 acción auto (usamos auto_success)
-          - climb_rate: prob. de intento de climb
-        Guardamos en self._team_model[team] = dict(...)
-        """
-        self._team_model: Dict[str, Dict[str, float]] = {}
-        if not self.analyzer or not self.analyzer.sheet_data or len(self.analyzer.sheet_data) < 2:
-            return
-        # Reusar _compute_team_stats para obtener promedios crudos (ya suavizados)
-        team_numbers = set()
-        idx = self.analyzer._column_indices
-        team_col = idx.get('Team Number')
-        if team_col is None:
-            return
-        for row in self.analyzer.sheet_data[1:]:
-            if team_col < len(row):
-                team_numbers.add(str(row[team_col]).strip())
-        for t in team_numbers:
-            stats = self._compute_team_stats(t)
-            model_entry = {
-                'lambda_L1': max(0.01, stats['L1']-0.2),  # revertir suavizado aproximado
-                'lambda_L2': max(0.01, stats['L2']-0.2),
-                'lambda_L3': max(0.01, stats['L3']-0.2),
-                'lambda_L4': max(0.01, stats['L4']-0.2),
-                'p_auto': min(1.0, max(0.0, stats['auto_success'])),
-                'climb_rate': min(1.0, max(0.0, stats['climb_rate'])),
-                'algae_play': max(0.0, stats['played_algae']),
-                'algae_barge': max(0.0, stats['algae_barge'])
-            }
-            self._team_model[t] = model_entry
-
-    def _sample_climb_category(self, climb_rate: float) -> str:
-        """Convierte un climb_rate (prob de algun climb) en distribución simple.
-        Modelo heurístico: dividimos climb_rate en probabilidades deep>shallow>park.
-        """
-        if climb_rate <= 0.05:
-            return 'none'
-        # Particionamiento
-        deep_p = max(0.0, climb_rate - 0.55)
-        shallow_p = 0.0
-        if climb_rate > 0.25:
-            shallow_p = min(0.30, climb_rate - deep_p - 0.10)
-        park_p = min(0.15, max(0.0, climb_rate - deep_p - shallow_p))
-        none_p = max(0.0, 1.0 - (deep_p + shallow_p + park_p))
-        dist = [('deep', deep_p), ('shallow', shallow_p), ('park', park_p), ('none', none_p)]
-        r = random.random(); acc = 0.0
-        for name, p in dist:
-            acc += p
-            if r <= acc:
-                return name
-        return 'none'
-
-    def _statistical_predict_team(self, team: str, auto_factor: float = 0.45) -> Dict:
-        """Devuelve predicción esperada para un equipo usando Poisson E[.] sin simulación.
-        auto_factor controla fracción media de piezas que caen en auto (multiplicado por p_auto).
-        """
-        if not hasattr(self, '_team_model') or team not in self._team_model:
-            return {
-                'team': team, 'exp_L1':0,'exp_L2':0,'exp_L3':0,'exp_L4':0,
-                'auto_L1':0,'auto_L2':0,'auto_L3':0,'auto_L4':0,
-                'tele_L1':0,'tele_L2':0,'tele_L3':0,'tele_L4':0,
-                'climb_dist': {'none':1.0}, 'best_climb':'none', 'coop_prob':0.0
-            }
-        m = self._team_model[team]
-        p_auto = m['p_auto']
-        auto_frac = p_auto * auto_factor
-        def split(lambda_x):
-            auto = lambda_x * auto_frac
-            tele = max(0.0, lambda_x - auto)
-            return auto, tele
-        a1,t1 = split(m['lambda_L1']); a2,t2 = split(m['lambda_L2']); a3,t3 = split(m['lambda_L3']); a4,t4 = split(m['lambda_L4'])
-        # Climb distribution (deterministic proportions)
-        cr = m['climb_rate']
-        deep_p = max(0.0, cr - 0.55)
-        shallow_p = max(0.0, min(0.30, cr - deep_p - 0.10))
-        park_p = max(0.0, min(0.15, cr - deep_p - shallow_p))
-        none_p = max(0.0, 1.0 - (deep_p + shallow_p + park_p))
-        climb_dist = {
-            'deep': round(deep_p,3),
-            'shallow': round(shallow_p,3),
-            'park': round(park_p,3),
-            'none': round(none_p,3)
-        }
-        best_climb = max(climb_dist.items(), key=lambda x: x[1])[0]
-        # Coop prob ~ normalizada de algae_play & algae_barge
-        coop_prob = min(1.0, (m['algae_barge']*0.5 + m['algae_play']*0.3))
-        return {
-            'team': team,
-            'exp_L1': m['lambda_L1'], 'exp_L2': m['lambda_L2'], 'exp_L3': m['lambda_L3'], 'exp_L4': m['lambda_L4'],
-            'auto_L1': a1, 'auto_L2': a2, 'auto_L3': a3, 'auto_L4': a4,
-            'tele_L1': t1, 'tele_L2': t2, 'tele_L3': t3, 'tele_L4': t4,
-            'climb_dist': climb_dist,
-            'best_climb': best_climb,
-            'coop_prob': coop_prob,
-            'p_auto': p_auto
-        }
-
-    def statistical_predict_alliance(self, teams: List[str]) -> Dict:
-        """Retorna resumen estadístico por equipo y agregado de la alianza."""
-        per_team = [self._statistical_predict_team(t) for t in teams]
-        agg = {lvl:0.0 for lvl in ['L1','L2','L3','L4']}
-        auto_agg = {lvl:0.0 for lvl in ['L1','L2','L3','L4']}
-        climb_expected_points = 0.0
-        for tpred in per_team:
-            for lvl in ['L1','L2','L3','L4']:
-                agg[lvl] += tpred[f'exp_{lvl}']
-                auto_agg[lvl] += tpred[f'auto_{lvl}']
-            # Expected climb points
-            for cat, p in tpred['climb_dist'].items():
-                climb_expected_points += p * self.config.climb_points.get(cat, 0)
-        return {
-            'teams': per_team,
-            'agg_total': agg,
-            'agg_auto': auto_agg,
-            'expected_climb_points': climb_expected_points
-        }
-
-    def simulate_match_points(self, red_teams: List[str], blue_teams: List[str], simulations: int = 300) -> Dict:
-        """Monte Carlo para estimar distribución de puntos de cada alianza."""
-        if not hasattr(self, '_team_model'):
-            return {'red_mean':0,'blue_mean':0,'red_samples':[], 'blue_samples':[]}
-        def sim_alliance(teams):
-            total_points_samples = []
-            def sample_poisson(lam: float) -> int:
-                if lam <= 0: return 0
-                L = math.exp(-lam); k = 0; p = 1.0
-                while p > L:
-                    k += 1
-                    p *= random.random()
-                return k - 1
-            for _ in range(simulations):
-                points = 0
-                for tm in teams:
-                    m = self._team_model.get(tm)
-                    if not m:
-                        continue
-                    for lvl,key in [('L1','lambda_L1'),('L2','lambda_L2'),('L3','lambda_L3'),('L4','lambda_L4')]:
-                        lam = m[key]
-                        k = sample_poisson(lam)
-                        auto_k = int(round(k * m['p_auto'] * 0.45))
-                        tele_k = k - auto_k
-                        points += auto_k * self.config.coral_auto.get(lvl,0)
-                        points += tele_k * self.config.coral_teleop.get(lvl,0)
-                    cat = self._sample_climb_category(m['climb_rate'])
-                    points += self.config.climb_points.get(cat,0)
-                total_points_samples.append(points)
-            return total_points_samples
-        red_samples = sim_alliance(red_teams)
-        blue_samples = sim_alliance(blue_teams)
-        return {
-            'red_mean': sum(red_samples)/len(red_samples) if red_samples else 0,
-            'blue_mean': sum(blue_samples)/len(blue_samples) if blue_samples else 0,
-            'red_samples': red_samples,
-            'blue_samples': blue_samples
-        }
-
-    # --------------------------- Predicción Automática -------------------- #
-    def _compute_team_stats(self, team: str):
-        """Devuelve dict con promedios por nivel de coral, algae, climb rate, auto success.
-        Aplica suavizado (Laplace) para evitar ceros extremos.
-        """
-        if team in self._team_stats_cache:
-            return self._team_stats_cache[team]
-        stats = {
-            'L1': 0.0, 'L2': 0.0, 'L3': 0.0, 'L4': 0.0,
-            'matches': 0,
-            'algae_barge': 0.0,
-            'played_algae': 0.0,
-            'climb_rate': 0.0,
-            'auto_success': 0.0
-        }
-        if not self.analyzer or not self.analyzer.sheet_data or len(self.analyzer.sheet_data) < 2:
-            self._team_stats_cache[team] = stats
-            return stats
-        header = self.analyzer.sheet_data[0]
-        idx = self.analyzer._column_indices  # usar mapping interno
-        # Column names esperados
-        cL1 = idx.get('Coral L1 Scored'); cL2 = idx.get('Coral L2 Scored'); cL3 = idx.get('Coral L3 Scored'); cL4 = idx.get('Coral L4 Scored')
-        algae_play_col = idx.get('Played Algae?(Disloged NO COUNT)')
-        algae_barge_col = idx.get('Algae Scored in Barge')
-        climb_col = idx.get('Climbed?')
-        auto_worked_col = idx.get('Did auton worked?')
-        team_col = idx.get('Team Number')
-        total_matches = 0
-        sum_auton_worked = 0
-        sum_climb = 0
-        sum_algae_play = 0
-        sum_algae_barge = 0
-        sumL1 = sumL2 = sumL3 = sumL4 = 0.0
-        for row in self.analyzer.sheet_data[1:]:
-            if team_col is None or team_col >= len(row):
-                continue
-            if str(row[team_col]).strip() != str(team):
-                continue
-            total_matches += 1
-            def to_float(val):
-                try:
-                    if isinstance(val, str) and val.strip()=='' : return 0.0
-                    return float(val)
-                except Exception:
-                    if isinstance(val, str) and val.lower() in ['true','yes','y','si','sí','1']:
-                        return 1.0
-                    if isinstance(val, str) and val.lower() in ['false','no','n','0']:
-                        return 0.0
-                    return 0.0
-            if cL1 is not None and cL1 < len(row): sumL1 += to_float(row[cL1])
-            if cL2 is not None and cL2 < len(row): sumL2 += to_float(row[cL2])
-            if cL3 is not None and cL3 < len(row): sumL3 += to_float(row[cL3])
-            if cL4 is not None and cL4 < len(row): sumL4 += to_float(row[cL4])
-            if algae_play_col is not None and algae_play_col < len(row): sum_algae_play += to_float(row[algae_play_col])
-            if algae_barge_col is not None and algae_barge_col < len(row): sum_algae_barge += to_float(row[algae_barge_col])
-            if climb_col is not None and climb_col < len(row): sum_climb += to_float(row[climb_col])
-            if auto_worked_col is not None and auto_worked_col < len(row): sum_auton_worked += to_float(row[auto_worked_col])
-        if total_matches > 0:
-            stats['L1'] = sumL1 / total_matches
-            stats['L2'] = sumL2 / total_matches
-            stats['L3'] = sumL3 / total_matches
-            stats['L4'] = sumL4 / total_matches
-            stats['matches'] = total_matches
-            stats['algae_barge'] = sum_algae_barge / total_matches
-            stats['played_algae'] = sum_algae_play / total_matches
-            stats['climb_rate'] = sum_climb / total_matches
-            stats['auto_success'] = sum_auton_worked / total_matches
-        # Suavizado simple (Laplace) para piezas coral: añadir 0.2
-        for level in ['L1','L2','L3','L4']:
-            stats[level] = max(0.0, stats[level]) + 0.2
-        self._team_stats_cache[team] = stats
-        return stats
-
-    def _predict_alliance(self, pred: AlliancePrediction):
-        """Llena pred.* con valores estimados en base a promedios por equipo."""
-        if not pred.teams:
-            return
-        # Agregar promedios
-        total_auto_factor = 0.0
-        for t in pred.teams:
-            ts = self._compute_team_stats(t)
-            auto_factor = min(1.0, ts['auto_success']) * 0.45  # fracción esperada de coral que ocurre en auto
-            total_auto_factor += auto_factor
-            for lvl in ['L1','L2','L3','L4']:
-                avg_lvl = ts[lvl]
-                auto_contrib = avg_lvl * auto_factor
-                pred.auto_coral[lvl] += auto_contrib
-                pred.teleop_coral[lvl] += max(0.0, avg_lvl - auto_contrib)
-            # Algae -> usar played_algae como proxy para processor autos (cada 3 algae ~1 processor?)
-            pred.algae_processor += ts['algae_barge'] * 0.3  # heurística
-            pred.processor_auto += ts['played_algae'] * 0.1 * ts['auto_success']
-            pred.processor_teleop += ts['played_algae'] * 0.2 * (1 - ts['auto_success'] + 0.5)
-            # Climb -> distribuir probabilidad entre shallow/deep
-            climb_p = ts['climb_rate']
-            if climb_p > 0.6:
-                pred.robot_climbs.append('deep')
-            elif climb_p > 0.25:
-                pred.robot_climbs.append('shallow')
-            elif climb_p > 0.1:
-                pred.robot_climbs.append('park')
-            else:
-                pred.robot_climbs.append('none')
-        # Mantener sólo 3 climbs (si excede)
-        pred.robot_climbs = pred.robot_climbs[:3]
-        # Convertir a enteros razonables
-        for d in [pred.auto_coral, pred.teleop_coral]:
-            for k,v in d.items():
-                d[k] = int(round(v,0))
-        pred.processor_auto = int(round(pred.processor_auto,0))
-        pred.processor_teleop = int(round(pred.processor_teleop,0))
-        pred.algae_processor = int(round(pred.algae_processor,0))
-        pred.net_teleop = 0  # sin datos directos aún
-        # Si no hay climbs asignados (porque lista vacía), rellenar con 'none'
-        while len(pred.robot_climbs) < 3:
-            pred.robot_climbs.append('none')
-        pred.all_leave_auto = True if total_auto_factor/ max(1,len(pred.teams)) > 0.3 else False
-        # Limpiar valores extremos
-        for lvl in ['L1','L2','L3','L4']:
-            if pred.auto_coral[lvl] < 0: pred.auto_coral[lvl] = 0
-            if pred.teleop_coral[lvl] < 0: pred.teleop_coral[lvl] = 0
-
-    def _build_team_entry(self):
-        self.win = tk.Toplevel(self.master)
-        self.win.title("Foreshadowing - Selección de Equipos")
-        self.win.grab_set()
-        frm = ttk.Frame(self.win, padding=10)
-        frm.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(frm, text="Equipos RED (3)", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, padx=5, pady=5)
-        ttk.Label(frm, text="Equipos BLUE (3)", font=("Segoe UI", 10, "bold")).grid(row=0, column=1, padx=5, pady=5)
-        self.red_entries = []; self.blue_entries = []
-        for i in range(3):
-            e_red = ttk.Entry(frm, width=12); e_blue = ttk.Entry(frm, width=12)
-            e_red.grid(row=i+1, column=0, padx=5, pady=2); e_blue.grid(row=i+1, column=1, padx=5, pady=2)
-            self.red_entries.append(e_red); self.blue_entries.append(e_blue)
-        btn_frame = ttk.Frame(frm); btn_frame.grid(row=5, column=0, columnspan=2, pady=10)
-        ttk.Button(btn_frame, text="Config Puntajes", command=self._open_config).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Aceptar", command=self._accept_teams).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="Cancelar", command=self.win.destroy).pack(side=tk.LEFT, padx=5)
-
-    def _open_config(self):
-        cfg = tk.Toplevel(self.win); cfg.title("Configurar Puntos"); cfg.grab_set()
-        frame = ttk.Frame(cfg, padding=10); frame.pack(fill=tk.BOTH, expand=True)
-        ttk.Label(frame, text="Coral Auto", font=("Segoe UI", 9, "bold")).grid(row=0, column=0, pady=4, sticky='w')
-        ttk.Label(frame, text="Coral TeleOp", font=("Segoe UI", 9, "bold")).grid(row=0, column=1, pady=4, sticky='w')
-        self._cfg_vars = {}; levels = ["L1", "L2", "L3", "L4"]
-        for r, lvl in enumerate(levels, start=1):
-            var_a = tk.IntVar(value=self.config.coral_auto[lvl]); var_t = tk.IntVar(value=self.config.coral_teleop[lvl])
-            ttk.Entry(frame, textvariable=var_a, width=5).grid(row=r, column=0, padx=3, pady=2)
-            ttk.Entry(frame, textvariable=var_t, width=5).grid(row=r, column=1, padx=3, pady=2)
-            self._cfg_vars[f"auto_{lvl}"] = var_a; self._cfg_vars[f"tele_{lvl}"] = var_t
-        row = len(levels) + 2
-        ttk.Label(frame, text="Processor A/T").grid(row=row, column=0, sticky='w')
-        proc_a = tk.IntVar(value=self.config.processor_auto); proc_t = tk.IntVar(value=self.config.processor_teleop)
-        ttk.Entry(frame, textvariable=proc_a, width=5).grid(row=row, column=1)
-        ttk.Entry(frame, textvariable=proc_t, width=5).grid(row=row, column=2)
-        self._cfg_vars['proc_a'] = proc_a; self._cfg_vars['proc_t'] = proc_t
-        row += 1; ttk.Label(frame, text="Net TeleOp").grid(row=row, column=0, sticky='w')
-        net_t = tk.IntVar(value=self.config.net_teleop); ttk.Entry(frame, textvariable=net_t, width=5).grid(row=row, column=1)
-        self._cfg_vars['net_t'] = net_t
-        row += 1; ttk.Label(frame, text="Processor Opp Gain").grid(row=row, column=0, sticky='w')
-        proc_gain = tk.IntVar(value=self.config.processor_opponent_gain); ttk.Entry(frame, textvariable=proc_gain, width=5).grid(row=row, column=1)
-        self._cfg_vars['proc_gain'] = proc_gain
-        row += 1; swing_var = tk.BooleanVar(value=self.config.enable_processor_swing)
-        ttk.Checkbutton(frame, text="Activar swing de Processor", variable=swing_var).grid(row=row, column=0, columnspan=2, pady=5, sticky='w')
-        self._cfg_vars['swing'] = swing_var
-        row += 1; ttk.Label(frame, text="Climb Points", font=("Segoe UI", 9, "bold")).grid(row=row, column=0, sticky='w', pady=(10,4))
-        row += 1; climb_vars = {}
-        for status in ["park", "shallow", "deep"]:
-            ttk.Label(frame, text=status.capitalize()).grid(row=row, column=0, sticky='w')
-            cv = tk.IntVar(value=self.config.climb_points[status]); ttk.Entry(frame, textvariable=cv, width=5).grid(row=row, column=1)
-            climb_vars[status] = cv; row += 1
-        self._cfg_vars['climb'] = climb_vars
-        def apply_config():
-            for lvl in levels:
-                self.config.coral_auto[lvl] = self._cfg_vars[f"auto_{lvl}"].get()
-                self.config.coral_teleop[lvl] = self._cfg_vars[f"tele_{lvl}"].get()
-            self.config.processor_auto = self._cfg_vars['proc_a'].get()
-            self.config.processor_teleop = self._cfg_vars['proc_t'].get()
-            self.config.net_teleop = self._cfg_vars['net_t'].get()
-            self.config.processor_opponent_gain = self._cfg_vars['proc_gain'].get()
-            self.config.enable_processor_swing = self._cfg_vars['swing'].get()
-            for k,v in self._cfg_vars['climb'].items():
-                self.config.climb_points[k] = v.get()
-            messagebox.showinfo("Config", "Puntajes actualizados"); cfg.destroy()
-        ttk.Button(frame, text="Guardar", command=apply_config).grid(row=row, column=0, pady=10)
-        ttk.Button(frame, text="Cerrar", command=cfg.destroy).grid(row=row, column=1, pady=10)
-
-    def _accept_teams(self):
-        reds = [e.get().strip() for e in self.red_entries if e.get().strip()]
-        blues = [e.get().strip() for e in self.blue_entries if e.get().strip()]
-        if len(reds) != 3 or len(blues) != 3:
-            messagebox.showerror("Error", "Debes ingresar exactamente 3 equipos por alianza"); return
-        self.pred_red.teams = reds; self.pred_blue.teams = blues
-        # Autopredicción basada en datos
-        # Reiniciar estructuras
-        self.pred_red.auto_coral = {"L1":0,"L2":0,"L3":0,"L4":0}
-        self.pred_red.teleop_coral = {"L1":0,"L2":0,"L3":0,"L4":0}
-        self.pred_red.processor_auto = 0; self.pred_red.processor_teleop=0; self.pred_red.net_teleop=0; self.pred_red.algae_processor=0; self.pred_red.robot_climbs=[]
-        self.pred_blue.auto_coral = {"L1":0,"L2":0,"L3":0,"L4":0}
-        self.pred_blue.teleop_coral = {"L1":0,"L2":0,"L3":0,"L4":0}
-        self.pred_blue.processor_auto = 0; self.pred_blue.processor_teleop=0; self.pred_blue.net_teleop=0; self.pred_blue.algae_processor=0; self.pred_blue.robot_climbs=[]
-        try:
-            self._predict_alliance(self.pred_red)
-            self._predict_alliance(self.pred_blue)
-        except Exception as ex:
-            print("Foreshadowing auto prediction error:", ex)
-        self.win.destroy(); self._open_prediction_window()
-
-    def _open_prediction_window(self):
-            """Ventana principal de predicción (post selección de equipos)."""
-            self.pred_win = tk.Toplevel(self.master)
-            self.pred_win.title("Foreshadowing - Predicción de Match")
-            self.pred_win.grab_set()
-            container = ttk.Frame(self.pred_win, padding=8)
-            container.pack(fill=tk.BOTH, expand=True)
-            top_bar = ttk.Frame(container)
-            top_bar.pack(fill=tk.X, pady=4)
-            ttk.Button(top_bar, text="Config Puntajes", command=self._open_config).pack(side=tk.LEFT, padx=4)
-            ttk.Button(top_bar, text="Recalcular", command=self._recalculate).pack(side=tk.LEFT, padx=4)
-            ttk.Button(top_bar, text="Re-predecir", command=self._auto_predict_reset).pack(side=tk.LEFT, padx=4)
-            ttk.Button(top_bar, text="Stats Robots", command=self._open_robot_stats).pack(side=tk.LEFT, padx=4)
-            ttk.Button(top_bar, text="Cerrar", command=self.pred_win.destroy).pack(side=tk.RIGHT, padx=4)
-            ttk.Label(top_bar, text="Predicción generada automáticamente a partir de datos históricos", foreground="blue").pack(side=tk.LEFT, padx=10)
-            self.red_frame = self._build_alliance_section(container, "RED", self.pred_red)
-            self.blue_frame = self._build_alliance_section(container, "BLUE", self.pred_blue)
-            self.result_frame = ttk.LabelFrame(container, text="Resultados")
-            self.result_frame.pack(fill=tk.X, pady=8)
-            self.lbl_result = ttk.Label(self.result_frame, text="")
-            self.lbl_result.pack(anchor='w', padx=6, pady=4)
-            self._recalculate()
-
-    def _open_robot_stats(self):
-            """Ventana con estadísticas individuales (modelo estadístico) para cada robot en el match.
-            Muestra splits Auto / TeleOp por nivel, distribución de climb, prob de coop y auto.
-            """
-            if not (self.pred_red.teams and self.pred_blue.teams):
-                messagebox.showerror("Error", "Primero selecciona equipos (Aceptar en ventana anterior)")
-                return
-            # Asegurar modelo estadístico
-            if not hasattr(self, '_team_model') or not self._team_model:
-                try:
-                    self._build_statistical_model()
-                except Exception as ex:
-                    print("Error construyendo modelo estadístico:", ex)
-            win = tk.Toplevel(self.pred_win)
-            win.title("Stats Individuales de Robots")
-            win.grab_set()
-            frm = ttk.Frame(win, padding=6)
-            frm.pack(fill=tk.BOTH, expand=True)
-            cols = [
-                'Team',
-                'Auto L1','Tele L1','Auto L2','Tele L2','Auto L3','Tele L3','Auto L4','Tele L4',
-                'Total Coral','P_auto%','Coop%','Best Climb','Exp Climb Pts',
-                'Deep%','Shallow%','Park%','None%'
-            ]
-            tree = ttk.Treeview(frm, show='headings')
-            tree.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-            for c in cols:
-                tree["columns"] = cols
-            for c in cols:
-                tree.heading(c, text=c)
-                tree.column(c, width=80, anchor='center')
-            scroll_y = ttk.Scrollbar(frm, orient=tk.VERTICAL, command=tree.yview)
-            tree.configure(yscroll=scroll_y.set)
-            scroll_y.pack(side=tk.RIGHT, fill=tk.Y)
-            teams_all = [('RED', t) for t in self.pred_red.teams] + [('BLUE', t) for t in self.pred_blue.teams]
-            # Usar predicción estadística por equipo
-            try:
-                # Bind method if not already
-                if not hasattr(self, '_statistical_predict_team'):
-                    self._statistical_predict_team = ForeshadowingLauncher._statistical_predict_team.__get__(self)
-            except Exception:
-                pass
-            # Config climb points for expected value
-            climb_pts = self.config.climb_points
-            for alliance, team in teams_all:
-                pred = self._statistical_predict_team(team)
-                auto_vals = [pred.get(f'auto_L{i}',0.0) for i in range(1,5)]
-                tele_vals = [pred.get(f'tele_L{i}',0.0) for i in range(1,5)]
-                total_coral = sum(auto_vals)+sum(tele_vals)
-                climb_dist = pred.get('climb_dist', {})
-                exp_climb_pts = 0.0
-                for cat, p in climb_dist.items():
-                    exp_climb_pts += p * climb_pts.get(cat,0)
-                def pct(x): return f"{100*x:.0f}" if isinstance(x,(int,float)) else '0'
-                row = [
-                    f"{alliance}-{team}",
-                    *(f"{v:.2f}" for v in auto_vals),
-                    *(f"{v:.2f}" for v in tele_vals),
-                    f"{total_coral:.2f}",
-                    pct(pred.get('p_auto',0.0)),
-                    pct(pred.get('coop_prob',0.0)),
-                    pred.get('best_climb','none'),
-                    f"{exp_climb_pts:.2f}",
-                    pct(climb_dist.get('deep',0.0)),
-                    pct(climb_dist.get('shallow',0.0)),
-                    pct(climb_dist.get('park',0.0)),
-                    pct(climb_dist.get('none',0.0)),
-                ]
-                tree.insert('', 'end', values=row)
-            # Nota / ayuda
-            help_lbl = ttk.Label(win, text="Valores basados en medias Poisson y fracción auto = p_auto*0.45. % = porcentaje (aprox).")
-            help_lbl.pack(fill=tk.X, padx=6, pady=4)
-
-    def _build_alliance_section(self, parent, name: str, pred: AlliancePrediction):
-        lf = ttk.LabelFrame(parent, text=f"Alianza {name}"); lf.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=4)
-        ttk.Label(lf, text="Equipos: " + ", ".join(pred.teams)).pack(anchor='w', padx=5, pady=(4,2))
-        coral_auto_frame = ttk.LabelFrame(lf, text="Auto Coral"); coral_auto_frame.pack(fill=tk.X, padx=5, pady=3)
-        pred._auto_vars = {}
-        for idx, lvl in enumerate(["L1", "L2", "L3", "L4"]):
-            var = tk.IntVar(value=pred.auto_coral[lvl]); ttk.Label(coral_auto_frame, text=lvl).grid(row=0, column=idx, padx=3)
-            sp = ttk.Spinbox(coral_auto_frame, from_=0, to=50, width=4, textvariable=var, command=self._recalculate); sp.grid(row=1, column=idx, padx=3, pady=2)
-            pred._auto_vars[lvl] = var
-        coral_tel_frame = ttk.LabelFrame(lf, text="TeleOp Coral"); coral_tel_frame.pack(fill=tk.X, padx=5, pady=3)
-        pred._tele_vars = {}
-        for idx, lvl in enumerate(["L1", "L2", "L3", "L4"]):
-            var = tk.IntVar(value=pred.teleop_coral[lvl]); ttk.Label(coral_tel_frame, text=lvl).grid(row=0, column=idx, padx=3)
-            sp = ttk.Spinbox(coral_tel_frame, from_=0, to=80, width=4, textvariable=var, command=self._recalculate); sp.grid(row=1, column=idx, padx=3, pady=2)
-            pred._tele_vars[lvl] = var
-        misc_frame = ttk.Frame(lf); misc_frame.pack(fill=tk.X, padx=5, pady=3)
-        pred._proc_auto = tk.IntVar(value=pred.processor_auto); pred._proc_tel = tk.IntVar(value=pred.processor_teleop)
-        pred._net_tel = tk.IntVar(value=pred.net_teleop); pred._algae_proc = tk.IntVar(value=pred.algae_processor)
-        pred._all_leave = tk.BooleanVar(value=pred.all_leave_auto)
-        ttk.Label(misc_frame, text="Proc A").grid(row=0, column=0); ttk.Spinbox(misc_frame, from_=0, to=30, width=4, textvariable=pred._proc_auto, command=self._recalculate).grid(row=1, column=0)
-        ttk.Label(misc_frame, text="Proc T").grid(row=0, column=1); ttk.Spinbox(misc_frame, from_=0, to=30, width=4, textvariable=pred._proc_tel, command=self._recalculate).grid(row=1, column=1)
-        ttk.Label(misc_frame, text="Net T").grid(row=0, column=2); ttk.Spinbox(misc_frame, from_=0, to=30, width=4, textvariable=pred._net_tel, command=self._recalculate).grid(row=1, column=2)
-        ttk.Label(misc_frame, text="Algae Proc").grid(row=0, column=3); ttk.Spinbox(misc_frame, from_=0, to=30, width=4, textvariable=pred._algae_proc, command=self._recalculate).grid(row=1, column=3)
-        ttk.Checkbutton(misc_frame, text="All Leave Auto", variable=pred._all_leave, command=self._recalculate).grid(row=2, column=0, columnspan=2, sticky='w', pady=4)
-        climb_frame = ttk.LabelFrame(lf, text="Climbs"); climb_frame.pack(fill=tk.X, padx=5, pady=3)
-        pred._climb_vars = []; options = ["none", "park", "shallow", "deep"]
-        for i in range(3):
-            var = tk.StringVar(value=pred.robot_climbs[i]); cb = ttk.Combobox(climb_frame, values=options, textvariable=var, width=8, state='readonly')
-            cb.grid(row=0, column=i, padx=4, pady=2); cb.bind('<<ComboboxSelected>>', lambda e: self._recalculate())
-            pred._climb_vars.append(var)
-        pred._summary_label = ttk.Label(lf, text="Puntos: 0 | RP: 0"); pred._summary_label.pack(anchor='w', padx=6, pady=4)
-        return lf
-
-    def _collect_from_widgets(self, pred: AlliancePrediction):
-        for lvl, var in pred._auto_vars.items(): pred.auto_coral[lvl] = var.get()
-        for lvl, var in pred._tele_vars.items(): pred.teleop_coral[lvl] = var.get()
-        pred.processor_auto = pred._proc_auto.get(); pred.processor_teleop = pred._proc_tel.get()
-        pred.net_teleop = pred._net_tel.get(); pred.algae_processor = pred._algae_proc.get()
-        pred.all_leave_auto = pred._all_leave.get()
-        for i, v in enumerate(pred._climb_vars): pred.robot_climbs[i] = v.get()
-
-    def _recalculate(self):
-        self._collect_from_widgets(self.pred_red); self._collect_from_widgets(self.pred_blue)
-        coop_enabled = (self.pred_red.algae_processor >= 2 and self.pred_blue.algae_processor >= 2)
-        self.calc.compute_alliance_points(self.pred_red, coop_enabled); self.calc.compute_alliance_points(self.pred_blue, coop_enabled)
-        self.calc.apply_win_tie_rp(self.pred_red, self.pred_blue)
-        if self.config.enable_processor_swing:
-            blue_swing = (self.pred_red.processor_auto + self.pred_red.processor_teleop) * self.config.processor_opponent_gain
-            red_swing = (self.pred_blue.processor_auto + self.pred_blue.processor_teleop) * self.config.processor_opponent_gain
-            red_total = self.pred_red.total_points + red_swing; blue_total = self.pred_blue.total_points + blue_swing
-        else:
-            red_total = self.pred_red.total_points; blue_total = self.pred_blue.total_points
-        self.pred_red._summary_label.config(text=f"Puntos: {red_total} | RP(auto/coral/win) {self.pred_red.rp_auto}/{self.pred_red.rp_coral}/{self.pred_red.rp_win_tie} -> Total RP {self.pred_red.ranking_points_total}")
-        self.pred_blue._summary_label.config(text=f"Puntos: {blue_total} | RP(auto/coral/win) {self.pred_blue.rp_auto}/{self.pred_blue.rp_coral}/{self.pred_blue.rp_win_tie} -> Total RP {self.pred_blue.ranking_points_total}")
-        result_txt = (f"RED {red_total} - {blue_total} BLUE\n" f"Coopertition: {'Sí' if coop_enabled else 'No'}\n" f"(Coral RP: RED {self.pred_red.rp_coral}, BLUE {self.pred_blue.rp_coral}; Auto RP: RED {self.pred_red.rp_auto}, BLUE {self.pred_blue.rp_auto})")
-        self.lbl_result.config(text=result_txt)
-
-    # --------------------------- Auto Re-Predict ------------------------- #
-    def _auto_predict_reset(self):
-        if not self.pred_red.teams or not self.pred_blue.teams:
-            return
-        # Reset structures
-        for pred in (self.pred_red, self.pred_blue):
-            pred.auto_coral = {"L1":0,"L2":0,"L3":0,"L4":0}
-            pred.teleop_coral = {"L1":0,"L2":0,"L3":0,"L4":0}
-            pred.processor_auto = 0; pred.processor_teleop=0; pred.net_teleop=0; pred.algae_processor=0; pred.robot_climbs=[]
-        # Rebuild model (in case data changed)
-        if self.analyzer:
-            self._team_stats_cache.clear()
-            self._build_statistical_model()
-        self._predict_alliance(self.pred_red)
-        self._predict_alliance(self.pred_blue)
-        # Volcar a widgets
-        for pred in (self.pred_red, self.pred_blue):
-            for lvl in ['L1','L2','L3','L4']:
-                pred._auto_vars[lvl].set(pred.auto_coral[lvl])
-                pred._tele_vars[lvl].set(pred.teleop_coral[lvl])
-            pred._proc_auto.set(pred.processor_auto); pred._proc_tel.set(pred.processor_teleop)
-            pred._net_tel.set(pred.net_teleop); pred._algae_proc.set(pred.algae_processor)
-            # climbs - already predicted list length 3
-            for i,var in enumerate(pred._climb_vars):
-                var.set(pred.robot_climbs[i])
-        self._recalculate()
-
-# --------------------------- API para Streamlit --------------------------- #
-
-def predict_match(analyzer, red_teams: List[str], blue_teams: List[str]) -> Dict:
-    """Función de alto nivel para usar en Streamlit. Retorna estructura con predicción por equipo y totales.
-    Utiliza el modelo estadístico si es posible.
-    """
-    launcher = ForeshadowingLauncher(master=tk.Tk(), analyzer=analyzer) if False else None  # no UI
-    # Crear instancia "virtual"
-    fake = ForeshadowingLauncher.__new__(ForeshadowingLauncher)
-    fake.analyzer = analyzer
-    fake.config = ScoringConfig()
-    fake._team_stats_cache = {}
-    fake._build_statistical_model = ForeshadowingLauncher._build_statistical_model.__get__(fake)
-    fake._compute_team_stats = ForeshadowingLauncher._compute_team_stats.__get__(fake)
-    fake._team_model = {}
-    fake._build_statistical_model()
-    fake._statistical_predict_team = ForeshadowingLauncher._statistical_predict_team.__get__(fake)
-    fake.statistical_predict_alliance = ForeshadowingLauncher.statistical_predict_alliance.__get__(fake)
-    fake.simulate_match_points = ForeshadowingLauncher.simulate_match_points.__get__(fake)
-    red_stats = fake.statistical_predict_alliance(red_teams)
-    blue_stats = fake.statistical_predict_alliance(blue_teams)
-    sim = fake.simulate_match_points(red_teams, blue_teams, simulations=200)
-    return {
-        'red': red_stats,
-        'blue': blue_stats,
-        'simulation': sim,
-        'config': fake.config
+class GameConfig:
+    """Configuración de puntos del juego REEFSCAPE 2025"""
+    
+    # Puntos por nivel de coral
+    coral_auto_points = {"L1": 3, "L2": 4, "L3": 6, "L4": 7}
+    coral_teleop_points = {"L1": 2, "L2": 3, "L3": 4, "L4": 5}
+    
+    # Puntos por algae
+    processor_points = 6  # Auto y Teleop
+    processor_opponent_bonus = 4  # Puntos extra para el oponente
+    net_points = 4  # Solo Teleop
+    
+    # Puntos de endgame
+    climb_points = {"none": 0, "park": 2, "shallow": 6, "deep": 12}
+    
+    # Requisitos para Ranking Points
+    auto_rp_requirements = {
+        "all_leave_zone": True,
+        "min_coral_auto": 1
     }
+    
+    coral_rp_requirements = {
+        "min_coral_per_level_no_coop": 7,
+        "min_levels_with_coop": 3,
+        "min_coral_per_level_with_coop": 7
+    }
+    
+    cooperation_threshold = 2  # Algae mínimas en cada processor para coop
 
 
-# --------------------------- Standalone Run --------------------------------- #
+# ============================= MODELOS DE DATOS ============================= #
+
+@dataclass
+class TeamPerformance:
+    """Rendimiento estadístico de un equipo"""
+    team_number: str
+    
+    # Coral por nivel (promedio por match)
+    auto_L1: float = 0.0
+    auto_L2: float = 0.0
+    auto_L3: float = 0.0
+    auto_L4: float = 0.0
+    teleop_L1: float = 0.0
+    teleop_L2: float = 0.0
+    teleop_L3: float = 0.0
+    teleop_L4: float = 0.0
+    
+    # Algae (promedio por match)
+    auto_processor: float = 0.0
+    teleop_processor: float = 0.0
+    teleop_net: float = 0.0
+    
+    # Probabilidades
+    p_leave_auto_zone: float = 0.5
+    p_cooperation: float = 0.3
+    
+    # Distribución de climb
+    climb_distribution: Dict[str, float] = field(default_factory=lambda: {
+        "none": 0.4, "park": 0.3, "shallow": 0.2, "deep": 0.1
+    })
+    
+    def total_coral_per_match(self) -> float:
+        """Total de corales promedio por match"""
+        return (self.auto_L1 + self.auto_L2 + self.auto_L3 + self.auto_L4 + 
+                self.teleop_L1 + self.teleop_L2 + self.teleop_L3 + self.teleop_L4)
+    
+    def expected_climb_points(self) -> float:
+        """Puntos esperados de climb"""
+        config = GameConfig()
+        return sum(prob * config.climb_points[climb_type] 
+                  for climb_type, prob in self.climb_distribution.items())
+
+
+@dataclass 
+class MatchPrediction:
+    """Predicción completa de un match"""
+    red_teams: List[TeamPerformance]
+    blue_teams: List[TeamPerformance]
+    
+    # Resultados de simulación
+    red_score: float = 0.0
+    blue_score: float = 0.0
+    red_rp: int = 0
+    blue_rp: int = 0
+    
+    # Breakdown detallado
+    red_breakdown: Dict = field(default_factory=dict)
+    blue_breakdown: Dict = field(default_factory=dict)
+    
+    # Probabilidades
+    red_win_probability: float = 0.0
+    blue_win_probability: float = 0.0
+    tie_probability: float = 0.0
+
+
+# ============================= EXTRACTOR DE ESTADÍSTICAS ============================= #
+
+class TeamStatsExtractor:
+    """Extrae estadísticas de equipos desde el analizador"""
+    
+    def __init__(self, analizador):
+        self.analizador = analizador
+        self.config = GameConfig()
+    
+    def extract_team_performance(self, team_number: str) -> TeamPerformance:
+        """Extrae el rendimiento estadístico de un equipo"""
+        team_stats = self._get_team_detailed_stats(team_number)
+        
+        if not team_stats:
+            # Valores por defecto si no hay datos
+            return TeamPerformance(
+                team_number=team_number,
+                p_leave_auto_zone=0.5,
+                p_cooperation=0.3
+            )
+        
+        # Extraer estadísticas de coral
+        perf = TeamPerformance(team_number=team_number)
+        
+        # El analizador no separa auto/teleop en las estadísticas detalladas actualmente
+        # Usamos las estadísticas disponibles y las distribuimos proporcionalmente
+        
+        # Coral totales (combinadas)
+        total_L1 = team_stats.get('coral_l1__avg', 0.0)
+        total_L2 = team_stats.get('coral_l2__avg', 0.0) 
+        total_L3 = team_stats.get('coral_l3__avg', 0.0)
+        total_L4 = team_stats.get('coral_l4__avg', 0.0)
+        
+        # Distribuir 30% auto, 70% teleop basado en observaciones típicas
+        auto_ratio = 0.3
+        teleop_ratio = 0.7
+        
+        perf.auto_L1 = total_L1 * auto_ratio
+        perf.auto_L2 = total_L2 * auto_ratio
+        perf.auto_L3 = total_L3 * auto_ratio
+        perf.auto_L4 = total_L4 * auto_ratio
+        
+        perf.teleop_L1 = total_L1 * teleop_ratio
+        perf.teleop_L2 = total_L2 * teleop_ratio
+        perf.teleop_L3 = total_L3 * teleop_ratio
+        perf.teleop_L4 = total_L4 * teleop_ratio
+        
+        # Algae (usar las estadísticas teleop disponibles como base)
+        perf.auto_processor = team_stats.get('teleop_processor_algae_avg', 0.0) * 0.25  # Menos en auto
+        perf.teleop_processor = team_stats.get('teleop_processor_algae_avg', 0.0)
+        perf.teleop_net = team_stats.get('teleop_barge_algae_avg', 0.0)
+        
+        # Probabilidades basadas en overall performance
+        overall_avg = team_stats.get('overall_avg', 0.0)
+        if overall_avg > 60:
+            perf.p_leave_auto_zone = 0.85
+        elif overall_avg > 30:
+            perf.p_leave_auto_zone = 0.65
+        else:
+            perf.p_leave_auto_zone = 0.35
+        
+        # Cooperation basada en processor performance
+        perf.p_cooperation = min(0.8, max(0.1, perf.teleop_processor / 3.0))
+        
+        # Distribución de climb
+        perf.climb_distribution = self._extract_climb_distribution(team_stats)
+        
+        return perf
+    
+    def _get_team_detailed_stats(self, team_number: str) -> Optional[Dict]:
+        """Obtiene estadísticas detalladas del equipo"""
+        try:
+            all_stats = self.analizador.get_detailed_team_stats()
+            for team_stat in all_stats:
+                if str(team_stat.get('team', '')) == str(team_number):
+                    return team_stat
+            return None
+        except Exception as e:
+            print(f"Error obteniendo estadísticas para equipo {team_number}: {e}")
+            return None
+    
+    def _extract_climb_distribution(self, team_stats: Dict) -> Dict[str, float]:
+        """Extrae la distribución de climb del equipo"""
+        # Por defecto basado en rendimiento general
+        overall_avg = team_stats.get('overall_avg', 0.0)
+        
+        if overall_avg > 50:  # Equipo fuerte
+            return {"none": 0.1, "park": 0.2, "shallow": 0.4, "deep": 0.3}
+        elif overall_avg > 30:  # Equipo medio
+            return {"none": 0.2, "park": 0.3, "shallow": 0.4, "deep": 0.1}
+        else:  # Equipo débil
+            return {"none": 0.5, "park": 0.3, "shallow": 0.15, "deep": 0.05}
+
+
+# ============================= SIMULADOR DE MATCHES ============================= #
+
+class MatchSimulator:
+    """Simula matches usando distribuciones estadísticas"""
+    
+    def __init__(self):
+        self.config = GameConfig()
+    
+    def simulate_match(self, red_teams: List[TeamPerformance], 
+                      blue_teams: List[TeamPerformance], 
+                      num_simulations: int = 1000) -> MatchPrediction:
+        """Simula un match completo usando Monte Carlo"""
+        
+        red_scores = []
+        blue_scores = []
+        red_rps = []
+        blue_rps = []
+        
+        for _ in range(num_simulations):
+            # Simular una instancia del match
+            red_result = self._simulate_alliance(red_teams)
+            blue_result = self._simulate_alliance(blue_teams)
+            
+            red_scores.append(red_result['total_score'])
+            blue_scores.append(blue_result['total_score'])
+            
+            # Calcular RPs para esta simulación
+            red_rp, blue_rp = self._calculate_ranking_points(
+                red_result, blue_result, red_teams, blue_teams
+            )
+            red_rps.append(red_rp)
+            blue_rps.append(blue_rp)
+        
+        # Calcular promedios y probabilidades
+        avg_red_score = sum(red_scores) / num_simulations
+        avg_blue_score = sum(blue_scores) / num_simulations
+        avg_red_rp = sum(red_rps) / num_simulations
+        avg_blue_rp = sum(blue_rps) / num_simulations
+        
+        # Probabilidades de victoria
+        red_wins = sum(1 for r, b in zip(red_scores, blue_scores) if r > b)
+        blue_wins = sum(1 for r, b in zip(red_scores, blue_scores) if b > r)
+        ties = num_simulations - red_wins - blue_wins
+        
+        # Breakdown detallado (usando última simulación como ejemplo)
+        red_breakdown = self._simulate_alliance(red_teams)
+        blue_breakdown = self._simulate_alliance(blue_teams)
+        
+        return MatchPrediction(
+            red_teams=red_teams,
+            blue_teams=blue_teams,
+            red_score=avg_red_score,
+            blue_score=avg_blue_score,
+            red_rp=round(avg_red_rp),
+            blue_rp=round(avg_blue_rp),
+            red_breakdown=red_breakdown,
+            blue_breakdown=blue_breakdown,
+            red_win_probability=red_wins / num_simulations,
+            blue_win_probability=blue_wins / num_simulations,
+            tie_probability=ties / num_simulations
+        )
+    
+    def _simulate_alliance(self, teams: List[TeamPerformance]) -> Dict:
+        """Simula el rendimiento de una alianza"""
+        result = {
+            'coral_scores': {'L1': 0, 'L2': 0, 'L3': 0, 'L4': 0},
+            'auto_coral': {'L1': 0, 'L2': 0, 'L3': 0, 'L4': 0},
+            'teleop_coral': {'L1': 0, 'L2': 0, 'L3': 0, 'L4': 0},
+            'processor_algae': {'auto': 0, 'teleop': 0},
+            'net_algae': 0,
+            'climb_scores': [],
+            'coral_points': 0,
+            'algae_points': 0,
+            'climb_points': 0,
+            'total_score': 0,
+            'teams_left_auto_zone': 0,
+            'cooperation_achieved': False
+        }
+        
+        # Simular cada equipo
+        for team in teams:
+            # Coral Auto (distribución Poisson)
+            auto_coral = {
+                'L1': self._poisson_sample(team.auto_L1),
+                'L2': self._poisson_sample(team.auto_L2),
+                'L3': self._poisson_sample(team.auto_L3),
+                'L4': self._poisson_sample(team.auto_L4)
+            }
+            
+            # Coral Teleop
+            teleop_coral = {
+                'L1': self._poisson_sample(team.teleop_L1),
+                'L2': self._poisson_sample(team.teleop_L2),
+                'L3': self._poisson_sample(team.teleop_L3),
+                'L4': self._poisson_sample(team.teleop_L4)
+            }
+            
+            # Acumular coral
+            for level in ['L1', 'L2', 'L3', 'L4']:
+                result['auto_coral'][level] += auto_coral[level]
+                result['teleop_coral'][level] += teleop_coral[level]
+                result['coral_scores'][level] += auto_coral[level] + teleop_coral[level]
+            
+            # Algae
+            result['processor_algae']['auto'] += self._poisson_sample(team.auto_processor)
+            result['processor_algae']['teleop'] += self._poisson_sample(team.teleop_processor)
+            result['net_algae'] += self._poisson_sample(team.teleop_net)
+            
+            # Climb
+            climb_type = self._sample_climb(team.climb_distribution)
+            climb_points = self.config.climb_points[climb_type]
+            result['climb_scores'].append((team.team_number, climb_type, climb_points))
+            result['climb_points'] += climb_points
+            
+            # Autonomous zone
+            if random.random() < team.p_leave_auto_zone:
+                result['teams_left_auto_zone'] += 1
+        
+        # Calcular puntos
+        result['coral_points'] = self._calculate_coral_points(result)
+        result['algae_points'] = self._calculate_algae_points(result)
+        
+        # Cooperation
+        total_processor = result['processor_algae']['auto'] + result['processor_algae']['teleop']
+        result['cooperation_achieved'] = total_processor >= self.config.cooperation_threshold * 2  # 2 processors
+        
+        result['total_score'] = result['coral_points'] + result['algae_points'] + result['climb_points']
+        
+        return result
+    
+    def _calculate_coral_points(self, alliance_result: Dict) -> int:
+        """Calcula puntos de coral"""
+        points = 0
+        
+        # Auto coral
+        for level, count in alliance_result['auto_coral'].items():
+            points += count * self.config.coral_auto_points[level]
+        
+        # Teleop coral
+        for level, count in alliance_result['teleop_coral'].items():
+            points += count * self.config.coral_teleop_points[level]
+        
+        return points
+    
+    def _calculate_algae_points(self, alliance_result: Dict) -> int:
+        """Calcula puntos de algae"""
+        points = 0
+        
+        # Processor algae
+        total_processor = alliance_result['processor_algae']['auto'] + alliance_result['processor_algae']['teleop']
+        points += total_processor * self.config.processor_points
+        
+        # Net algae
+        points += alliance_result['net_algae'] * self.config.net_points
+        
+        return points
+    
+    def _calculate_ranking_points(self, red_result: Dict, blue_result: Dict,
+                                red_teams: List[TeamPerformance], 
+                                blue_teams: List[TeamPerformance]) -> Tuple[int, int]:
+        """Calcula Ranking Points para ambas alianzas"""
+        red_rp = 0
+        blue_rp = 0
+        
+        # Win/Tie/Loss RP
+        if red_result['total_score'] > blue_result['total_score']:
+            red_rp += 3  # Win
+            blue_rp += 0  # Loss
+        elif blue_result['total_score'] > red_result['total_score']:
+            blue_rp += 3  # Win
+            red_rp += 0  # Loss
+        else:
+            red_rp += 1  # Tie
+            blue_rp += 1  # Tie
+        
+        # Auto RP
+        if (red_result['teams_left_auto_zone'] >= 3 and 
+            sum(red_result['auto_coral'].values()) >= 1):
+            red_rp += 1
+        
+        if (blue_result['teams_left_auto_zone'] >= 3 and 
+            sum(blue_result['auto_coral'].values()) >= 1):
+            blue_rp += 1
+        
+        # Coral RP
+        if self._check_coral_rp(red_result):
+            red_rp += 1
+        
+        if self._check_coral_rp(blue_result):
+            blue_rp += 1
+        
+        return red_rp, blue_rp
+    
+    def _check_coral_rp(self, alliance_result: Dict) -> bool:
+        """Verifica si se cumple el requisito de Coral RP"""
+        coral_counts = alliance_result['coral_scores']
+        cooperation = alliance_result['cooperation_achieved']
+        
+        if cooperation:
+            # Con cooperación: al menos 7 corales en 3 niveles
+            levels_with_7_plus = sum(1 for count in coral_counts.values() if count >= 7)
+            return levels_with_7_plus >= 3
+        else:
+            # Sin cooperación: al menos 7 corales en cada nivel
+            return all(count >= 7 for count in coral_counts.values())
+    
+    def _poisson_sample(self, mean: float) -> int:
+        """Muestra de distribución Poisson"""
+        if mean <= 0:
+            return 0
+        return max(0, int(random.gammavariate(mean, 1) + 0.5))
+    
+    def _sample_climb(self, distribution: Dict[str, float]) -> str:
+        """Muestra tipo de climb según distribución"""
+        rand = random.random()
+        cumulative = 0
+        
+        for climb_type, prob in distribution.items():
+            cumulative += prob
+            if rand <= cumulative:
+                return climb_type
+        
+        return "none"  # Fallback
+
+
+# ============================= INTERFAZ GRÁFICA ============================= #
+
+class ForeshadowingGUI:
+    """Interfaz gráfica del sistema de Foreshadowing"""
+    
+    def __init__(self, parent, analizador):
+        self.parent = parent
+        self.analizador = analizador
+        self.extractor = TeamStatsExtractor(analizador)
+        self.simulator = MatchSimulator()
+        
+        self.window = None
+        self.red_team_vars = []
+        self.blue_team_vars = []
+        self.result_text = None
+        
+    def show(self):
+        """Muestra la ventana de Foreshadowing"""
+        if self.window is not None:
+            self.window.lift()
+            return
+        
+        self.window = tk.Toplevel(self.parent)
+        self.window.title("Foreshadowing - Predicción de Matches")
+        self.window.geometry("1000x700")
+        self.window.protocol("WM_DELETE_WINDOW", self._on_close)
+        
+        self._create_interface()
+    
+    def _create_interface(self):
+        """Crea la interfaz"""
+        # Frame principal con scroll
+        canvas = tk.Canvas(self.window)
+        scrollbar = ttk.Scrollbar(self.window, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Header
+        header_frame = ttk.Frame(scrollable_frame)
+        header_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Label(header_frame, text="Sistema de Foreshadowing v2.0", 
+                 font=("Arial", 16, "bold")).pack()
+        ttk.Label(header_frame, text="Predicción avanzada basada en estadísticas reales",
+                 font=("Arial", 10)).pack()
+        
+        # Selección de equipos
+        teams_frame = ttk.LabelFrame(scrollable_frame, text="Selección de Equipos", padding=10)
+        teams_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Obtener lista de equipos disponibles
+        available_teams = self._get_available_teams()
+        
+        # RED Alliance
+        red_frame = ttk.LabelFrame(teams_frame, text="RED Alliance", padding=5)
+        red_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
+        
+        self.red_team_vars = []
+        for i in range(3):
+            var = tk.StringVar()
+            ttk.Label(red_frame, text=f"Equipo {i+1}:").pack(anchor=tk.W)
+            combo = ttk.Combobox(red_frame, textvariable=var, values=available_teams, width=15)
+            combo.pack(fill=tk.X, pady=2)
+            self.red_team_vars.append(var)
+        
+        # BLUE Alliance  
+        blue_frame = ttk.LabelFrame(teams_frame, text="BLUE Alliance", padding=5)
+        blue_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5)
+        
+        self.blue_team_vars = []
+        for i in range(3):
+            var = tk.StringVar()
+            ttk.Label(blue_frame, text=f"Equipo {i+1}:").pack(anchor=tk.W)
+            combo = ttk.Combobox(blue_frame, textvariable=var, values=available_teams, width=15)
+            combo.pack(fill=tk.X, pady=2)
+            self.blue_team_vars.append(var)
+        
+        # Botones de control
+        control_frame = ttk.Frame(scrollable_frame)
+        control_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        ttk.Button(control_frame, text="🔮 Predecir Match", 
+                  command=self._predict_match).pack(side=tk.LEFT, padx=5)
+        ttk.Button(control_frame, text="📊 Estadísticas Individuales", 
+                  command=self._show_individual_stats).pack(side=tk.LEFT, padx=5)
+        ttk.Button(control_frame, text="🎲 Simulación Monte Carlo", 
+                  command=self._run_monte_carlo).pack(side=tk.LEFT, padx=5)
+        
+        # Área de resultados
+        results_frame = ttk.LabelFrame(scrollable_frame, text="Resultados de Predicción", padding=10)
+        results_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        self.result_text = tk.Text(results_frame, height=20, font=("Consolas", 10))
+        result_scroll = ttk.Scrollbar(results_frame, orient="vertical", command=self.result_text.yview)
+        self.result_text.configure(yscrollcommand=result_scroll.set)
+        
+        self.result_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        result_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Pack canvas y scrollbar
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+    
+    def _get_available_teams(self) -> List[str]:
+        """Obtiene lista de equipos disponibles"""
+        try:
+            stats = self.analizador.get_detailed_team_stats()
+            teams = [str(team_stat.get('team', '')) for team_stat in stats]
+            return sorted([t for t in teams if t])
+        except:
+            return []
+    
+    def _predict_match(self):
+        """Ejecuta predicción de match"""
+        try:
+            # Obtener equipos seleccionados
+            red_team_numbers = [var.get().strip() for var in self.red_team_vars if var.get().strip()]
+            blue_team_numbers = [var.get().strip() for var in self.blue_team_vars if var.get().strip()]
+            
+            if len(red_team_numbers) != 3 or len(blue_team_numbers) != 3:
+                messagebox.showerror("Error", "Debes seleccionar exactamente 3 equipos por alianza")
+                return
+            
+            # Extraer estadísticas
+            red_teams = [self.extractor.extract_team_performance(team) for team in red_team_numbers]
+            blue_teams = [self.extractor.extract_team_performance(team) for team in blue_team_numbers]
+            
+            # Simular match
+            prediction = self.simulator.simulate_match(red_teams, blue_teams)
+            
+            # Mostrar resultados
+            self._display_prediction(prediction)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error en la predicción: {e}")
+    
+    def _display_prediction(self, prediction: MatchPrediction):
+        """Muestra los resultados de la predicción"""
+        self.result_text.delete(1.0, tk.END)
+        
+        output = []
+        output.append("=" * 80)
+        output.append("🔮 PREDICCIÓN DE MATCH - REEFSCAPE 2025")
+        output.append("=" * 80)
+        output.append("")
+        
+        # Equipos
+        red_teams_str = " + ".join([team.team_number for team in prediction.red_teams])
+        blue_teams_str = " + ".join([team.team_number for team in prediction.blue_teams])
+        
+        output.append(f"🔴 RED Alliance:  {red_teams_str}")
+        output.append(f"🔵 BLUE Alliance: {blue_teams_str}")
+        output.append("")
+        
+        # Puntuación predicha
+        output.append("📊 PUNTUACIÓN PREDICHA:")
+        output.append(f"  🔴 RED:  {prediction.red_score:.1f} puntos")
+        output.append(f"  🔵 BLUE: {prediction.blue_score:.1f} puntos")
+        output.append("")
+        
+        # Probabilidades de victoria
+        output.append("🎯 PROBABILIDADES:")
+        output.append(f"  🔴 RED gana:  {prediction.red_win_probability:.1%}")
+        output.append(f"  🔵 BLUE gana: {prediction.blue_win_probability:.1%}")
+        output.append(f"  🟡 Empate:    {prediction.tie_probability:.1%}")
+        output.append("")
+        
+        # Ranking Points
+        output.append("🏆 RANKING POINTS PREDICHOS:")
+        output.append(f"  🔴 RED:  {prediction.red_rp} RP")
+        output.append(f"  🔵 BLUE: {prediction.blue_rp} RP")
+        output.append("")
+        
+        # Breakdown detallado
+        output.append("🔍 BREAKDOWN DETALLADO:")
+        output.append("")
+        
+        self._add_alliance_breakdown(output, "🔴 RED Alliance", prediction.red_breakdown)
+        self._add_alliance_breakdown(output, "🔵 BLUE Alliance", prediction.blue_breakdown)
+        
+        # Mostrar en el widget de texto
+        self.result_text.insert(tk.END, "\n".join(output))
+        
+        # Scroll al inicio
+        self.result_text.see(1.0)
+    
+    def _add_alliance_breakdown(self, output: List[str], title: str, breakdown: Dict):
+        """Agrega breakdown detallado de una alianza"""
+        output.append(f"{title}:")
+        output.append(f"  Coral Auto:   L1:{breakdown['auto_coral']['L1']} L2:{breakdown['auto_coral']['L2']} L3:{breakdown['auto_coral']['L3']} L4:{breakdown['auto_coral']['L4']}")
+        output.append(f"  Coral Teleop: L1:{breakdown['teleop_coral']['L1']} L2:{breakdown['teleop_coral']['L2']} L3:{breakdown['teleop_coral']['L3']} L4:{breakdown['teleop_coral']['L4']}")
+        output.append(f"  Processor:    Auto:{breakdown['processor_algae']['auto']} Teleop:{breakdown['processor_algae']['teleop']}")
+        output.append(f"  Net Algae:    {breakdown['net_algae']}")
+        
+        # Climb breakdown
+        climb_info = []
+        for team, climb_type, points in breakdown['climb_scores']:
+            climb_info.append(f"{team}:{climb_type}({points}pts)")
+        output.append(f"  Climb:        {', '.join(climb_info)}")
+        
+        output.append(f"  Puntos Coral: {breakdown['coral_points']}")
+        output.append(f"  Puntos Algae: {breakdown['algae_points']}")
+        output.append(f"  Puntos Climb: {breakdown['climb_points']}")
+        output.append(f"  TOTAL:        {breakdown['total_score']}")
+        
+        # Flags especiales
+        output.append(f"  Auto Zone:    {breakdown['teams_left_auto_zone']}/3 equipos salieron")
+        output.append(f"  Cooperation:  {'✅ Sí' if breakdown['cooperation_achieved'] else '❌ No'}")
+        output.append("")
+    
+    def _show_individual_stats(self):
+        """Muestra estadísticas individuales de equipos"""
+        # Obtener equipos seleccionados
+        all_teams = []
+        for var in self.red_team_vars + self.blue_team_vars:
+            if var.get().strip():
+                all_teams.append(var.get().strip())
+        
+        if not all_teams:
+            messagebox.showwarning("Advertencia", "Selecciona al menos un equipo")
+            return
+        
+        # Crear ventana de estadísticas
+        stats_window = tk.Toplevel(self.window)
+        stats_window.title("Estadísticas Individuales")
+        stats_window.geometry("900x600")
+        
+        # Crear tabla
+        columns = ['Equipo', 'Auto L1', 'Auto L2', 'Auto L3', 'Auto L4',
+                  'Tele L1', 'Tele L2', 'Tele L3', 'Tele L4',
+                  'Proc Auto', 'Proc Tele', 'Net', 'P_Auto', 'Climb Exp']
+        
+        tree = ttk.Treeview(stats_window, columns=columns, show='headings', height=15)
+        
+        for col in columns:
+            tree.heading(col, text=col)
+            tree.column(col, width=70, anchor='center')
+        
+        # Llenar datos
+        for team_number in all_teams:
+            perf = self.extractor.extract_team_performance(team_number)
+            
+            row = [
+                team_number,
+                f"{perf.auto_L1:.2f}",
+                f"{perf.auto_L2:.2f}",
+                f"{perf.auto_L3:.2f}",
+                f"{perf.auto_L4:.2f}",
+                f"{perf.teleop_L1:.2f}",
+                f"{perf.teleop_L2:.2f}",
+                f"{perf.teleop_L3:.2f}",
+                f"{perf.teleop_L4:.2f}",
+                f"{perf.auto_processor:.2f}",
+                f"{perf.teleop_processor:.2f}",
+                f"{perf.teleop_net:.2f}",
+                f"{perf.p_leave_auto_zone:.2f}",
+                f"{perf.expected_climb_points():.2f}"
+            ]
+            
+            tree.insert('', 'end', values=row)
+        
+        tree.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        # Scrollbar
+        scrollbar_stats = ttk.Scrollbar(stats_window, orient="vertical", command=tree.yview)
+        tree.configure(yscrollcommand=scrollbar_stats.set)
+        scrollbar_stats.pack(side=tk.RIGHT, fill=tk.Y)
+    
+    def _run_monte_carlo(self):
+        """Ejecuta simulación Monte Carlo extendida"""
+        try:
+            # Obtener equipos
+            red_team_numbers = [var.get().strip() for var in self.red_team_vars if var.get().strip()]
+            blue_team_numbers = [var.get().strip() for var in self.blue_team_vars if var.get().strip()]
+            
+            if len(red_team_numbers) != 3 or len(blue_team_numbers) != 3:
+                messagebox.showerror("Error", "Debes seleccionar exactamente 3 equipos por alianza")
+                return
+            
+            # Ejecutar simulación con más iteraciones
+            red_teams = [self.extractor.extract_team_performance(team) for team in red_team_numbers]
+            blue_teams = [self.extractor.extract_team_performance(team) for team in blue_team_numbers]
+            
+            prediction = self.simulator.simulate_match(red_teams, blue_teams, num_simulations=5000)
+            
+            # Mostrar resultados extendidos
+            self._display_monte_carlo_results(prediction)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error en simulación Monte Carlo: {e}")
+    
+    def _display_monte_carlo_results(self, prediction: MatchPrediction):
+        """Muestra resultados de simulación Monte Carlo"""
+        self.result_text.delete(1.0, tk.END)
+        
+        output = []
+        output.append("=" * 80)
+        output.append("🎲 SIMULACIÓN MONTE CARLO (5000 iteraciones)")
+        output.append("=" * 80)
+        output.append("")
+        
+        # Resultado general
+        self._display_prediction(prediction)
+        
+        output.append("\n🎯 ANÁLISIS ESTADÍSTICO:")
+        output.append(f"  Confianza en predicción: {'Alta' if abs(prediction.red_win_probability - prediction.blue_win_probability) > 0.3 else 'Media' if abs(prediction.red_win_probability - prediction.blue_win_probability) > 0.1 else 'Baja'}")
+        
+        # Recomendaciones estratégicas
+        output.append("\n💡 RECOMENDACIONES ESTRATÉGICAS:")
+        
+        if prediction.red_score > prediction.blue_score:
+            output.append("  🔴 RED Alliance favorita para ganar")
+            output.append("  🔵 BLUE debe enfocarse en Ranking Points")
+        else:
+            output.append("  🔵 BLUE Alliance favorita para ganar")
+            output.append("  🔴 RED debe enfocarse en Ranking Points")
+        
+        # Factores clave
+        red_coral_total = sum(prediction.red_breakdown['coral_scores'].values())
+        blue_coral_total = sum(prediction.blue_breakdown['coral_scores'].values())
+        
+        if red_coral_total > blue_coral_total * 1.2:
+            output.append("  🔴 RED tiene ventaja significativa en coral")
+        elif blue_coral_total > red_coral_total * 1.2:
+            output.append("  🔵 BLUE tiene ventaja significativa en coral")
+        
+        self.result_text.insert(tk.END, "\n".join(output))
+        self.result_text.see(1.0)
+    
+    def _on_close(self):
+        """Cierra la ventana"""
+        self.window.destroy()
+        self.window = None
+
+
+# ============================= FUNCIÓN PRINCIPAL ============================= #
+
+def launch_foreshadowing(parent, analizador):
+    """Lanza el sistema de Foreshadowing"""
+    gui = ForeshadowingGUI(parent, analizador)
+    gui.show()
+
+
+# ============================= TESTING ============================= #
 
 if __name__ == "__main__":
-    root = tk.Tk(); root.title("Foreshadowing Standalone")
-    ForeshadowingLauncher(root)
-    root.mainloop()
+    print("Sistema de Foreshadowing v2.0 - Marco González, Overture 7421")
+    print("Sistema completo de predicción para REEFSCAPE 2025")

@@ -1,441 +1,315 @@
-# Alliance Simulator - Sistema Completo de Análisis de Equipos de Robótica
+# 🤖 Overture Teams Analyzer
 
-## 📋 Descripción General
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![FRC](https://img.shields.io/badge/FRC-2025%20REEFSCAPE-orange.svg)](https://www.firstinspires.org/robotics/frc)
+[![Team](https://img.shields.io/badge/Team-Overture%207421-purple.svg)](https://github.com/Overture-7421)
 
-Alliance Simulator es una aplicación integral para el análisis de datos de competencias de robótica. Permite cargar, procesar y analizar datos de equipos, calcular estadísticas detalladas, crear rankings defensivos, simular alianzas y gestionar un sistema completo de Honor Roll con puntuaciones "académicas".
+Una herramienta avanzada de análisis de equipos para **FIRST Robotics Competition - REEFSCAPE 2025**, desarrollada por **Team Overture 7421**.
 
-## 🚀 Características Principales
+## 🌟 Características Principales
 
-### 1. **Gestión de Datos**
-- ✅ Carga de datos desde archivos CSV
-- ✅ Escaneo de códigos QR en tiempo real con cámara
-- ✅ Entrada manual de datos QR
-- ✅ Edición interactiva de datos crudos
-- ✅ Validación automática de datos
+### 📊 Análisis Estadístico Avanzado
+- **Estadísticas por Equipo**: Promedios, desviaciones estándar y métricas de consistencia
+- **Robot Valuation**: Sistema de evaluación ponderada por tiempo y rendimiento
+- **Honor Roll System**: Sistema de calificación académica integral
+- **Análisis de Categorías**: Breakdown detallado por Coral, Algae y Endgame
 
-### 2. **Análisis Estadístico Avanzado**
-- ✅ Estadísticas detalladas por equipo (promedio ± desviación estándar)
-- ✅ Cálculo de RobotValuation con pesos configurables por fases (Q1, Q2, Q3)
-- ✅ Ranking defensivo especializado
-- ✅ Análisis de rendimiento por partida
-- ✅ Modos estadísticos para columnas booleanas
+### 📱 Escaneo QR en Tiempo Real
+- **Scanner Multi-Cámara**: Soporte para múltiples cámaras y configuraciones
+- **Detección Automática**: Procesamiento instantáneo de códigos QR
+- **Validación de Datos**: Verificación automática de formato y consistencia
+- **Integración Seamless**: Datos agregados automáticamente al sistema
 
-### 3. **Sistema de Honor Roll (SchoolSystem)**
-- ✅ Puntuación académica integral con múltiples componentes
-- ✅ Cálculo de Honor Roll Score con fórmulas matemáticas complejas
-- ✅ Sistema de disqualificaciones automáticas
-- ✅ Predicción "Forshadowing" de rendimiento futuro
-- ✅ Exportación de reportes académicos
+### 🔮 Foreshadowing v2.0 - Sistema de Predicción
+- **Simulación Monte Carlo**: 5000+ iteraciones para máxima precisión
+- **Predicción de Matches**: Análisis probabilístico de resultados
+- **Ranking Points**: Cálculo automático de RP según reglas FRC 2025
+- **Análisis de Confianza**: Métricas de confiabilidad estadística
 
-### 4. **Sistema de Tier List con Imágenes**
-- ✅ Exportación de rankings en formato tier list compatible con Dart/Flutter
-- ✅ Categorización automática: 1st Pick, 2nd Pick, 3rd Pick, Defense Pick, etc.
-- ✅ Soporte completo para imágenes de robots en base64
-- ✅ Generación automática de imágenes por defecto personalizadas
-- ✅ Integración con carpetas de imágenes personalizadas
-- ✅ Formato compatible con aplicaciones móviles
+### 🤝 Alliance Selector Inteligente
+- **Auto-Optimización**: Algoritmo de selección automática de alianzas
+- **Asignación de Capitanes**: Basado en rendimiento y consistencia
+- **Análisis de Sinergia**: Evaluación de compatibilidad entre equipos
+- **Comparación de Opciones**: Herramientas de decisión estratégica
 
-### 5. **Simulador de Alianzas**
-- ✅ Selección inteligente de alianzas basada en estadísticas
-- ✅ Algoritmos de optimización para formación de equipos
-- ✅ Análisis de compatibilidad entre equipos
-- ✅ Simulación de escenarios de competencia
+### 🛠 Gestión Avanzada de Datos
+- **Editor de Raw Data**: Modificación y eliminación de registros
+- **Persistencia Inteligente**: Preserva cambios manuales durante QR scanning
+- **Exportación de Datos**: Múltiples formatos de salida
+- **Backup Automático**: Sistema de respaldo y recuperación
 
-### 6. **Configuración Avanzada**
-- ✅ Importar/Exportar configuraciones de columnas en formato JSON
-- ✅ Configuración personalizable de pesos para RobotValuation
-- ✅ Selección intuitiva de columnas para diferentes análisis
-- ✅ Respaldo y restauración de configuraciones
+## 🚀 Instalación Rápida
 
-### 7. **Interfaz de Usuario**
-- ✅ Interfaz gráfica intuitiva con múltiples pestañas
-- ✅ Tablas interactivas con capacidades de edición
-- ✅ Visualizaciones gráficas de rendimiento
-- ✅ Sistema de notificaciones y validaciones
+### Prerrequisitos
+- **Python 3.8 o superior**
+- **Git** (para clonar el repositorio)
+- **Cámara USB** (opcional, para QR scanning)
 
-## 🛠️ Instalación y Configuración
+### Pasos de Instalación
 
-### Requisitos del Sistema
-- Python 3.7+
-- Windows 10/11 (optimizado para PowerShell)
-- Cámara web (para funcionalidad QR)
-
-### Dependencias Requeridas
-```powershell
-pip install tkinter matplotlib numpy pandas opencv-python pyzbar
+1. **Clonar el repositorio**
+```bash
+git clone https://github.com/Overture-7421/Overture-TeamsAnalizer.git
+cd Overture-TeamsAnalizer
 ```
 
-### Instalación Adicional para QR Scanner
-En algunos sistemas, puede ser necesario instalar ZBar por separado:
-```powershell
+2. **Crear entorno virtual (recomendado)**
+```bash
+python -m venv venv
 # Windows
-pip install pyzbar[scripts]
+venv\Scripts\activate
+# macOS/Linux
+source venv/bin/activate
 ```
 
-### Estructura de Archivos
-```
-AllianceSimulator/
-├── main.py                     # Aplicación principal
-├── qr_scanner.py              # Módulo de escaneo QR
-├── school_system.py           # Sistema de Honor Roll
-├── allianceSelector.py        # Selector de alianzas
-├── test_data.csv              # Datos de prueba
-├── sample_column_config.json  # Configuración de ejemplo
-├── test_json_config.py        # Script de test
-└── README.md                  # Este archivo
+3. **Instalar dependencias**
+```bash
+pip install -r requirements.txt
 ```
 
-## 📊 Guía de Uso Completa
-
-### 1. **Inicio Rápido**
-
-#### Cargar Datos de Prueba
-1. Ejecuta la aplicación: `python main.py`
-2. Haz clic en **"Load CSV"**
-3. Selecciona el archivo `test_data.csv`
-4. Los datos se cargarán automáticamente en la pestaña "Raw Data"
-
-#### Configurar Columnas
-1. Haz clic en **"Configure Columns"**
-2. Selecciona las columnas apropiadas para cada categoría:
-   - **Numeric for overall**: Columnas que afectan el puntaje general
-   - **Stats columns**: Columnas que aparecen en estadísticas
-   - **Mode boolean**: Columnas booleanas para calcular modos
-
-### 2. **Funcionalidades Detalladas**
-
-#### A. **Gestión de Datos**
-
-##### Carga de CSV
-- **Función**: Importa datos desde archivos CSV
-- **Uso**: Load CSV → Seleccionar archivo
-- **Formato**: Primera fila debe contener encabezados
-- **Validación**: Automática con mensajes de error descriptivos
-
-##### Escaneo QR en Tiempo Real
-- **Función**: Escanea códigos QR con actualización inmediata
-- **Uso**: Real-Time QR Scanner → Autorizar cámara
-- **Características**:
-  - Actualización en tiempo real de la tabla
-  - Feedback visual y sonoro
-  - Procesamiento de múltiples formatos (CSV, tabulado, texto)
-  - Presiona 'q' para salir
-
-##### Entrada Manual QR
-- **Función**: Ingreso manual de datos QR
-- **Uso**: Paste QR Data → Introducir datos
-- **Formatos soportados**: CSV, tabulado, texto plano
-
-##### Edición de Datos Crudos
-- **Función**: Modificación interactiva de datos
-
-
-#### C. **Sistema de Honor Roll (SchoolSystem)**
-
-##### Características del Sistema
-- **Puntuación académica**: Fórmulas matemáticas complejas
-- **Componentes evaluados**:
-  - Performance Score (40%)
-  - Consistency Score (25%)
-  - Improvement Score (20%)
-  - Participation Score (15%)
-
-##### Uso del Honor Roll
-1. **Auto-populate from Team Data**: Llena automáticamente desde datos de equipos
-2. **Manual Team Entry**: Entrada manual de equipos
-3. **Edit Team Scores**: Modificar puntuaciones individuales
-4. **Export Honor Roll**: Exportar reportes académicos
-
-##### Fórmulas de Cálculo
-```
-Honor Roll Score = (
-    Performance × 0.4 +
-    Consistency × 0.25 +
-    Improvement × 0.2 +
-    Participation × 0.15
-) × 100
+4. **Ejecutar la aplicación**
+```bash
+python main.py
 ```
 
-#### D. **Simulador de Alianzas**
+### Dependencias Principales
+- `tkinter` - Interfaz gráfica
+- `matplotlib` - Gráficos y visualizaciones
+- `opencv-python` - Procesamiento de cámara
+- `pyzbar` - Decodificación de códigos QR
+- `pandas` - Manipulación de datos
+- `numpy` - Cálculos numéricos
+- `Pillow` - Procesamiento de imágenes
 
-##### Características
-- **Selección inteligente**: Basada en estadísticas reales
-- **Optimización**: Algoritmos para maximizar potencial de alianza
-- **Análisis de compatibilidad**: Evaluación de sinergia entre equipos
+## 📖 Uso Básico
 
-##### Uso
-1. Ve a la pestaña "Alliance Selector"
-2. Los equipos se muestran ordenados por rendimiento
-3. Selecciona equipos para formar alianzas
-4. El sistema sugiere las mejores combinaciones
-
-#### E. **Gestión de Configuraciones JSON**
-
-##### Exportar Configuración
-1. Configure Columns → 📤 Exportar Configuración
-2. Selecciona ubicación y nombre del archivo
-3. Se guarda toda la configuración actual
-
-##### Importar Configuración
-1. Configure Columns → 📥 Importar Configuración
-2. Selecciona archivo JSON de configuración
-3. Se aplica automáticamente la configuración
-
-##### Formato de Configuración
-```json
-{
-    "version": "1.0",
-    "column_configuration": {
-        "numeric_for_overall": ["Coral L1 Scored", "Coral L2 Scored", ...],
-        "stats_columns": ["Team Number", "Auto Points", ...],
-        "mode_boolean_columns": ["Won Match", "Climbed", ...]
-    },
-    "robot_valuation": {
-        "phase_weights": [0.3, 0.4, 0.3],
-        "phase_names": ["Q1", "Q2", "Q3"]
-    }
-}
+### 1. Cargar Datos
+```
+1. Click en "Load CSV"
+2. Seleccionar archivo de datos de scouting
+3. Los datos se procesan automáticamente
+4. Ver resultados en pestañas "Raw Data" y "Team Stats"
 ```
 
-### 3. **Visualizaciones y Reportes**
+### 2. Escaneo QR
+```
+1. Click en "Camera Settings" para configurar cámara
+2. Click en "Real-Time QR Scanner"
+3. Apuntar cámara hacia códigos QR
+4. Datos se agregan automáticamente
+```
 
-#### Gráficas de Rendimiento
-- **Función**: Plot Team Performance
-- **Contenido**: Evolución del rendimiento por equipo a lo largo de partidas
-- **Uso**: Identificar tendencias y patrones
+### 3. Predicción de Matches
+```
+1. Click en "Foreshadowing"
+2. Seleccionar equipos RED y BLUE
+3. Click en "🔮 Predecir Match"
+4. Ver resultados y probabilidades
+```
 
-#### Exportación de Datos
-- **Honor Roll**: Reportes académicos completos
-- **Configuraciones**: Respaldo de configuraciones personalizadas
-- **Datos procesados**: Estadísticas calculadas
+### 4. Selección de Alianzas
+```
+1. Ir a pestaña "Alliance Selector"
+2. Click en "Auto-Optimize"
+3. Ver recomendaciones de alianzas
+4. Ajustar manualmente si necesario
+```
+
+## 🎯 Características Específicas para REEFSCAPE 2025
+
+### Coral Scoring System
+- **4 Niveles de Coral** (L1, L2, L3, L4)
+- **Puntuación Diferenciada** Auto vs Teleop
+- **Análisis Estadístico** por nivel y período
+
+### Algae Management
+- **Processor Algae**: Scoring en zona de procesamiento
+- **Barge Algae**: Solo durante Teleop
+- **Net Algae**: Scoring en redes
+- **Métricas de Eficiencia** por tipo de algae
+
+### Endgame Analysis
+- **Climb Analysis**: Deep, Shallow, Park, None
+- **Probabilidades de Climb** basadas en datos históricos
+- **Puntuación de Endgame** integrada en predicciones
+
+### Autonomous Period
+- **Movement Tracking**: Robots que salen de zona Auto
+- **Auto Scoring**: Coral y Processor con bonificación
+- **Cooperation**: Detección automática de cooperation
 
 ## 🔧 Configuración Avanzada
 
-### Personalización de Columnas
+### Configurar Cámara QR
+```python
+# Camera settings en config_manager.py
+camera_settings = {
+    'resolution': (1280, 720),
+    'fps': 30,
+    'camera_index': 0,
+    'auto_focus': True
+}
+```
 
-#### Columnas Numéricas para Overall
-- **Propósito**: Definen qué columnas afectan el puntaje general
-- **Recomendación**: Seleccionar métricas de rendimiento core
-- **Ejemplo**: Corales anotados, puntos de autonomous, climb
+### Personalizar Columnas de Datos
+```json
+// columnsConfig.json
+{
+    "required_columns": ["Team", "Match"],
+    "numeric_columns": ["Coral L1 (Auto)", "Coral L2 (Auto)"],
+    "analysis_columns": ["custom_metric_1", "custom_metric_2"]
+}
+```
 
-#### Columnas de Estadísticas
-- **Propósito**: Aparecen en la tabla de estadísticas por equipo
-- **Recomendación**: Incluir todas las métricas relevantes
-- **Exclusiones**: Datos de identificación (nombres de scouts)
+### Ajustar Algoritmo de Predicción
+```python
+# En foreshadowing.py
+MONTE_CARLO_ITERATIONS = 5000
+AUTO_TELEOP_RATIO = 0.3
+COOPERATION_THRESHOLD = 6
+```
 
-#### Columnas de Modo Booleano
-- **Propósito**: Calculan el valor más común (moda)
-- **Uso**: Variables categóricas o binarias
-- **Ejemplo**: Color de alianza, estado de climb, tarjetas
+## 📊 Métricas y Análisis
 
-### Pesos de RobotValuation
+### Estadísticas Calculadas
+- **Overall Average**: Rendimiento promedio ponderado
+- **Standard Deviation**: Medida de consistencia
+- **Robot Valuation**: Puntuación avanzada con peso temporal
+- **Defense Rate**: Porcentaje de juego defensivo
+- **Climb Rate**: Probabilidad de climb exitoso
 
-#### Configuración de Fases
-- **Q1 (Primer tercio)**: Peso típico 0.2-0.3
-- **Q2 (Segundo tercio)**: Peso típico 0.3-0.4
-- **Q3 (Tercer tercio)**: Peso típico 0.3-0.5
+### Fórmulas Principales
+```
+Robot Valuation = Σ(match_score × time_weight) / Σ(time_weight)
+Defense Rate = defense_matches / total_matches
+Overall Average = weighted_sum_of_scores / total_weights
+```
 
-#### Estrategias de Ponderación
-- **Mejora progresiva**: Más peso en Q3 (0.2, 0.3, 0.5)
-- **Consistencia temprana**: Más peso en Q1 (0.4, 0.3, 0.3)
-- **Equilibrado**: Pesos iguales (0.33, 0.33, 0.34)
+## 🧪 Testing y Validación
 
-## 📋 Datos de Prueba Incluidos
+### Ejecutar Tests
+```bash
+# Tests unitarios
+python -m pytest tests/
 
-### Archivo: test_data.csv
+# Test específico de Foreshadowing
+python test_foreshadowing_improvements.py
 
-#### Estructura de Datos
-- **30 registros** de muestra
-- **6 equipos** diferentes (1234, 5678, 9012, 3456, 7890, 2468)
-- **10 partidas** simuladas
-- **21 columnas** de datos
+# Test de integración principal
+python test_main_integration.py
+```
 
-#### Columnas Incluidas
-1. **Identificación**: Lead Scouter, Scouter Name, Team Number, Match Number
-2. **Autonomous**: Did something?, Did Foul?, Did auton worked?
-3. **Scoring**: Coral L1-L4 Scored, Algae Scored in Barge
-4. **Gameplay**: Played Algae?, Crossed Field/Played Defense?
-5. **Estados**: Tipped/Fell Over?, Died?, Climbed?
-6. **Penalizaciones**: Yellow/Red Card
-7. **Contexto**: Alliance Color, Was robot Defended?
+### Datos de Prueba
+- `test_data.csv` - Datos básicos de prueba
+- `extended_test_data.csv` - Dataset extendido
+- `example_phase_config.json` - Configuración de ejemplo
 
-#### Escenarios de Prueba
-- **Equipos de alto rendimiento**: 1234, 5678 (consistentes)
-- **Equipos problemáticos**: 9012 (múltiples fallas)
-- **Equipos en desarrollo**: 2468 (rendimiento variable)
-- **Equipos defensivos**: 7890 (alta tasa de defensa)
-
-## 🚀 Casos de Uso Recomendados
-
-### Para Equipos de Robótica
-1. **Análisis post-competencia**: Cargar datos reales y analizar rendimiento
-2. **Preparación de alianzas**: Usar el simulador para estrategia de picks
-3. **Identificación de fortalezas**: Revisar estadísticas detalladas
-4. **Tracking de mejora**: Usar RobotValuation para ver evolución
-
-### Para Organizadores
-1. **Ranking oficial**: Usar estadísticas para rankings transparentes
-2. **Análisis de meta-juego**: Identificar estrategias dominantes
-3. **Balanceo de reglas**: Detectar mecánicas problemáticas
-
-### Para Scouts
-1. **Validación de datos**: Verificar consistency en recolección
-2. **Training**: Usar datos de prueba para entrenar nuevos scouts
-3. **QR workflow**: Implementar flujo de trabajo con códigos QR
-
-## 🔍 Solución de Problemas
+## 🔍 Troubleshooting
 
 ### Problemas Comunes
 
-#### Error de Cámara
-- **Síntoma**: "Camera not found" o error al abrir QR scanner
-- **Solución**: Verificar que ninguna otra aplicación use la cámara
-- **Alternativa**: Usar "Paste QR Data" para entrada manual
+**Cámara no detectada:**
+```bash
+# Verificar cámaras disponibles
+python -c "import cv2; print([i for i in range(10) if cv2.VideoCapture(i).read()[0]])"
+```
 
-#### Error de Importación JSON
-- **Síntoma**: "Las siguientes columnas no existen"
-- **Causa**: Configuración creada con diferentes columnas
-- **Solución**: Verificar que los headers coincidan o crear nueva configuración
+**Error de importación de módulos:**
+```bash
+# Reinstalar dependencias
+pip uninstall -r requirements.txt -y
+pip install -r requirements.txt
+```
 
-#### Datos QR no procesados
-- **Síntoma**: QR escaneado pero no aparece en tabla
-- **Solución**: Verificar formato de datos (debe ser CSV, tabulado o texto)
-- **Debug**: Revisar consola para mensajes de error
+**Datos QR no se procesan:**
+- Verificar formato del código QR
+- Comprobar iluminación de la cámara
+- Validar configuración en `Camera Settings`
 
-#### Pesos de RobotValuation inválidos
-- **Síntoma**: "Weights must sum to 1.0"
-- **Solución**: Asegurar que Q1 + Q2 + Q3 = 1.0
-- **Ejemplo**: 0.3 + 0.4 + 0.3 = 1.0 ✓
+**Predicciones inconsistentes:**
+- Verificar que hay suficientes datos por equipo (mínimo 3 matches)
+- Comprobar que las columnas numéricas tienen valores válidos
+- Revisar configuración en `System Configuration`
 
 ### Logs y Debugging
-- **Consola**: Mensajes detallados se imprimen en la consola
-- **Status bar**: Información de estado en la parte inferior
-- **Validaciones**: Mensajes de error descriptivos en diálogos
 
-## 🔄 Flujo de Trabajo Recomendado
-
-### Setup Inicial
-1. **Cargar datos**: CSV o QR scanner
-2. **Configurar columnas**: Seleccionar apropiadas para análisis
-3. **Ajustar pesos**: Configurar RobotValuation según estrategia
-4. **Exportar configuración**: Guardar setup para reutilización
-
-### Análisis de Competencia
-1. **Raw Data**: Verificar calidad de datos
-2. **Team Stats**: Revisar rendimiento general
-3. **Defensive Ranking**: Identificar equipos defensivos
-4. **Alliance Selector**: Planificar estrategia de picks
-5. **Honor Roll**: Evaluación académica completa
-
-### Post-Competencia
-1. **Export Honor Roll**: Generar reportes finales
-2. **Plot Performance**: Analizar tendencias
-3. **Backup configuration**: Guardar configuración exitosa
-
-## 📈 Métricas y KPIs
-
-### Estadísticas Clave
-- **Overall Average**: Rendimiento promedio general
-- **Standard Deviation**: Consistencia del equipo
-- **RobotValuation**: Evaluación ponderada por tiempo
-- **Defense Rate**: Porcentaje de juego defensivo
-- **Honor Roll Score**: Puntuación académica integral
-
-### Interpretación de Resultados
-- **Alto Overall + Baja StdDev**: Equipo confiable y consistente
-- **Alto RobotValuation**: Equipo que mejora con el tiempo
-- **Alta Defense Rate**: Equipo especializado en defensa
-- **Alto Honor Roll**: Excelencia académica integral
-
-## 🎯 Sistema de Tier List con Imágenes
-
-### Funcionalidad de Exportación
-
-#### Categorías de Tier List
-- **1st Pick**: Los 33% mejores equipos calificados (más alto Honor Roll Score)
-- **2nd Pick**: El 33% medio de equipos calificados
-- **3rd Pick**: El 33% inferior de equipos calificados
-- **Ojito**: Categoría especial (vacía por defecto)
-- **- (Dash)**: Equipos descalificados NO defensivos
-- **Defense Pick**: TODOS los equipos defensivos (calificados o no)
-- **Unassigned**: Categoría para equipos sin asignar (vacía por defecto)
-
-#### Formato de Salida
-```
-Tier: 1st Pick
-  Image: [base64_encoded_image]
-    Title: Team 1234 (Honor Roll Score: 85.50)
-    Text: {"honor_score": 85.5, "final_points": 120, "overall_avg": 85.2, ...}
-    DriverSkills: Offensive
-    ImageList:
+```python
+# Habilitar logs detallados
+import logging
+logging.basicConfig(level=logging.DEBUG)
 ```
 
-### Sistema de Imágenes
+## 🤝 Contribuir
 
-#### Generación Automática
-- **Imágenes por defecto**: Se crean automáticamente con el número del equipo
-- **Diseño personalizado**: Robot estilizado con colores corporativos
-- **Codificación base64**: Compatible con aplicaciones móviles Dart/Flutter
+### Guidelines de Contribución
+1. **Fork** el repositorio
+2. Crear **branch** para feature (`git checkout -b feature/nueva-caracteristica`)
+3. **Commit** cambios (`git commit -am 'Agregar nueva característica'`)
+4. **Push** al branch (`git push origin feature/nueva-caracteristica`)
+5. Crear **Pull Request**
 
-#### Integración con Carpetas de Imágenes
-1. **Selección opcional**: Al exportar, opción de seleccionar carpeta de imágenes
-2. **Nomenclatura**: Las imágenes deben nombrarse con el número del equipo (ej: `1234.png`)
-3. **Formatos soportados**: PNG, JPG, JPEG, GIF, BMP
-4. **Fallback automático**: Si no se encuentra imagen, usa la generada por defecto
+### Estándares de Código
+- **PEP 8** para estilo Python
+- **Docstrings** para todas las funciones públicas
+- **Type hints** donde sea apropiado
+- **Tests unitarios** para nuevas features
 
-#### Proceso de Exportación
-1. Ejecutar Honor Roll para obtener rankings
-2. Hacer clic en "Export to Tier List"
-3. Opcionalmente seleccionar carpeta con imágenes de robots
-4. Guardar archivo `tier_list.txt`
-5. El archivo es compatible con aplicaciones Dart/Flutter
+## 📈 Roadmap y Futuras Mejoras
 
-### Archivos de Ejemplo
-- **`example_tier_list_with_images.txt`**: Muestra el formato esperado
-- **`example_robot_images/`**: Carpeta con imágenes de ejemplo
-- **`default_robot_image.py`**: Generador de imágenes por defecto
+### v3.0 Planned Features
+- [ ] **Machine Learning**: Predicciones con IA
+- [ ] **API REST**: Integración con sistemas externos
+- [ ] **Multi-Competition**: Soporte para múltiples competencias
+- [ ] **Real-time Collaboration**: Colaboración en tiempo real
 
-## 🤝 Contribución y Desarrollo
+### Integraciones Planeadas
+- **FRC Events API**: Información de eventos
+- **Tableau/PowerBI**: Dashboards avanzados
+- **Cloud Storage**: Backup automático en la nube
 
-### Arquitectura del Código
-- **main.py**: GUI principal y lógica de interfaz
-- **qr_scanner.py**: Funcionalidad de escaneo QR
-- **school_system.py**: Sistema de Honor Roll
-- **allianceSelector.py**: Algoritmos de selección de alianzas
+## 📜 Licencia
 
-### Extensibilidad
-- **Nuevas métricas**: Agregar en `get_detailed_team_stats()`
-- **Nuevos análisis**: Crear nuevas pestañas en GUI
-- **Formatos de datos**: Extender parsers en `load_qr_data()`
+Este proyecto está licenciado bajo la **MIT License** - ver el archivo [LICENSE](LICENSE) para detalles.
 
-## 📝 Notas de Versión
+## 👥 Equipo de Desarrollo
 
-### Versión Actual: 2.1
-- ✅ Sistema completo de Honor Roll
-- ✅ **NUEVO**: Exportación de Tier List con imágenes
-- ✅ **NUEVO**: Generación automática de imágenes por defecto
-- ✅ **NUEVO**: Soporte para carpetas de imágenes personalizadas
-- ✅ **NUEVO**: Formato compatible con Dart/Flutter
-- ✅ Importar/Exportar configuraciones JSON
-- ✅ Escaneo QR en tiempo real
-- ✅ Edición interactiva de datos
-- ✅ RobotValuation configurable
-- ✅ Interfaz mejorada con múltiples pestañas
+**Team Overture 7421**
+- 🏆 **FRC Team**: rgba(215, 1, 248, 0.07) Overture
+- 🌍 **Ubicación**: México
+- 🎯 **Temporada**: 2025 REEFSCAPE
+- 🚀 **Misión**: Desarrollar herramientas innovadoras para FRC
 
-### Próximas Funcionalidades
-- 🔄 Análisis predictivo avanzado
-- 🔄 Exportación a múltiples formatos
-- 🔄 Dashboard en tiempo real
-- 🔄 API para integración externa
+### Contacto
+- **GitHub**: [@Overture-7421](https://github.com/Overture-7421)
+- **Email**: 
+- **Website**: [overture7421.org](https://overture7421.org)
+
+## 🙏 Agradecimientos
+
+- **FIRST Robotics Competition** - Por inspirar innovación
+- **Python Community** - Por las increíbles librerías
+- **Mentores y Students** - Por testing y mejoras continuas
 
 ## 📞 Soporte
 
-Para problemas, sugerencias o contribuciones:
-1. Revisar este README completo
-2. Verificar archivos de ejemplo incluidos
-3. Consultar mensajes de error en consola
-4. Probar con datos de test proporcionados
+¿Necesitas ayuda? Aquí te podemos ayudar:
+
+1. **GitHub Issues**: [Reportar bug o solicitar feature](https://github.com/Overture-7421/Overture-TeamsAnalizer/issues)
+2. **Documentación**: Ver [DOCUMENTACION.md](DOCUMENTACION.md) para guía detallada
+3. **Wiki**: Consultar wiki del proyecto para tutoriales
+4. **Discord/Slack**: Unirse a canales de la comunidad FRC
 
 ---
 
-**Alliance Simulator** - Sistema integral para análisis de competencias de robótica con capacidades avanzadas de estadística, simulación de alianzas y evaluación académica.
+**💡 "Innovating through robotics, one algorithm at a time."**
+
+*Desarrollado con ❤️ por Team Overture 7421*
+
+---
+
+## ⭐ Star History
+
+Si este proyecto te ha sido útil, ¡no olvides darle una estrella! ⭐
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Overture-7421/Overture-TeamsAnalizer&type=Date)](https://star-history.com/#Overture-7421/Overture-TeamsAnalizer&Date)
