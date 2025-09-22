@@ -570,12 +570,19 @@ class AnalizadorRobot:
         # Agrupa filas por número de equipo, igual que en Dart
         if len(self.sheet_data) < 2:
             return {}
-        team_number_col_name = "Team Number"
-        if team_number_col_name not in self._column_indices:
-            if "Team" in self._column_indices:
-                team_number_col_name = "Team"
-            else:
-                return {}
+        
+        # Check for different variations of team number column name
+        team_number_col_name = None
+        possible_names = ["TEAM NUMBER", "Team Number", "Team", "TEAM"]
+        
+        for name in possible_names:
+            if name in self._column_indices:
+                team_number_col_name = name
+                break
+        
+        if not team_number_col_name:
+            return {}
+            
         team_col_idx = self._column_indices[team_number_col_name]
         team_rows_map = defaultdict(list)
         for row in self.sheet_data[1:]:
@@ -598,6 +605,7 @@ class AnalizadorRobot:
                        .replace(' ', '_') \
                        .lower()
         specific_renames = {
+            # Legacy column names (keep for backward compatibility)
             'End Position': 'climb',
             'Climbed?': 'climb',
             'Did something?': 'auto_did_something',
@@ -613,7 +621,30 @@ class AnalizadorRobot:
             'Played Algae?(Disloged DOES NOT COUNT)': 'teleop_played_algae',
             'Crossed Feild/Played Defense?': 'teleop_crossed_played_defense',
             'Crossed Field/Defense': 'teleop_crossed_played_defense',
-            'Was the robot Defended by alguien?': 'defended_by_other'
+            'Was the robot Defended by alguien?': 'defended_by_other',
+            
+            # New artifact-based column names
+            'END POSITION': 'climb',
+            'MOVED?': 'auto_worked',
+            'ARTIFACTS(AUTO)': 'auto_artifacts',
+            'ARTIFACTS IN PATTERN(AUTO)': 'auto_pattern_artifacts',
+            'OVERFLOW ARTIFACTS(AUTO)': 'auto_overflow_artifacts',
+            'FAILED ARTIFACTS(AUTO)': 'auto_failed_artifacts',
+            'DEPOT PLACED(AUTO)': 'auto_depot',
+            'AUTO FOUL (AUTO)': 'auto_foul',
+            'ARTIFACTS(TELEOP)': 'teleop_artifacts',
+            'ARTIFACTS IN PATTERN(TELEOP)': 'teleop_pattern_artifacts',
+            'OVERFLOW ARTIFACTS(TELEOP)': 'teleop_overflow_artifacts',
+            'FAILED ARTIFACTS(TELEOP)': 'teleop_failed_artifacts',
+            'DEPOT PLACED(TELEOP)': 'teleop_depot',
+            'ARTIFACTS FAILED(TELEOP)': 'teleop_artifacts_failed',
+            'FOUL (TELEOP)': 'teleop_foul',
+            'DIED?': 'died',
+            'TOUCHED OPPOSING RAMP': 'touched_ramp',
+            'BROKE?': 'broke',
+            'DEFENDED?': 'defended',
+            'TIPPED/FELL OVER?': 'tipped_fell',
+            'CORAL HP MISTAKE?': 'hp_mistake'
         }
         if col_name in specific_renames:
             base = specific_renames[col_name]
@@ -701,76 +732,102 @@ class AnalizadorRobot:
                             defense_values.append(0.0)
                 defense_key = self._generate_stat_key(defense_col, 'rate')
                 team_stats[defense_key] = self._average(defense_values) if defense_values else 0.0
-            # Enhanced Overall calculation with proper weighting
+            # Enhanced Overall calculation with proper weighting - supports both coral and artifact formats
             overall_values = []
-            coral_values = []
-            algae_values = []
+            
+            # Check if we're using artifacts or coral format
+            has_artifacts = any(col for col in self._column_indices.keys() if 'ARTIFACTS' in col.upper())
             
             # Calculate per-match performance across all matches for this team
             for row in rows:
                 match_score = 0.0
                 
-                # Coral scoring with level-based weights (L1=2, L2=3, L3=4, L4=5 for teleop; double for auto)
-                coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
-                for level, weight in coral_weights.items():
-                    # Auto coral (higher value)
-                    auto_col = f'Coral {level} (Auto)'
-                    auto_idx = self._column_indices.get(auto_col)
-                    if auto_idx is not None and auto_idx < len(row):
-                        try:
-                            auto_val = float(row[auto_idx])
-                            match_score += auto_val * weight * 2  # Double points for auto
-                            coral_values.append(auto_val * weight * 2)
-                        except Exception:
-                            pass
+                if has_artifacts:
+                    # Artifact-based scoring system
+                    artifact_weights = {
+                        'ARTIFACTS(AUTO)': 2.0,  # Base artifacts
+                        'ARTIFACTS IN PATTERN(AUTO)': 3.0,  # Pattern bonus
+                        'OVERFLOW ARTIFACTS(AUTO)': 1.5,  # Overflow
+                        'FAILED ARTIFACTS(AUTO)': -0.5,  # Penalty for failures
+                        'DEPOT PLACED(AUTO)': 4.0,  # Depot placement
+                        'ARTIFACTS(TELEOP)': 1.5,  # Teleop base
+                        'ARTIFACTS IN PATTERN(TELEOP)': 2.5,  # Teleop pattern
+                        'OVERFLOW ARTIFACTS(TELEOP)': 1.0,  # Teleop overflow
+                        'FAILED ARTIFACTS(TELEOP)': -0.3,  # Teleop failure penalty
+                        'DEPOT PLACED(TELEOP)': 3.0,  # Teleop depot
+                        'ARTIFACTS FAILED(TELEOP)': -0.3  # Additional failure penalty
+                    }
                     
-                    # Teleop coral
-                    teleop_col = f'Coral {level} (Teleop)'
-                    teleop_idx = self._column_indices.get(teleop_col)
-                    if teleop_idx is not None and teleop_idx < len(row):
-                        try:
-                            teleop_val = float(row[teleop_idx])
-                            match_score += teleop_val * weight
-                            coral_values.append(teleop_val * weight)
-                        except Exception:
-                            pass
+                    for col_name, weight in artifact_weights.items():
+                        col_idx = self._column_indices.get(col_name)
+                        if col_idx is not None and col_idx < len(row):
+                            try:
+                                val = float(row[col_idx])
+                                match_score += val * weight
+                            except Exception:
+                                pass
+                
+                else:
+                    # Legacy coral scoring system
+                    coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
+                    for level, weight in coral_weights.items():
+                        # Auto coral (higher value)
+                        auto_col = f'Coral {level} (Auto)'
+                        auto_idx = self._column_indices.get(auto_col)
+                        if auto_idx is not None and auto_idx < len(row):
+                            try:
+                                auto_val = float(row[auto_idx])
+                                match_score += auto_val * weight * 2  # Double points for auto
+                            except Exception:
+                                pass
+                        
+                        # Teleop coral
+                        teleop_col = f'Coral {level} (Teleop)'
+                        teleop_idx = self._column_indices.get(teleop_col)
+                        if teleop_idx is not None and teleop_idx < len(row):
+                            try:
+                                teleop_val = float(row[teleop_idx])
+                                match_score += teleop_val * weight
+                            except Exception:
+                                pass
+                        
+                        # Legacy format fallback
+                        legacy_col = f'Coral {level} Scored'
+                        legacy_idx = self._column_indices.get(legacy_col)
+                        if legacy_idx is not None and legacy_idx < len(row) and auto_idx is None and teleop_idx is None:
+                            try:
+                                legacy_val = float(row[legacy_idx])
+                                match_score += legacy_val * weight * 1.5  # Moderate weight for combined
+                            except Exception:
+                                pass
                     
-                    # Legacy format fallback
-                    legacy_col = f'Coral {level} Scored'
-                    legacy_idx = self._column_indices.get(legacy_col)
-                    if legacy_idx is not None and legacy_idx < len(row) and auto_idx is None and teleop_idx is None:
-                        try:
-                            legacy_val = float(row[legacy_idx])
-                            match_score += legacy_val * weight * 1.5  # Moderate weight for combined
-                            coral_values.append(legacy_val * weight * 1.5)
-                        except Exception:
-                            pass
+                    # Algae scoring (Barge=3 points, Processor=6 points)
+                    algae_configs = [
+                        ('Barge Algae (Auto)', 3 * 1.5),  # Auto bonus
+                        ('Barge Algae (Teleop)', 3),
+                        ('Processor Algae (Auto)', 6 * 1.5),  # Auto bonus  
+                        ('Processor Algae (Teleop)', 6),
+                        ('Algae Scored in Barge', 3)  # Legacy
+                    ]
+                    
+                    for col_name, points in algae_configs:
+                        col_idx = self._column_indices.get(col_name)
+                        if col_idx is not None and col_idx < len(row):
+                            try:
+                                val = float(row[col_idx])
+                                match_score += val * points
+                            except Exception:
+                                pass
                 
-                # Algae scoring (Barge=3 points, Processor=6 points)
-                algae_configs = [
-                    ('Barge Algae (Auto)', 3 * 1.5),  # Auto bonus
-                    ('Barge Algae (Teleop)', 3),
-                    ('Processor Algae (Auto)', 6 * 1.5),  # Auto bonus  
-                    ('Processor Algae (Teleop)', 6),
-                    ('Algae Scored in Barge', 3)  # Legacy
-                ]
-                
-                for col_name, points in algae_configs:
-                    col_idx = self._column_indices.get(col_name)
-                    if col_idx is not None and col_idx < len(row):
-                        try:
-                            val = float(row[col_idx])
-                            match_score += val * points
-                            algae_values.append(val * points)
-                        except Exception:
-                            pass
-                
-                # Add endgame scoring (climb bonus)
+                # Add endgame scoring (climb bonus) - universal for both formats
                 end_pos_idx = self._column_indices.get('End Position')
+                end_pos_caps_idx = self._column_indices.get('END POSITION')  # Handle caps version
                 climb_idx = self._column_indices.get('Climbed?')  # Legacy
                 
-                if end_pos_idx is not None and end_pos_idx < len(row):
-                    end_pos = str(row[end_pos_idx]).strip().lower()
+                end_pos_col_idx = end_pos_idx if end_pos_idx is not None else end_pos_caps_idx
+                
+                if end_pos_col_idx is not None and end_pos_col_idx < len(row):
+                    end_pos = str(row[end_pos_col_idx]).strip().lower()
                     if 'deep' in end_pos:
                         match_score += 12
                     elif 'shallow' in end_pos:

@@ -2,7 +2,7 @@
 Sistema de Foreshadowing
 =========================
 
-Predice con precisión:
+Predice con precisión matches de 2v2 (2 robots por alianza):
 1. Piezas individuales hechas por cada robot
 2. Puntos totales de cada alianza
 3. Ranking Points (RP) posibles
@@ -10,10 +10,11 @@ Predice con precisión:
 
 Características:
 - Predicción basada en estadísticas reales de cada equipo
-- Cálculo preciso de puntos por nivel de coral
+- Soporte para formato artifacts y coral legacy
 - Análisis de probabilidades de Autonomous y Cooperation
 - Simulación Monte Carlo para resultados más realistas
 - Cálculo de Ranking Points según reglas de juego
+- Optimizado para matches 2v2 (4 robots totales)
 
 Marco Lopez - Overture 7421
 """
@@ -145,36 +146,55 @@ class TeamStatsExtractor:
                 p_cooperation=0.3
             )
         
-        # Extraer estadísticas de coral
+        # Extraer estadísticas - compatible con coral y artifact systems
         perf = TeamPerformance(team_number=team_number)
         
-        # El analizador no separa auto/teleop en las estadísticas detalladas actualmente
-        # Usamos las estadísticas disponibles y las distribuimos proporcionalmente
+        # Check if we're using the new artifact system or old coral system
+        has_artifacts = any('artifacts' in key.lower() for key in team_stats.keys())
         
-        # Coral totales (combinadas)
-        total_L1 = team_stats.get('coral_l1__avg', 0.0)
-        total_L2 = team_stats.get('coral_l2__avg', 0.0) 
-        total_L3 = team_stats.get('coral_l3__avg', 0.0)
-        total_L4 = team_stats.get('coral_l4__avg', 0.0)
-        
-        # Distribuir 30% auto, 70% teleop basado en observaciones típicas
-        auto_ratio = 0.3
-        teleop_ratio = 0.7
-        
-        perf.auto_L1 = total_L1 * auto_ratio
-        perf.auto_L2 = total_L2 * auto_ratio
-        perf.auto_L3 = total_L3 * auto_ratio
-        perf.auto_L4 = total_L4 * auto_ratio
-        
-        perf.teleop_L1 = total_L1 * teleop_ratio
-        perf.teleop_L2 = total_L2 * teleop_ratio
-        perf.teleop_L3 = total_L3 * teleop_ratio
-        perf.teleop_L4 = total_L4 * teleop_ratio
-        
-        # Algae (usar las estadísticas teleop disponibles como base)
-        perf.auto_processor = team_stats.get('teleop_processor_algae_avg', 0.0) * 0.25  # Menos en auto
-        perf.teleop_processor = team_stats.get('teleop_processor_algae_avg', 0.0)
-        perf.teleop_net = team_stats.get('teleop_barge_algae_avg', 0.0)
+        if has_artifacts:
+            # New artifact-based system
+            perf.auto_L1 = team_stats.get('auto_artifacts_avg', 0.0)  # Map artifacts to L1
+            perf.auto_L2 = team_stats.get('auto_pattern_artifacts_avg', 0.0)  # Pattern artifacts to L2
+            perf.auto_L3 = team_stats.get('auto_overflow_artifacts_avg', 0.0)  # Overflow to L3
+            perf.auto_L4 = team_stats.get('auto_depot_avg', 0.0)  # Depot to L4
+            
+            perf.teleop_L1 = team_stats.get('teleop_artifacts_avg', 0.0)
+            perf.teleop_L2 = team_stats.get('teleop_pattern_artifacts_avg', 0.0)
+            perf.teleop_L3 = team_stats.get('teleop_overflow_artifacts_avg', 0.0)
+            perf.teleop_L4 = team_stats.get('teleop_depot_avg', 0.0)
+            
+            # Map artifact failures to processor algae equivalent
+            perf.auto_processor = team_stats.get('auto_failed_artifacts_avg', 0.0)
+            perf.teleop_processor = team_stats.get('teleop_failed_artifacts_avg', 0.0) + team_stats.get('teleop_artifacts_failed_avg', 0.0)
+            perf.teleop_net = team_stats.get('teleop_overflow_artifacts_avg', 0.0)  # Overflow as net equivalent
+            
+        else:
+            # Legacy coral system
+            # Coral totales (combinadas)
+            total_L1 = team_stats.get('coral_l1__avg', 0.0)
+            total_L2 = team_stats.get('coral_l2__avg', 0.0) 
+            total_L3 = team_stats.get('coral_l3__avg', 0.0)
+            total_L4 = team_stats.get('coral_l4__avg', 0.0)
+            
+            # Distribuir 30% auto, 70% teleop basado en observaciones típicas
+            auto_ratio = 0.3
+            teleop_ratio = 0.7
+            
+            perf.auto_L1 = total_L1 * auto_ratio
+            perf.auto_L2 = total_L2 * auto_ratio
+            perf.auto_L3 = total_L3 * auto_ratio
+            perf.auto_L4 = total_L4 * auto_ratio
+            
+            perf.teleop_L1 = total_L1 * teleop_ratio
+            perf.teleop_L2 = total_L2 * teleop_ratio
+            perf.teleop_L3 = total_L3 * teleop_ratio
+            perf.teleop_L4 = total_L4 * teleop_ratio
+            
+            # Algae (usar las estadísticas teleop disponibles como base)
+            perf.auto_processor = team_stats.get('teleop_processor_algae_avg', 0.0) * 0.25  # Menos en auto
+            perf.teleop_processor = team_stats.get('teleop_processor_algae_avg', 0.0)
+            perf.teleop_net = team_stats.get('teleop_barge_algae_avg', 0.0)
         
         # Probabilidades basadas en overall performance
         overall_avg = team_stats.get('overall_avg', 0.0)
@@ -393,12 +413,12 @@ class MatchSimulator:
             red_rp += 1  # Tie
             blue_rp += 1  # Tie
         
-        # Auto RP
-        if (red_result['teams_left_auto_zone'] >= 3 and 
+        # Auto RP (updated for 2 robots per alliance)
+        if (red_result['teams_left_auto_zone'] >= 2 and 
             sum(red_result['auto_coral'].values()) >= 1):
             red_rp += 1
         
-        if (blue_result['teams_left_auto_zone'] >= 3 and 
+        if (blue_result['teams_left_auto_zone'] >= 2 and 
             sum(blue_result['auto_coral'].values()) >= 1):
             blue_rp += 1
         
@@ -508,7 +528,7 @@ class ForeshadowingGUI:
         red_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
         
         self.red_team_vars = []
-        for i in range(3):
+        for i in range(2):
             var = tk.StringVar()
             ttk.Label(red_frame, text=f"Equipo {i+1}:").pack(anchor=tk.W)
             combo = ttk.Combobox(red_frame, textvariable=var, values=available_teams, width=15)
@@ -520,7 +540,7 @@ class ForeshadowingGUI:
         blue_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5)
         
         self.blue_team_vars = []
-        for i in range(3):
+        for i in range(2):
             var = tk.StringVar()
             ttk.Label(blue_frame, text=f"Equipo {i+1}:").pack(anchor=tk.W)
             combo = ttk.Combobox(blue_frame, textvariable=var, values=available_teams, width=15)
@@ -569,8 +589,8 @@ class ForeshadowingGUI:
             red_team_numbers = [var.get().strip() for var in self.red_team_vars if var.get().strip()]
             blue_team_numbers = [var.get().strip() for var in self.blue_team_vars if var.get().strip()]
             
-            if len(red_team_numbers) != 3 or len(blue_team_numbers) != 3:
-                messagebox.showerror("Error", "Debes seleccionar exactamente 3 equipos por alianza")
+            if len(red_team_numbers) != 2 or len(blue_team_numbers) != 2:
+                messagebox.showerror("Error", "Debes seleccionar exactamente 2 equipos por alianza")
                 return
             
             # Extraer estadísticas
@@ -655,8 +675,8 @@ class ForeshadowingGUI:
         output.append(f"  Puntos Climb: {breakdown['climb_points']}")
         output.append(f"  TOTAL:        {breakdown['total_score']}")
         
-        # Flags especiales
-        output.append(f"  Auto Zone:    {breakdown['teams_left_auto_zone']}/3 equipos salieron")
+        # Flags especiales (updated for 2 robots per alliance)
+        output.append(f"  Auto Zone:    {breakdown['teams_left_auto_zone']}/2 equipos salieron")
         output.append(f"  Cooperation:  {'✅ Sí' if breakdown['cooperation_achieved'] else '❌ No'}")
         output.append("")
     
@@ -725,8 +745,8 @@ class ForeshadowingGUI:
             red_team_numbers = [var.get().strip() for var in self.red_team_vars if var.get().strip()]
             blue_team_numbers = [var.get().strip() for var in self.blue_team_vars if var.get().strip()]
             
-            if len(red_team_numbers) != 3 or len(blue_team_numbers) != 3:
-                messagebox.showerror("Error", "Debes seleccionar exactamente 3 equipos por alianza")
+            if len(red_team_numbers) != 2 or len(blue_team_numbers) != 2:
+                messagebox.showerror("Error", "Debes seleccionar exactamente 2 equipos por alianza")
                 return
             
             # Ejecutar simulación con más iteraciones
@@ -791,6 +811,53 @@ def launch_foreshadowing(parent, analizador):
     """Lanza el sistema de Foreshadowing"""
     gui = ForeshadowingGUI(parent, analizador)
     gui.show()
+
+
+# ============================= STANDALONE FUNCTIONS ============================= #
+
+def simulate_match(red_teams, blue_teams, analizador):
+    """
+    Standalone function for simulating matches with 2 robots per alliance
+    
+    Args:
+        red_teams: List of red team numbers (should be 2 teams)
+        blue_teams: List of blue team numbers (should be 2 teams)  
+        analizador: AnalizadorRobot instance with loaded data
+    
+    Returns:
+        Dictionary with match results
+    """
+    if len(red_teams) != 2 or len(blue_teams) != 2:
+        raise ValueError("Each alliance must have exactly 2 teams")
+    
+    # Create simulator and extractor
+    simulator = MatchSimulator()
+    extractor = TeamStatsExtractor(analizador)
+    
+    # Extract team performance data
+    red_team_performances = []
+    blue_team_performances = []
+    
+    for team in red_teams:
+        perf = extractor.extract_team_performance(str(team))
+        red_team_performances.append(perf)
+    
+    for team in blue_teams:
+        perf = extractor.extract_team_performance(str(team))
+        blue_team_performances.append(perf)
+    
+    # Run simulation
+    prediction = simulator.simulate_match(red_team_performances, blue_team_performances)
+    
+    return {
+        'red_score': prediction.red_score,
+        'blue_score': prediction.blue_score,
+        'red_rp': prediction.red_rp,
+        'blue_rp': prediction.blue_rp,
+        'red_win_probability': prediction.red_win_probability,
+        'blue_win_probability': prediction.blue_win_probability,
+        'winner': 'Red' if prediction.red_score > prediction.blue_score else 'Blue' if prediction.blue_score > prediction.red_score else 'Tie'
+    }
 
 
 # ============================= TESTING ============================= #

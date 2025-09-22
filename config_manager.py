@@ -134,7 +134,29 @@ class ConfigManager:
         return "unknown_format"
     
     def get_column_config(self, format_name: str = "new_standard") -> ColumnConfig:
-        """Get column configuration for specified format"""
+        """Get column configuration from JSON file or fallback to presets"""
+        # First try to load from JSON file
+        if os.path.exists(self.config_file):
+            try:
+                with open(self.config_file, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                
+                if 'column_configuration' in config_data and 'headers' in config_data:
+                    # Load from JSON file
+                    col_config = config_data['column_configuration']
+                    return ColumnConfig(
+                        headers=config_data['headers'],
+                        numeric_for_overall=col_config.get('numeric_for_overall', []),
+                        stats_columns=col_config.get('stats_columns', []),
+                        mode_boolean_columns=col_config.get('mode_boolean_columns', []),
+                        autonomous_columns=col_config.get('autonomous_columns', []),
+                        teleop_columns=col_config.get('teleop_columns', []),
+                        endgame_columns=col_config.get('endgame_columns', [])
+                    )
+            except Exception as e:
+                print(f"Warning: Could not load config from {self.config_file}: {e}")
+        
+        # Fallback to presets
         if format_name in self.presets:
             return self.presets[format_name]["column_config"]
         return self.presets["new_standard"]["column_config"]
