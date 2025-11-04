@@ -7,14 +7,34 @@ import streamlit as st
 import pandas as pd
 import io
 import base64
-from main import AnalizadorRobot
+import sys
+import os
+
+# Avoid tkinter import issues in main.py by making it optional
+try:
+    from main import AnalizadorRobot
+except ImportError as e:
+    # If tkinter is not available, mock it for the import
+    if 'tkinter' in str(e):
+        import types
+        sys.modules['tkinter'] = types.ModuleType('tkinter')
+        sys.modules['tkinter.ttk'] = types.ModuleType('ttk')
+        sys.modules['tkinter'].filedialog = types.ModuleType('filedialog')
+        sys.modules['tkinter'].messagebox = types.ModuleType('messagebox')
+        sys.modules['tkinter'].simpledialog = types.ModuleType('simpledialog')
+        # Also need to mock matplotlib backend
+        sys.modules['matplotlib.backends.backend_tkagg'] = types.ModuleType('backend_tkagg')
+        sys.modules['matplotlib.backends.backend_tkagg'].FigureCanvasTkAgg = object
+        from main import AnalizadorRobot
+    else:
+        raise
+
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
 from school_system import TeamScoring, BehaviorReportType
 from firebase_integration import FirebaseManager, FIREBASE_AVAILABLE
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
-import os
 
 # Page configuration
 st.set_page_config(
