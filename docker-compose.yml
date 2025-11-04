@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  alliance-simulator:
+    build: .
+    container_name: alliance-simulator-web
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount volume for persistent data
+      - ./data:/app/uploads
+      # Mount Firebase credentials (optional - create firebase-credentials.json first)
+      # - ./firebase-credentials.json:/app/firebase/credentials.json:ro
+      # Mount for local development (optional - comment out for production)
+      # - ./streamlit_app.py:/app/streamlit_app.py
+      # - ./firebase_integration.py:/app/firebase_integration.py
+    environment:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+      - STREAMLIT_SERVER_HEADLESS=true
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+      # Uncomment to use Firebase credentials from volume
+      # - FIREBASE_CREDENTIALS_PATH=/app/firebase/credentials.json
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - alliance-net
+
+networks:
+  alliance-net:
+    driver: bridge
