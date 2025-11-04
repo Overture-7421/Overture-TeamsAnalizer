@@ -1329,6 +1329,9 @@ class AnalizadorGUI:
 
         # Team Stats Tab
         self.stats_frame = ttk.Frame(self.notebook)
+        stats_controls = ttk.Frame(self.stats_frame)
+        stats_controls.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
+        ttk.Button(stats_controls, text="Export Simplified Ranking", command=self.export_simplified_ranking).pack(side=tk.RIGHT, padx=2)
         self.tree_stats = ttk.Treeview(self.stats_frame, show='headings')
         self.tree_stats.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
         scrollbar_stats_y = ttk.Scrollbar(self.stats_frame, orient=tk.VERTICAL, command=self.tree_stats.yview)
@@ -2258,6 +2261,7 @@ class AnalizadorGUI:
                 selector.update_alliance_captains()
                 selector.update_recommendations()
                 self.update_alliance_table()
+                self.update_alliance_combobox_options()
             pick1_combo.bind("<<ComboboxSelected>>", on_pick1)
             pick1_combo.grid(row=idx+2, column=1, sticky='w')
             self._alliance_selector_combos.append(pick1_combo)
@@ -2299,6 +2303,7 @@ class AnalizadorGUI:
                 selector.update_alliance_captains()
                 selector.update_recommendations()
                 self.update_alliance_table()
+                self.update_alliance_combobox_options()
             pick2_combo.bind("<<ComboboxSelected>>", on_pick2)
             pick2_combo.grid(row=idx+2, column=2, sticky='w')
             self._alliance_selector_combos.append(pick2_combo)
@@ -3580,6 +3585,96 @@ Configuration:
                 
             except Exception as e:
                 messagebox.showerror("Export Error", f"Failed to export Honor Roll: {e}")
+
+    def export_simplified_ranking(self):
+        """Export simplified ranking with key metrics: team number, overall±std, robot valuation, death rate, climb type, defended rate"""
+        stats = self.analizador.get_detailed_team_stats()
+        if not stats:
+            messagebox.showwarning("No Data", "No team statistics available to export.")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".csv",
+            filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+            title="Export Simplified Ranking",
+            initialfile="simplified_ranking.csv"
+        )
+        
+        if file_path:
+            try:
+                with open(file_path, 'w', newline='', encoding='utf-8') as csvfile:
+                    writer = csv.writer(csvfile)
+                    
+                    # Write header
+                    writer.writerow([
+                        "Rank", "Team Number", "Overall Average", "Std Deviation", 
+                        "Robot Valuation", "Death Rate", "Climb Type", "Defended Rate"
+                    ])
+                    
+                    # Get team data grouped for climb type analysis
+                    team_data_grouped = self.analizador.get_team_data_grouped()
+                    
+                    # Write data for each team
+                    for rank, team_stat in enumerate(stats, 1):
+                        team_num = str(team_stat.get('team', 'N/A'))
+                        overall_avg = team_stat.get('overall_avg', 0.0)
+                        overall_std = team_stat.get('overall_std', 0.0)
+                        robot_valuation = team_stat.get('RobotValuation', 0.0)
+                        
+                        # Get death rate
+                        died_rate_key = self.analizador._generate_stat_key('Died?', 'rate')
+                        death_rate = team_stat.get(died_rate_key, 0.0)
+                        
+                        # Get defended rate
+                        defended_key = self.analizador._generate_stat_key('Was the robot Defended by someone?', 'rate')
+                        defended_rate = team_stat.get(defended_key, 0.0)
+                        
+                        # Determine climb type from the mode
+                        climb_type = "Unknown"
+                        if team_num in team_data_grouped:
+                            team_rows = team_data_grouped[team_num]
+                            end_pos_idx = self.analizador._column_indices.get('End Position')
+                            climb_idx = self.analizador._column_indices.get('Climbed?')
+                            
+                            if end_pos_idx is not None:
+                                # New format with End Position column
+                                climb_values = []
+                                for row in team_rows:
+                                    if end_pos_idx < len(row):
+                                        climb_values.append(str(row[end_pos_idx]).strip())
+                                if climb_values:
+                                    climb_type = self.analizador._calculate_mode(climb_values)
+                            elif climb_idx is not None:
+                                # Legacy format with Climbed? column
+                                climb_values = []
+                                for row in team_rows:
+                                    if climb_idx < len(row):
+                                        val = str(row[climb_idx]).strip().lower()
+                                        if val in ['true', 'yes', 'y', '1']:
+                                            climb_values.append('Yes')
+                                        else:
+                                            climb_values.append('No')
+                                if climb_values:
+                                    climb_type = self.analizador._calculate_mode(climb_values)
+                        
+                        writer.writerow([
+                            rank,
+                            team_num,
+                            f"{overall_avg:.2f}",
+                            f"{overall_std:.2f}",
+                            f"{robot_valuation:.2f}",
+                            f"{death_rate:.3f}",
+                            climb_type,
+                            f"{defended_rate:.3f}"
+                        ])
+                
+                messagebox.showinfo("Export Complete", 
+                                  f"Simplified ranking exported to:\n{file_path}\n\n"
+                                  f"Total teams: {len(stats)}")
+                self.status_var.set(f"Simplified ranking exported to {os.path.basename(file_path)}")
+                
+            except Exception as e:
+                messagebox.showerror("Export Error", f"Failed to export simplified ranking: {e}")
 
     def export_tier_list(self):
         """Export Honor Roll results to tier_list.txt format with detailed team information"""
