@@ -16,10 +16,13 @@ import plotly.graph_objects as go
 
 # Page configuration
 st.set_page_config(
-    page_title="Alliance Simulator - Web",
+    page_title="Alliance Simulator - Overture 7421",
     page_icon="🤖",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'About': "Alliance Simulator - Team Overture 7421 | FRC 2025 REEFSCAPE"
+    }
 )
 
 # Initialize session state
@@ -30,31 +33,197 @@ if 'alliance_selector' not in st.session_state:
 if 'school_system' not in st.session_state:
     st.session_state.school_system = TeamScoring()
 
-# Custom CSS for better UI
+# Enhanced Custom CSS for better UI
 st.markdown("""
 <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    /* Global Styles */
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Main container */
+    .main {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-attachment: fixed;
+    }
+    
+    /* Content area */
+    .block-container {
+        padding: 2rem 3rem;
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        backdrop-filter: blur(10px);
+        margin: 1rem;
+    }
+    
+    /* Headers */
     .main-header {
-        font-size: 2.5rem;
-        font-weight: bold;
-        color: #1f77b4;
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
         text-align: center;
-        margin-bottom: 1rem;
+        margin-bottom: 2rem;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
+    
     .sub-header {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #ff7f0e;
-        margin-top: 1rem;
-        margin-bottom: 0.5rem;
+        font-size: 1.8rem;
+        font-weight: 600;
+        color: #667eea;
+        margin-top: 2rem;
+        margin-bottom: 1rem;
+        border-left: 4px solid #667eea;
+        padding-left: 1rem;
     }
+    
+    /* Metric cards */
+    div[data-testid="stMetricValue"] {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #667eea;
+    }
+    
+    div[data-testid="stMetricLabel"] {
+        font-weight: 600;
+        color: #4a5568;
+    }
+    
     .metric-card {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
+        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
         margin: 0.5rem 0;
+        border: 1px solid #e2e8f0;
+        transition: transform 0.2s, box-shadow 0.2s;
     }
+    
+    .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 12px rgba(102, 126, 234, 0.15);
+    }
+    
+    /* Buttons */
     .stButton>button {
         width: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+    }
+    
+    .stButton>button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    section[data-testid="stSidebar"] .css-1d391kg {
+        color: white;
+    }
+    
+    section[data-testid="stSidebar"] h2 {
+        color: white !important;
+        font-weight: 700;
+    }
+    
+    section[data-testid="stSidebar"] h3 {
+        color: rgba(255, 255, 255, 0.9) !important;
+        font-weight: 600;
+    }
+    
+    section[data-testid="stSidebar"] .stRadio label {
+        color: white !important;
+        font-weight: 500;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background-color: transparent;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-weight: 600;
+        border: 1px solid #e2e8f0;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white !important;
+    }
+    
+    /* DataFrames */
+    .dataframe {
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    }
+    
+    /* Info/Warning/Success boxes */
+    .stAlert {
+        border-radius: 8px;
+        border-left: 4px solid;
+    }
+    
+    /* File uploader */
+    .uploadedFile {
+        border-radius: 8px;
+        border: 2px dashed #667eea;
+    }
+    
+    /* Plotly charts */
+    .js-plotly-plot {
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+    }
+    
+    /* Team badge */
+    .team-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin: 0.2rem;
+    }
+    
+    /* Stats card */
+    .stats-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        margin: 1rem 0;
+        border-left: 4px solid #667eea;
+    }
+    
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 2rem;
+        color: #718096;
+        font-size: 0.9rem;
+        margin-top: 3rem;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -123,21 +292,43 @@ def create_alliance_selector_teams():
     
     return teams
 
-# Sidebar navigation
-st.sidebar.markdown("## 🤖 Alliance Simulator")
-st.sidebar.markdown("### Navigation")
+# Sidebar navigation with enhanced design
+st.sidebar.markdown("""
+<div style='text-align: center; padding: 1rem 0;'>
+    <h1 style='color: white; font-size: 2.5rem; margin: 0;'>🤖</h1>
+    <h2 style='color: white; font-weight: 700; margin: 0.5rem 0;'>Alliance Simulator</h2>
+    <p style='color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;'>Team Overture 7421</p>
+    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>FRC 2025 REEFSCAPE</p>
+</div>
+""", unsafe_allow_html=True)
+
+st.sidebar.markdown("<hr style='border: 1px solid rgba(255,255,255,0.2); margin: 1rem 0;'>", unsafe_allow_html=True)
+
+st.sidebar.markdown("### 📍 Navigation")
 
 page = st.sidebar.radio(
     "Select Page",
     ["📊 Dashboard", "📁 Data Management", "📈 Team Statistics", 
-     "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing"]
+     "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing"],
+    label_visibility="collapsed"
 )
 
 # Main content based on selected page
 if page == "📊 Dashboard":
     st.markdown("<div class='main-header'>🤖 Alliance Simulator Dashboard</div>", unsafe_allow_html=True)
     
-    # Quick stats
+    # Welcome message
+    st.markdown("""
+    <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); 
+                border-radius: 12px; margin-bottom: 2rem;'>
+        <p style='color: #4a5568; font-size: 1.1rem; margin: 0;'>
+            Welcome to the Alliance Simulator - Your comprehensive FRC scouting and analysis tool
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Quick stats with enhanced styling
+    st.markdown("<div class='sub-header'>📊 Quick Statistics</div>", unsafe_allow_html=True)
     col1, col2, col3, col4 = st.columns(4)
     
     raw_data = st.session_state.analizador.get_raw_data()
@@ -147,37 +338,87 @@ if page == "📊 Dashboard":
     num_teams = len(team_data)
     
     with col1:
-        st.metric("Total Matches", num_matches)
+        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+        st.metric("🎯 Total Matches", num_matches)
+        st.markdown("</div>", unsafe_allow_html=True)
     
     with col2:
-        st.metric("Total Teams", num_teams)
+        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+        st.metric("🤖 Total Teams", num_teams)
+        st.markdown("</div>", unsafe_allow_html=True)
     
     with col3:
         stats = st.session_state.analizador.get_detailed_team_stats()
         avg_overall = sum(s.get('overall_avg', 0) for s in stats) / len(stats) if stats else 0
-        st.metric("Avg Overall Score", f"{avg_overall:.2f}")
+        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+        st.metric("📈 Avg Overall Score", f"{avg_overall:.2f}")
+        st.markdown("</div>", unsafe_allow_html=True)
     
     with col4:
         alliances = len(st.session_state.alliance_selector.alliances) if st.session_state.alliance_selector else 0
-        st.metric("Alliances Configured", alliances)
+        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
+        st.metric("🤝 Alliances Configured", alliances)
+        st.markdown("</div>", unsafe_allow_html=True)
     
-    # Quick overview chart
+    # Quick overview chart with enhanced styling
     if stats:
-        st.markdown("<div class='sub-header'>Top 10 Teams by Overall Performance</div>", unsafe_allow_html=True)
+        st.markdown("<div class='sub-header'>🏆 Top 10 Teams by Overall Performance</div>", unsafe_allow_html=True)
         
         top_10 = stats[:10]
-        teams_list = [s.get('team', 'N/A') for s in top_10]
+        teams_list = [str(s.get('team', 'N/A')) for s in top_10]
         overall_list = [s.get('overall_avg', 0) for s in top_10]
         
         fig = px.bar(
             x=teams_list,
             y=overall_list,
             labels={'x': 'Team Number', 'y': 'Overall Average'},
-            title="Top 10 Teams Performance",
+            title="",
             color=overall_list,
-            color_continuous_scale='Blues'
+            color_continuous_scale='Purples',
+            text=overall_list
+        )
+        fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
+        fig.update_layout(
+            showlegend=False,
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            font=dict(size=12, color='#4a5568'),
+            xaxis=dict(showgrid=False),
+            yaxis=dict(showgrid=True, gridcolor='rgba(0,0,0,0.05)'),
+            margin=dict(t=10, b=10, l=10, r=10)
         )
         st.plotly_chart(fig, use_container_width=True)
+        
+        # Additional insights
+        st.markdown("<div class='sub-header'>💡 Quick Insights</div>", unsafe_allow_html=True)
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown("<div class='stats-card'>", unsafe_allow_html=True)
+            st.markdown("**🥇 Top Team**")
+            if stats:
+                top_team = stats[0]
+                st.markdown(f"<div class='team-badge'>Team {top_team.get('team', 'N/A')}</div>", unsafe_allow_html=True)
+                st.markdown(f"Score: **{top_team.get('overall_avg', 0):.2f}**")
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown("<div class='stats-card'>", unsafe_allow_html=True)
+            st.markdown("**🎯 Most Consistent**")
+            if stats:
+                most_consistent = min(stats, key=lambda x: x.get('overall_std', float('inf')))
+                st.markdown(f"<div class='team-badge'>Team {most_consistent.get('team', 'N/A')}</div>", unsafe_allow_html=True)
+                st.markdown(f"Std Dev: **{most_consistent.get('overall_std', 0):.2f}**")
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown("<div class='stats-card'>", unsafe_allow_html=True)
+            st.markdown("**⚙️ Best Robot**")
+            if stats:
+                best_robot = max(stats, key=lambda x: x.get('RobotValuation', 0))
+                st.markdown(f"<div class='team-badge'>Team {best_robot.get('team', 'N/A')}</div>", unsafe_allow_html=True)
+                st.markdown(f"Valuation: **{best_robot.get('RobotValuation', 0):.2f}**")
+            st.markdown("</div>", unsafe_allow_html=True)
 
 elif page == "📁 Data Management":
     st.markdown("<div class='main-header'>📁 Data Management</div>", unsafe_allow_html=True)
@@ -602,15 +843,22 @@ elif page == "🔮 Foreshadowing":
     - **Confidence Intervals**: Statistical confidence metrics
     """)
 
-# Footer
-st.sidebar.markdown("---")
-st.sidebar.markdown("### About")
-st.sidebar.info("""
-**Alliance Simulator - Web Version**
-
-Developed by Team Overture 7421
-
-For FIRST Robotics Competition - REEFSCAPE 2025
-
-Version 1.0.0
-""")
+# Footer - appears on all pages
+st.markdown("<hr style='margin-top: 3rem; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
+st.markdown("""
+<div class='footer'>
+    <p style='margin: 0.5rem 0;'>
+        <strong style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                       -webkit-background-clip: text; -webkit-text-fill-color: transparent;'>
+            Alliance Simulator - Web Version
+        </strong>
+    </p>
+    <p style='margin: 0.3rem 0;'>Developed with ❤️ by <strong>Team Overture 7421</strong></p>
+    <p style='margin: 0.3rem 0; font-size: 0.85rem;'>
+        For FIRST Robotics Competition - REEFSCAPE 2025
+    </p>
+    <p style='margin: 0.5rem 0; font-size: 0.8rem; color: #a0aec0;'>
+        Version 2.0.0 | Enhanced UI Edition
+    </p>
+</div>
+""", unsafe_allow_html=True)
