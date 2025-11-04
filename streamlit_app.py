@@ -38,8 +38,14 @@ if 'firebase_manager' not in st.session_state:
     st.session_state.firebase_manager = None
 if 'firebase_connected' not in st.session_state:
     st.session_state.firebase_connected = False
+if 'team_name_mapping' not in st.session_state:
+    st.session_state.team_name_mapping = {}
+if 'selected_base' not in st.session_state:
+    st.session_state.selected_base = None
+if 'available_bases' not in st.session_state:
+    st.session_state.available_bases = []
 
-# Enhanced Custom CSS for better UI
+# Enhanced Custom CSS for Dark Theme
 st.markdown("""
 <style>
     /* Import Google Fonts */
@@ -50,20 +56,21 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     
-    /* Main container */
+    /* Main container - Dark background */
     .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #000000;
         background-attachment: fixed;
     }
     
-    /* Content area */
+    /* Content area - Dark with subtle gradient */
     .block-container {
         padding: 2rem 3rem;
-        background: rgba(255, 255, 255, 0.95);
+        background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
         border-radius: 20px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 8px 32px rgba(102, 126, 234, 0.2);
         backdrop-filter: blur(10px);
         margin: 1rem;
+        border: 1px solid rgba(102, 126, 234, 0.1);
     }
     
     /* Headers */
@@ -75,7 +82,7 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         text-align: center;
         margin-bottom: 2rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        text-shadow: 2px 2px 4px rgba(102, 126, 234, 0.3);
     }
     
     .sub-header {
@@ -88,38 +95,44 @@ st.markdown("""
         padding-left: 1rem;
     }
     
-    /* Metric cards */
+    /* Override Streamlit default text colors */
+    h1, h2, h3, h4, h5, h6, p, span, div, label {
+        color: #ffffff !important;
+    }
+    
+    /* Metric cards - Dark theme */
     div[data-testid="stMetricValue"] {
         font-size: 2rem;
         font-weight: 700;
-        color: #667eea;
+        color: #667eea !important;
     }
     
     div[data-testid="stMetricLabel"] {
         font-weight: 600;
-        color: #4a5568;
+        color: #cccccc !important;
     }
     
     .metric-card {
-        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
         padding: 1.5rem;
         border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
         margin: 0.5rem 0;
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(102, 126, 234, 0.2);
         transition: transform 0.2s, box-shadow 0.2s;
     }
     
     .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 12px rgba(102, 126, 234, 0.15);
+        box-shadow: 0 8px 12px rgba(102, 126, 234, 0.3);
+        border-color: rgba(102, 126, 234, 0.4);
     }
     
     /* Buttons */
     .stButton>button {
         width: 100%;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        color: white !important;
         border: none;
         border-radius: 8px;
         padding: 0.6rem 1.2rem;
@@ -130,16 +143,17 @@ st.markdown("""
     
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.5);
     }
     
-    /* Sidebar */
+    /* Sidebar - Dark gradient */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(180deg, #0a0a0a 0%, #1a1a1a 100%);
+        border-right: 1px solid rgba(102, 126, 234, 0.2);
     }
     
-    section[data-testid="stSidebar"] .css-1d391kg {
-        color: white;
+    section[data-testid="stSidebar"] * {
+        color: white !important;
     }
     
     section[data-testid="stSidebar"] h2 {
@@ -164,41 +178,77 @@ st.markdown("""
     }
     
     .stTabs [data-baseweb="tab"] {
-        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
         border-radius: 8px;
         padding: 0.5rem 1rem;
         font-weight: 600;
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        color: #cccccc !important;
     }
     
     .stTabs [aria-selected="true"] {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white !important;
+        border-color: rgba(102, 126, 234, 0.5);
     }
     
-    /* DataFrames */
+    /* DataFrames - Dark theme */
     .dataframe {
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        background-color: #1a1a1a !important;
+    }
+    
+    .dataframe thead tr th {
+        background-color: #2a2a2a !important;
+        color: #667eea !important;
+        border-color: rgba(102, 126, 234, 0.2) !important;
+    }
+    
+    .dataframe tbody tr {
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
+    }
+    
+    .dataframe tbody tr:hover {
+        background-color: #2a2a2a !important;
+    }
+    
+    .dataframe td, .dataframe th {
+        border-color: rgba(102, 126, 234, 0.1) !important;
     }
     
     /* Info/Warning/Success boxes */
     .stAlert {
         border-radius: 8px;
         border-left: 4px solid;
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
     }
     
     /* File uploader */
     .uploadedFile {
         border-radius: 8px;
         border: 2px dashed #667eea;
+        background-color: #1a1a1a !important;
     }
     
-    /* Plotly charts */
+    /* Input fields */
+    .stTextInput>div>div>input,
+    .stNumberInput>div>div>input,
+    .stSelectbox>div>div>div,
+    .stTextArea>div>div>textarea {
+        background-color: #2a2a2a !important;
+        color: #ffffff !important;
+        border-color: rgba(102, 126, 234, 0.3) !important;
+    }
+    
+    /* Plotly charts - Dark background */
     .js-plotly-plot {
         border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        background-color: #1a1a1a !important;
     }
     
     /* Team badge */
@@ -213,23 +263,36 @@ st.markdown("""
         margin: 0.2rem;
     }
     
-    /* Stats card */
+    /* Stats card - Dark theme */
     .stats-card {
-        background: white;
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
         padding: 1.5rem;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         margin: 1rem 0;
         border-left: 4px solid #667eea;
+        border: 1px solid rgba(102, 126, 234, 0.2);
     }
     
     /* Footer */
     .footer {
         text-align: center;
         padding: 2rem;
-        color: #718096;
+        color: #999999;
         font-size: 0.9rem;
         margin-top: 3rem;
+    }
+    
+    /* Expander */
+    .streamlit-expanderHeader {
+        background-color: #1a1a1a !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(102, 126, 234, 0.2) !important;
+    }
+    
+    .streamlit-expanderContent {
+        background-color: #0a0a0a !important;
+        border: 1px solid rgba(102, 126, 234, 0.1) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -325,6 +388,97 @@ def upload_to_firebase(collection_name='scouting_data'):
     except Exception as e:
         return False, f"Error uploading to Firebase: {str(e)}"
 
+def load_available_bases():
+    """Load available Firebase collections (bases)"""
+    try:
+        if not st.session_state.firebase_connected:
+            return False, "Firebase not connected"
+        
+        firebase_manager = st.session_state.firebase_manager
+        collections = firebase_manager.list_collections()
+        
+        if collections:
+            st.session_state.available_bases = collections
+            return True, f"Found {len(collections)} bases: {', '.join(collections)}"
+        else:
+            return False, "No collections found in Firebase"
+    except Exception as e:
+        return False, f"Error loading bases: {str(e)}"
+
+def load_equipos_frc():
+    """Load team name mapping from EquiposFRC base"""
+    try:
+        if not st.session_state.firebase_connected:
+            return False, "Firebase not connected", {}
+        
+        firebase_manager = st.session_state.firebase_manager
+        team_mapping = firebase_manager.get_equipos_frc_mapping()
+        
+        if team_mapping:
+            st.session_state.team_name_mapping = team_mapping
+            return True, f"Loaded {len(team_mapping)} team names", team_mapping
+        else:
+            return False, "No team names found in EquiposFRC", {}
+    except Exception as e:
+        return False, f"Error loading EquiposFRC: {str(e)}", {}
+
+def load_offseason_allstar():
+    """Load match data from OffSeasonAllStar base"""
+    try:
+        if not st.session_state.firebase_connected:
+            return False, "Firebase not connected"
+        
+        firebase_manager = st.session_state.firebase_manager
+        
+        # Get expected column headers from the analyzer
+        column_headers = st.session_state.analizador.default_column_names
+        
+        # Load data from OffSeasonAllStar
+        rows, metadata = firebase_manager.load_offseason_allstar_data(column_headers)
+        
+        if "error" in metadata:
+            return False, f"Error: {metadata['error']}"
+        
+        if not rows:
+            return False, "No match data found in OffSeasonAllStar"
+        
+        # Create temporary CSV file
+        import csv
+        csv_path = "temp_offseason_data.csv"
+        with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(column_headers)
+            writer.writerows(rows)
+        
+        # Load into analyzer
+        st.session_state.analizador.load_csv(csv_path)
+        
+        # Build summary message
+        summary = f"Loaded {metadata['matches_loaded']} matches from {metadata['teams_loaded']} teams"
+        
+        if metadata.get('warnings'):
+            summary += f"\n\nWarnings:\n" + "\n".join(f"- {w}" for w in metadata['warnings'])
+        
+        if metadata.get('missing_fields'):
+            summary += f"\n\nDefaulted fields:\n" + "\n".join(
+                f"- {field}: {count} instances" 
+                for field, count in sorted(metadata['missing_fields'].items(), key=lambda x: -x[1])[:5]
+            )
+        
+        return True, summary
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return False, f"Error loading OffSeasonAllStar: {str(e)}"
+
+def get_team_name(team_number):
+    """Get team name from mapping, with fallback to team number"""
+    team_num_str = str(team_number)
+    if team_num_str in st.session_state.team_name_mapping:
+        name = st.session_state.team_name_mapping[team_num_str]
+        return f"{name} ({team_num_str})"
+    return f"Team {team_num_str}"
+
 def get_team_stats_dataframe():
     """Get team statistics as a pandas DataFrame"""
     stats = st.session_state.analizador.get_detailed_team_stats()
@@ -334,8 +488,9 @@ def get_team_stats_dataframe():
     # Convert to DataFrame with selected columns for simplified view
     df_data = []
     for team_stat in stats:
+        team_number = team_stat.get('team', 'N/A')
         df_data.append({
-            'Team': team_stat.get('team', 'N/A'),
+            'Team': get_team_name(team_number),
             'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
             'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
             'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
@@ -462,11 +617,11 @@ if page == "📊 Dashboard":
         fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
         fig.update_layout(
             showlegend=False,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(size=12, color='#4a5568'),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor='rgba(0,0,0,0.05)'),
+            plot_bgcolor='#1a1a1a',
+            paper_bgcolor='#1a1a1a',
+            font=dict(size=12, color='#ffffff'),
+            xaxis=dict(showgrid=False, color='#ffffff'),
+            yaxis=dict(showgrid=True, gridcolor='rgba(102, 126, 234, 0.2)', color='#ffffff'),
             margin=dict(t=10, b=10, l=10, r=10)
         )
         st.plotly_chart(fig, use_container_width=True)
@@ -601,7 +756,95 @@ elif page == "📁 Data Management":
             
             if st.session_state.firebase_connected:
                 st.markdown("---")
-                st.markdown("#### 📥 Load Data from Firebase")
+                st.markdown("#### 🗂️ Base Selector & Data Loading")
+                
+                # Discover available bases
+                if st.button("🔍 Discover Available Bases"):
+                    with st.spinner("Discovering collections..."):
+                        success, message = load_available_bases()
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+                
+                # Show available bases
+                if st.session_state.available_bases:
+                    st.markdown("**Available Bases:**")
+                    
+                    # Default to OffSeasonAllStar if available
+                    default_index = 0
+                    if "OffSeasonAllStar" in st.session_state.available_bases:
+                        default_index = st.session_state.available_bases.index("OffSeasonAllStar")
+                    
+                    selected_base = st.selectbox(
+                        "Select Base to Load",
+                        st.session_state.available_bases,
+                        index=default_index,
+                        key="base_selector"
+                    )
+                    st.session_state.selected_base = selected_base
+                    
+                    # Show info about selected base
+                    if selected_base == "OffSeasonAllStar":
+                        st.info("📊 **OffSeasonAllStar**: Loads match data from team Matches subcollections")
+                    elif selected_base == "EquiposFRC":
+                        st.info("👥 **EquiposFRC**: Loads team name mapping for enhanced rankings")
+                    else:
+                        st.info(f"📁 **{selected_base}**: Generic collection")
+                    
+                    # Load button for selected base
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if st.button(f"📥 Load {selected_base}", use_container_width=True):
+                            with st.spinner(f"Loading {selected_base} data..."):
+                                if selected_base == "OffSeasonAllStar":
+                                    success, message = load_offseason_allstar()
+                                    if success:
+                                        st.success(message)
+                                        st.rerun()
+                                    else:
+                                        st.error(message)
+                                elif selected_base == "EquiposFRC":
+                                    success, message, mapping = load_equipos_frc()
+                                    if success:
+                                        st.success(message)
+                                        # Show a sample of the mapping
+                                        if mapping:
+                                            sample = dict(list(mapping.items())[:5])
+                                            st.write("Sample team names:", sample)
+                                    else:
+                                        st.error(message)
+                                else:
+                                    # Generic collection load
+                                    success, message = load_firebase_data(selected_base)
+                                    if success:
+                                        st.success(message)
+                                        st.rerun()
+                                    else:
+                                        st.error(message)
+                    
+                    with col2:
+                        if st.button("🔄 Reload All Bases", use_container_width=True):
+                            with st.spinner("Reloading..."):
+                                success, message = load_available_bases()
+                                if success:
+                                    st.success(message)
+                                    st.rerun()
+                                else:
+                                    st.error(message)
+                
+                # Show current data status
+                if st.session_state.team_name_mapping:
+                    st.success(f"✓ Team names loaded: {len(st.session_state.team_name_mapping)} teams")
+                
+                raw_data = st.session_state.analizador.get_raw_data()
+                if raw_data and len(raw_data) > 1:
+                    st.success(f"✓ Match data loaded: {len(raw_data) - 1} matches")
+                
+                st.markdown("---")
+                st.markdown("#### 📥 Legacy Data Loading")
+                st.markdown("*Use this for custom collections or old-format data*")
                 
                 collection_name_load = st.text_input(
                     "Collection Name",
@@ -751,7 +994,7 @@ elif page == "📁 Data Management":
                     
                     simplified_data.append({
                         'Rank': rank,
-                        'Team': team_num,
+                        'Team': get_team_name(team_num),
                         'Overall ± Std': f"{overall_avg:.2f} ± {overall_std:.2f}",
                         'Robot Valuation': f"{robot_valuation:.2f}",
                         'Death Rate': f"{death_rate:.3f}",
@@ -785,9 +1028,10 @@ elif page == "📈 Team Statistics":
             # Create a comprehensive DataFrame
             df_data = []
             for rank, team_stat in enumerate(stats, 1):
+                team_number = team_stat.get('team', 'N/A')
                 df_data.append({
                     'Rank': rank,
-                    'Team': team_stat.get('team', 'N/A'),
+                    'Team': get_team_name(team_number),
                     'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
                     'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
                     'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
@@ -806,6 +1050,13 @@ elif page == "📈 Team Statistics":
                 hover_data=['Team', 'Rank'],
                 title='Overall Average vs Robot Valuation (size = std deviation)',
                 labels={'Overall Avg': 'Overall Average', 'Robot Valuation': 'Robot Valuation'}
+            )
+            fig.update_layout(
+                plot_bgcolor='#1a1a1a',
+                paper_bgcolor='#1a1a1a',
+                font=dict(color='#ffffff'),
+                xaxis=dict(gridcolor='rgba(102, 126, 234, 0.2)', color='#ffffff'),
+                yaxis=dict(gridcolor='rgba(102, 126, 234, 0.2)', color='#ffffff')
             )
             st.plotly_chart(fig, use_container_width=True)
         
@@ -843,9 +1094,17 @@ elif page == "📈 Team Statistics":
                     fig = go.Figure(data=[
                         go.Bar(name='Phase Scores', 
                                x=['Autonomous', 'Teleop', 'Endgame'],
-                               y=[phase_scores['autonomous'], phase_scores['teleop'], phase_scores['endgame']])
+                               y=[phase_scores['autonomous'], phase_scores['teleop'], phase_scores['endgame']],
+                               marker=dict(color='#667eea'))
                     ])
-                    fig.update_layout(title=f'Team {selected_team} - Phase Performance')
+                    fig.update_layout(
+                        title=f'Team {selected_team} - Phase Performance',
+                        plot_bgcolor='#1a1a1a',
+                        paper_bgcolor='#1a1a1a',
+                        font=dict(color='#ffffff'),
+                        xaxis=dict(gridcolor='rgba(102, 126, 234, 0.2)', color='#ffffff'),
+                        yaxis=dict(gridcolor='rgba(102, 126, 234, 0.2)', color='#ffffff')
+                    )
                     st.plotly_chart(fig, use_container_width=True)
         
         with tab3:
@@ -878,7 +1137,7 @@ elif page == "📈 Team Statistics":
                 
                 simplified_data.append({
                     'Rank': rank,
-                    'Team': team_num,
+                    'Team': get_team_name(team_num),
                     'Overall ± Std': f"{overall_avg:.2f} ± {overall_std:.2f}",
                     'Robot Valuation': f"{robot_valuation:.2f}",
                     'Death Rate': f"{death_rate:.3f}",

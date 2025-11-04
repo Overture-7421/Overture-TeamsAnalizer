@@ -5,9 +5,10 @@ Provides NoSQL database connectivity for storing and retrieving scouting data
 
 import json
 import os
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Tuple
 import pandas as pd
 from datetime import datetime
+from collections import defaultdict
 
 try:
     import firebase_admin
@@ -423,6 +424,229 @@ class FirebaseManager:
         except Exception as e:
             print(f"Error retrieving cached statistics from Firebase: {e}")
             return None
+    
+    # ==================== Base/Collection Management ====================
+    
+    def list_collections(self) -> List[str]:
+        """
+        List all top-level collections (bases) in Firestore
+        
+        Returns:
+            List of collection names
+        """
+        if not self.is_connected():
+            return []
+        
+        try:
+            collections = self.db.collections()
+            collection_names = [col.id for col in collections]
+            print(f"✓ Found {len(collection_names)} collections: {collection_names}")
+            return collection_names
+        except Exception as e:
+            print(f"Error listing collections: {e}")
+            return []
+    
+    def get_equipos_frc_mapping(self) -> Dict[str, str]:
+        """
+        Load team name mapping from EquiposFRC collection
+        
+        Returns:
+            Dictionary mapping team number (string) to team name (string)
+        """
+        if not self.is_connected():
+            return {}
+        
+        try:
+            team_mapping = {}
+            docs = self.db.collection('EquiposFRC').stream()
+            
+            for doc in docs:
+                team_number = doc.id  # Document ID is the team number
+                team_name = doc.to_dict().get('name', doc.to_dict().get('team_name', ''))
+                
+                # Handle case where the entire document is just a string value
+                if not team_name and isinstance(doc.to_dict(), dict):
+                    # Try to get first value if it's a simple document
+                    doc_dict = doc.to_dict()
+                    if len(doc_dict) == 1:
+                        team_name = list(doc_dict.values())[0]
+                    # Or if the document has no structure, use the team number as fallback
+                    if not team_name:
+                        team_name = f"Team {team_number}"
+                
+                team_mapping[team_number] = team_name
+            
+            print(f"✓ Loaded {len(team_mapping)} team names from EquiposFRC")
+            return team_mapping
+        except Exception as e:
+            print(f"Error loading EquiposFRC mapping: {e}")
+            return {}
+    
+    def load_offseason_allstar_data(self, column_headers: List[str]) -> Tuple[List[List[Any]], Dict[str, Any]]:
+        """
+        Load match data from OffSeasonAllStar collection
+        
+        Args:
+            column_headers: Expected column headers for the output CSV format
+            
+        Returns:
+            Tuple of (rows_list, metadata_dict) where:
+            - rows_list: List of rows with data matching column_headers
+            - metadata_dict: Contains counts, warnings, and other load information
+        """
+        if not self.is_connected():
+            return [], {"error": "Not connected to Firebase"}
+        
+        try:
+            rows = []
+            metadata = {
+                "teams_loaded": 0,
+                "matches_loaded": 0,
+                "warnings": [],
+                "missing_fields": defaultdict(int)
+            }
+            
+            # Field mapping from Firestore to CSV headers
+            field_mapping = {
+                "SCOUTER INITIALS": "Scouter Initials",
+                "ROBOT": "Robot",
+                "FUTURE ALLIANCE IN QUALY?": "Future Alliance",
+                "STARTING POSITION": "Starting Position",
+                "NO SHOW": "No Show",
+                "MOVED?": "Moved (Auto)",
+                "CORAL L1 SCORED AUTO": "Coral L1 (Auto)",
+                "CORAL L2 SCORED AUTO": "Coral L2 (Auto)",
+                "CORAL L3 SCORED AUTO": "Coral L3 (Auto)",
+                "CORAL L4 SCORED AUTO": "Coral L4 (Auto)",
+                "BARGE ALGAE SCORED AUTO": "Barge Algae (Auto)",
+                "PROCESSOR ALGAE SCORED AUTO": "Processor Algae (Auto)",
+                "DISLODGED ALGAE? AUTO": "Dislodged Algae (Auto)",
+                "AUTO FOUL": "Foul (Auto)",
+                "DISLODGED ALGAE? TELEOP": "Dislodged Algae (Teleop)",
+                "PICKUP LOCATION": "Pickup Location",
+                "CORAL L1 SCORED TELEOP": "Coral L1 (Teleop)",
+                "CORAL L2 SCORED TELEOP": "Coral L2 (Teleop)",
+                "CORAL L3 SCORED TELEOP": "Coral L3 (Teleop)",
+                "CORAL L4 SCORED TELEOP": "Coral L4 (Teleop)",
+                "BARGE ALGAE SCORED TELEOP": "Barge Algae (Teleop)",
+                "PROCESSOR ALGAE SCORED TELEOP": "Processor Algae (Teleop)",
+                "CROSSED FIELD/PLAYED DEFENSE?": "Crossed Field/Defense",
+                "TIPPED/FELL OVER?": "Tipped/Fell",
+                "TOUCHED OPPOSING CAGE": "Touched Opposing Cage",
+                "DIED?": "Died",
+                "END POSITION": "End Position",
+                "BROKE?": "Broke",
+                "DEFENDED?": "Defended",
+                "CORAL HP MISTAKE?": "Coral HP Mistake",
+                "YELLOW/RED CARD": "Yellow/Red Card"
+            }
+            
+            # Default values for missing fields
+            default_values = {
+                "Scouter Initials": "",
+                "Robot": "1",
+                "Future Alliance": "Unknown",
+                "Starting Position": "Unknown",
+                "No Show": False,
+                "Moved (Auto)": False,
+                "Coral L1 (Auto)": 0,
+                "Coral L2 (Auto)": 0,
+                "Coral L3 (Auto)": 0,
+                "Coral L4 (Auto)": 0,
+                "Barge Algae (Auto)": 0,
+                "Processor Algae (Auto)": 0,
+                "Dislodged Algae (Auto)": False,
+                "Foul (Auto)": 0,
+                "Dislodged Algae (Teleop)": False,
+                "Pickup Location": "Unknown",
+                "Coral L1 (Teleop)": 0,
+                "Coral L2 (Teleop)": 0,
+                "Coral L3 (Teleop)": 0,
+                "Coral L4 (Teleop)": 0,
+                "Barge Algae (Teleop)": 0,
+                "Processor Algae (Teleop)": 0,
+                "Crossed Field/Defense": False,
+                "Tipped/Fell": False,
+                "Touched Opposing Cage": 0,
+                "Died": False,
+                "End Position": "Unknown",
+                "Broke": False,
+                "Defended": False,
+                "Coral HP Mistake": False,
+                "Yellow/Red Card": "None"
+            }
+            
+            # Get all team documents in OffSeasonAllStar
+            team_docs = self.db.collection('OffSeasonAllStar').stream()
+            
+            for team_doc in team_docs:
+                team_number = team_doc.id
+                metadata["teams_loaded"] += 1
+                
+                # Get Matches subcollection for this team
+                matches_ref = team_doc.reference.collection('Matches')
+                match_docs = matches_ref.stream()
+                
+                match_count = 0
+                for match_doc in match_docs:
+                    match_count += 1
+                    match_data = match_doc.to_dict()
+                    
+                    # Extract match number from document ID (e.g., "Match 1" -> 1)
+                    match_id = match_doc.id
+                    match_number = 0
+                    try:
+                        if match_id.startswith("Match "):
+                            match_number = int(match_id.split("Match ")[1])
+                        else:
+                            match_number = int(''.join(filter(str.isdigit, match_id)) or 0)
+                    except:
+                        match_number = match_count
+                    
+                    # Build row matching column_headers
+                    row = []
+                    for header in column_headers:
+                        if header == "Team Number":
+                            row.append(team_number)
+                        elif header == "Match Number":
+                            row.append(match_number)
+                        else:
+                            # Find the Firestore field name that maps to this header
+                            firestore_field = None
+                            for fs_field, csv_header in field_mapping.items():
+                                if csv_header == header:
+                                    firestore_field = fs_field
+                                    break
+                            
+                            if firestore_field and firestore_field in match_data:
+                                value = match_data[firestore_field]
+                                # Convert boolean values to string representation
+                                if isinstance(value, bool):
+                                    value = str(value)
+                                row.append(value)
+                            elif header in default_values:
+                                row.append(default_values[header])
+                                metadata["missing_fields"][header] += 1
+                            else:
+                                row.append("")
+                                metadata["missing_fields"][header] += 1
+                    
+                    rows.append(row)
+                    metadata["matches_loaded"] += 1
+                
+                if match_count == 0:
+                    metadata["warnings"].append(f"Team {team_number} has no matches in Matches subcollection")
+            
+            print(f"✓ Loaded {metadata['matches_loaded']} matches from {metadata['teams_loaded']} teams")
+            if metadata["missing_fields"]:
+                print(f"⚠ Missing fields detected: {dict(metadata['missing_fields'])}")
+            
+            return rows, metadata
+        except Exception as e:
+            print(f"Error loading OffSeasonAllStar data: {e}")
+            import traceback
+            traceback.print_exc()
+            return [], {"error": str(e)}
 
 
 def get_firebase_manager(credentials_path: Optional[str] = None) -> FirebaseManager:
