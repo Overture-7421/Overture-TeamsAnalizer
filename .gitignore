@@ -47,7 +47,7 @@ ehthumbs.db
 Thumbs.db
 
 # Streamlit
-.streamlit/
+.streamlit/secrets.toml
 
 # Temporary files
 /tmp/
