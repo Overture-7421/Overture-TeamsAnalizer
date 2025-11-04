@@ -10,9 +10,11 @@ import base64
 from main import AnalizadorRobot
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
 from school_system import TeamScoring, BehaviorReportType
+from firebase_integration import FirebaseManager, FIREBASE_AVAILABLE
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
+import os
 
 # Page configuration
 st.set_page_config(
@@ -32,6 +34,10 @@ if 'alliance_selector' not in st.session_state:
     st.session_state.alliance_selector = None
 if 'school_system' not in st.session_state:
     st.session_state.school_system = TeamScoring()
+if 'firebase_manager' not in st.session_state:
+    st.session_state.firebase_manager = None
+if 'firebase_connected' not in st.session_state:
+    st.session_state.firebase_connected = False
 
 # Enhanced Custom CSS for better UI
 st.markdown("""
@@ -243,6 +249,82 @@ def load_csv_data(uploaded_file):
     except Exception as e:
         return False, f"Error loading CSV: {str(e)}"
 
+def initialize_firebase(credentials_file):
+    """Initialize Firebase connection with uploaded credentials"""
+    try:
+        # Save credentials temporarily
+        credentials_path = "temp_firebase_credentials.json"
+        with open(credentials_path, "wb") as f:
+            f.write(credentials_file.getbuffer())
+        
+        # Initialize Firebase
+        firebase_manager = FirebaseManager(credentials_path)
+        
+        if firebase_manager.is_connected():
+            st.session_state.firebase_manager = firebase_manager
+            st.session_state.firebase_connected = True
+            return True, "Firebase connected successfully!"
+        else:
+            return False, "Failed to connect to Firebase. Check your credentials."
+            
+    except Exception as e:
+        return False, f"Error initializing Firebase: {str(e)}"
+
+def load_firebase_data(collection_name='scouting_data'):
+    """Load data from Firebase and convert to CSV format"""
+    try:
+        if not st.session_state.firebase_connected:
+            return False, "Firebase not connected"
+        
+        firebase_manager = st.session_state.firebase_manager
+        data = firebase_manager.get_all_scouting_data(collection_name)
+        
+        if not data:
+            return False, "No data found in Firebase"
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+        
+        # Save as temporary CSV
+        csv_path = "temp_firebase_data.csv"
+        df.to_csv(csv_path, index=False)
+        
+        # Load into analyzer
+        st.session_state.analizador.load_csv(csv_path)
+        
+        return True, f"Loaded {len(data)} records from Firebase!"
+        
+    except Exception as e:
+        return False, f"Error loading Firebase data: {str(e)}"
+
+def upload_to_firebase(collection_name='scouting_data'):
+    """Upload current data to Firebase"""
+    try:
+        if not st.session_state.firebase_connected:
+            return False, "Firebase not connected"
+        
+        firebase_manager = st.session_state.firebase_manager
+        raw_data = st.session_state.analizador.get_raw_data()
+        
+        if not raw_data or len(raw_data) <= 1:
+            return False, "No data to upload"
+        
+        # Convert to list of dictionaries
+        headers = raw_data[0]
+        data_rows = raw_data[1:]
+        data = [dict(zip(headers, row)) for row in data_rows]
+        
+        # Upload to Firebase
+        success = firebase_manager.upload_scouting_data(data, collection_name)
+        
+        if success:
+            return True, f"Uploaded {len(data)} records to Firebase!"
+        else:
+            return False, "Failed to upload data to Firebase"
+            
+    except Exception as e:
+        return False, f"Error uploading to Firebase: {str(e)}"
+
 def get_team_stats_dataframe():
     """Get team statistics as a pandas DataFrame"""
     stats = st.session_state.analizador.get_detailed_team_stats()
@@ -423,10 +505,19 @@ if page == "📊 Dashboard":
 elif page == "📁 Data Management":
     st.markdown("<div class='main-header'>📁 Data Management</div>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["Upload Data", "View Raw Data", "Export Data"])
+    # Firebase status indicator
+    if FIREBASE_AVAILABLE:
+        if st.session_state.firebase_connected:
+            st.success("🔥 Firebase Connected")
+        else:
+            st.info("🔥 Firebase Available - Connect to enable cloud features")
+    else:
+        st.warning("⚠️ Firebase SDK not installed. Install with: pip install firebase-admin google-cloud-firestore")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload Data", "🔥 Firebase", "📋 View Raw Data", "💾 Export Data"])
     
     with tab1:
-        st.markdown("### Upload CSV File")
+        st.markdown("### 📁 Upload CSV File (Manual)")
         uploaded_file = st.file_uploader("Choose a CSV file", type=['csv'])
         
         if uploaded_file is not None:
@@ -438,7 +529,8 @@ elif page == "📁 Data Management":
                 else:
                     st.error(message)
         
-        st.markdown("### Paste QR Data")
+        st.markdown("---")
+        st.markdown("### 📱 Paste QR Data (Manual)")
         qr_data = st.text_area("Paste QR code data here", height=150)
         if st.button("Load QR Data"):
             if qr_data.strip():
@@ -449,7 +541,162 @@ elif page == "📁 Data Management":
                 st.warning("Please paste QR data first")
     
     with tab2:
-        st.markdown("### Raw Data View")
+        st.markdown("### 🔥 Firebase Cloud Database")
+        
+        if not FIREBASE_AVAILABLE:
+            st.error("Firebase SDK not installed. Please install required packages:")
+            st.code("pip install firebase-admin google-cloud-firestore", language="bash")
+        else:
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.markdown("#### Firebase Configuration")
+                
+                if not st.session_state.firebase_connected:
+                    st.markdown("""
+                    **Setup Instructions:**
+                    1. Go to [Firebase Console](https://console.firebase.google.com/)
+                    2. Select your project or create a new one
+                    3. Go to Project Settings → Service Accounts
+                    4. Click "Generate new private key"
+                    5. Upload the JSON file below
+                    """)
+                    
+                    credentials_file = st.file_uploader(
+                        "Upload Firebase Credentials (JSON)", 
+                        type=['json'],
+                        key="firebase_credentials"
+                    )
+                    
+                    if credentials_file is not None:
+                        if st.button("🔗 Connect to Firebase"):
+                            success, message = initialize_firebase(credentials_file)
+                            if success:
+                                st.success(message)
+                                st.rerun()
+                            else:
+                                st.error(message)
+                else:
+                    st.success("✅ Firebase Connected!")
+                    
+                    if st.button("🔌 Disconnect"):
+                        st.session_state.firebase_connected = False
+                        st.session_state.firebase_manager = None
+                        st.rerun()
+            
+            with col2:
+                st.markdown("#### Quick Actions")
+                
+                if st.session_state.firebase_connected:
+                    st.markdown("**Status:** Connected ✓")
+                    
+                    # Display connection info
+                    st.markdown("**Operations:**")
+                    st.markdown("- Load from cloud")
+                    st.markdown("- Upload to cloud")
+                    st.markdown("- Sync data")
+                else:
+                    st.markdown("**Status:** Not Connected")
+                    st.markdown("Upload credentials to connect")
+            
+            if st.session_state.firebase_connected:
+                st.markdown("---")
+                st.markdown("#### 📥 Load Data from Firebase")
+                
+                collection_name_load = st.text_input(
+                    "Collection Name",
+                    value="scouting_data",
+                    key="load_collection"
+                )
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    if st.button("📥 Load All Data", use_container_width=True):
+                        with st.spinner("Loading data from Firebase..."):
+                            success, message = load_firebase_data(collection_name_load)
+                            if success:
+                                st.success(message)
+                                st.rerun()
+                            else:
+                                st.error(message)
+                
+                with col2:
+                    team_filter = st.number_input("Filter by Team #", min_value=0, value=0, key="team_filter")
+                    if team_filter > 0:
+                        if st.button("📥 Load Team Data", use_container_width=True):
+                            try:
+                                firebase_manager = st.session_state.firebase_manager
+                                data = firebase_manager.get_scouting_data_by_team(team_filter, collection_name_load)
+                                
+                                if data:
+                                    df = pd.DataFrame(data)
+                                    csv_path = "temp_firebase_data.csv"
+                                    df.to_csv(csv_path, index=False)
+                                    st.session_state.analizador.load_csv(csv_path)
+                                    st.success(f"Loaded {len(data)} records for team {team_filter}")
+                                    st.rerun()
+                                else:
+                                    st.warning(f"No data found for team {team_filter}")
+                            except Exception as e:
+                                st.error(f"Error: {str(e)}")
+                
+                with col3:
+                    match_filter = st.number_input("Filter by Match #", min_value=0, value=0, key="match_filter")
+                    if match_filter > 0:
+                        if st.button("📥 Load Match Data", use_container_width=True):
+                            try:
+                                firebase_manager = st.session_state.firebase_manager
+                                data = firebase_manager.get_scouting_data_by_match(match_filter, collection_name_load)
+                                
+                                if data:
+                                    df = pd.DataFrame(data)
+                                    csv_path = "temp_firebase_data.csv"
+                                    df.to_csv(csv_path, index=False)
+                                    st.session_state.analizador.load_csv(csv_path)
+                                    st.success(f"Loaded {len(data)} records for match {match_filter}")
+                                    st.rerun()
+                                else:
+                                    st.warning(f"No data found for match {match_filter}")
+                            except Exception as e:
+                                st.error(f"Error: {str(e)}")
+                
+                st.markdown("---")
+                st.markdown("#### 📤 Upload Data to Firebase")
+                
+                collection_name_upload = st.text_input(
+                    "Collection Name",
+                    value="scouting_data",
+                    key="upload_collection"
+                )
+                
+                if st.button("📤 Upload Current Data to Firebase"):
+                    with st.spinner("Uploading data to Firebase..."):
+                        success, message = upload_to_firebase(collection_name_upload)
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+                
+                st.markdown("---")
+                st.markdown("#### ⚠️ Advanced Operations")
+                
+                with st.expander("🗑️ Clear Firebase Collection"):
+                    st.warning("**Warning:** This will delete all data in the collection!")
+                    clear_collection = st.text_input("Type collection name to confirm", key="clear_collection")
+                    
+                    if st.button("🗑️ Clear Collection"):
+                        if clear_collection == collection_name_load:
+                            firebase_manager = st.session_state.firebase_manager
+                            if firebase_manager.clear_collection(clear_collection):
+                                st.success(f"Cleared collection '{clear_collection}'")
+                            else:
+                                st.error("Failed to clear collection")
+                        else:
+                            st.error("Collection name doesn't match. Operation cancelled.")
+    
+    with tab3:
+        st.markdown("### 📋 Raw Data View")
         raw_data = st.session_state.analizador.get_raw_data()
         
         if raw_data and len(raw_data) > 1:
@@ -458,10 +705,10 @@ elif page == "📁 Data Management":
             
             st.markdown(f"**Total Records:** {len(raw_data) - 1}")
         else:
-            st.info("No data loaded yet. Please upload a CSV file or paste QR data.")
+            st.info("No data loaded yet. Please upload a CSV file, paste QR data, or load from Firebase.")
     
-    with tab3:
-        st.markdown("### Export Options")
+    with tab4:
+        st.markdown("### 💾 Export Options")
         
         if st.button("Export Raw Data as CSV"):
             raw_data = st.session_state.analizador.get_raw_data()

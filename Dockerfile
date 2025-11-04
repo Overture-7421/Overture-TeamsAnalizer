@@ -34,8 +34,8 @@ COPY *.md ./
 COPY test_data.csv ./
 COPY extended_test_data.csv ./
 
-# Create directory for uploaded files
-RUN mkdir -p /app/uploads
+# Create directory for uploaded files and Firebase credentials
+RUN mkdir -p /app/uploads /app/firebase
 
 # Expose Streamlit default port
 EXPOSE 8501
