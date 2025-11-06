@@ -1,0 +1,371 @@
+[
+    {
+        "city": "Guadalupe",
+        "country": "Mexico",
+        "key": "frc10225",
+        "name": "John Deere/MAGNA/Argosy Foundation/Agua Industrial Monterrey S de U/Bosch, DEKA Foundation & Jabil Cares/SolidWorks/Cinthya Fern\u00e1ndez/Guzm\u00e1n - Ferreter\u00eda y materiales &Tecmilenio Campus Guadalupe",
+        "nickname": "Prepa Tecmilenio - PYROX",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 10225
+    },
+    {
+        "city": "Monterrey",
+        "country": "Mexico",
+        "key": "frc10529",
+        "name": "Universidad Tecmilenio",
+        "nickname": "BATS",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 10529
+    },
+    {
+        "city": "Metepec",
+        "country": "Mexico",
+        "key": "frc3158",
+        "name": "PrepaTec Metepec/SolidWorks&Prepa Tec Metepec",
+        "nickname": "PrepaTec - TECBOT",
+        "state_prov": "Mexico",
+        "team_number": 3158
+    },
+    {
+        "city": "Queretaro",
+        "country": "Mexico",
+        "key": "frc3354",
+        "name": "Viva/Wago/Autocom/Herco/Rastreo 365/Wundertec/Gogo Shopping/NobleProg&PrepaTec Queretaro",
+        "nickname": "PrepaTec - TecDroid",
+        "state_prov": "Quer\u00e9taro",
+        "team_number": 3354
+    },
+    {
+        "city": "Atizapan de Zaragoza",
+        "country": "Mexico",
+        "key": "frc3472",
+        "name": "PrepaTec CEM&Instituto Tecnol\u00f3gico y de Estudios Superiores de Monterrey",
+        "nickname": "PrepaTec - Buluk",
+        "state_prov": "Mexico",
+        "team_number": 3472
+    },
+    {
+        "city": "San Luis Potos\u00ed",
+        "country": "Mexico",
+        "key": "frc3478",
+        "name": "PrepaTec San Luis Potos\u00ed/General Motors/BOSCH/Cummins/WCP/Artepisa&Tecnol\u00f3gico de Monterrey Campus San Luis",
+        "nickname": "PrepaTec - LamBot",
+        "state_prov": "San Luis Potos\u00ed",
+        "team_number": 3478
+    },
+    {
+        "city": "Le\u00f3n",
+        "country": "Mexico",
+        "key": "frc3480",
+        "name": "Prepa Tec Le\u00f3n/General Motors&INSTITUTO TECNOLOGICO Y DE ESTUDIOS SUPERIORES DE MONTERREY CAMPUS LEON",
+        "nickname": "PrepaTec - ABTOMAT",
+        "state_prov": "Guanajuato",
+        "team_number": 3480
+    },
+    {
+        "city": "Saltillo",
+        "country": "Mexico",
+        "key": "frc3526",
+        "name": "General Motors&Prepatec - Saltillo",
+        "nickname": "PrepaTec - Blue Ignition",
+        "state_prov": "Coahuila",
+        "team_number": 3526
+    },
+    {
+        "city": "Atizapan de Zaragoza",
+        "country": "Mexico",
+        "key": "frc3527",
+        "name": "PrepaTec ESM/Harley-Davidson/SugarCRM/DANA/Comecyt&Instituto Tecnol\u00f3gico de Estudios Superiores de Monterrey",
+        "nickname": "PrepaTec - Balam Esmeralda",
+        "state_prov": "Mexico",
+        "team_number": 3527
+    },
+    {
+        "city": "Mexico",
+        "country": "Mexico",
+        "key": "frc3933",
+        "name": "PrepaTec Santa Fe/General Motors Mexico&Tecnol\u00f3gico de Monterrey Campus Santa Fe",
+        "nickname": "PrepaTec - Taman Keet",
+        "state_prov": "Distrito Federal",
+        "team_number": 3933
+    },
+    {
+        "city": "Tlalpan",
+        "country": "Mexico",
+        "key": "frc4010",
+        "name": "Qualcomm&Tecnologico de Monterrey, Campus Ciudad de Mexico",
+        "nickname": "PrepaTec - Nautilus",
+        "state_prov": "Distrito Federal",
+        "team_number": 4010
+    },
+    {
+        "city": "TORREON",
+        "country": "Mexico",
+        "key": "frc4400",
+        "name": "PE\u00d1OLES/Grupo SIMSA/JOHN DEERE/REV Robotics&COLEGIO CERVANTES DE TORREON",
+        "nickname": "Cerbotics - Pe\u00f1oles",
+        "state_prov": "Coahuila",
+        "team_number": 4400
+    },
+    {
+        "city": "Torreon",
+        "country": "Mexico",
+        "key": "frc4403",
+        "name": "PE\u00d1OLES&PrepaTec Laguna",
+        "nickname": "PrepaTec - ROULT - Pe\u00f1oles",
+        "state_prov": "Coahuila",
+        "team_number": 4403
+    },
+    {
+        "city": "Monterrey",
+        "country": "Mexico",
+        "key": "frc4635",
+        "name": "PrepaTec, Eugenio Garza Sada/General Motors/Qualcomm/Magna/Milwaukee/Rockit Robotics/POISE/War Games &PrepaTec Eugenio Garza Sada",
+        "nickname": "PrepaTec - Botbusters",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 4635
+    },
+    {
+        "city": "Morelia",
+        "country": "Mexico",
+        "key": "frc4731",
+        "name": "AXEN Energy&Prepa Tec ITESM Campus Morelia",
+        "nickname": "MONARCH-E",
+        "state_prov": "Michoac\u00e1n",
+        "team_number": 4731
+    },
+    {
+        "city": "TORREON",
+        "country": "Mexico",
+        "key": "frc4735",
+        "name": "Metalurgica Met-Mex Pe\u00f1oles S.A. de C.V./Universidad Tecmilenio&Preparatoria Tecmilenio Campus Laguna",
+        "nickname": "Prepa Tecmilenio - DEROF - Pe\u00f1oles",
+        "state_prov": "Coahuila",
+        "team_number": 4735
+    },
+    {
+        "city": "Hermosillo",
+        "country": "Mexico",
+        "key": "frc4782",
+        "name": "PrepaTec Sonora Norte&Tec de Monterrey Campus Sonora Norte",
+        "nickname": "PrepaTec - Borrebots",
+        "state_prov": "Sonora",
+        "team_number": 4782
+    },
+    {
+        "city": "Monterrey",
+        "country": "Mexico",
+        "key": "frc4977",
+        "name": "Arcelor Mittal/DEACERO/Zurdo + Arcq/John Deere/Gene Haas Foundation/Centro de Innovaci\u00f3n, Rob\u00f3tica e Inspiraci\u00f3n S.A.S. de C.V.&horno3",
+        "nickname": "Iron Lion",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 4977
+    },
+    {
+        "city": "AGUASCALIENTES",
+        "country": "Mexico",
+        "key": "frc5133",
+        "name": "PrepaTec Aguascalientes&ITESM",
+        "nickname": "PrepaTec - Blue Steel",
+        "state_prov": "Aguascalientes",
+        "team_number": 5133
+    },
+    {
+        "city": "PACHUCA",
+        "country": "Mexico",
+        "key": "frc5716",
+        "name": "Grupo GOCA/Makers Gonna Make/Casa Teller\u00eda&Tecnolog\u00edco de Monterrey",
+        "nickname": "PrepaTec - Keybot",
+        "state_prov": "Hidalgo",
+        "team_number": 5716
+    },
+    {
+        "city": "Puebla",
+        "country": "Mexico",
+        "key": "frc5887",
+        "name": "SuperLasser&Fixture/Hilton Garden Inn Puebla & Tecnologico de Monterrey en Puebla",
+        "nickname": "PrepaTec IMPERATOR",
+        "state_prov": "Puebla",
+        "team_number": 5887
+    },
+    {
+        "city": "Cuernavaca",
+        "country": "Mexico",
+        "key": "frc5948",
+        "name": "Prepa Tec Cuernavaca/Bridgestone/W\u00fcrth/Baxter&Instituto Tecnol\u00f3gico y de estudios superiores de Monterrey",
+        "nickname": "PrepaTec - Lebotics",
+        "state_prov": "Morelos",
+        "team_number": 5948
+    },
+    {
+        "city": "Tampico",
+        "country": "Mexico",
+        "key": "frc5959",
+        "name": "PrepaTec Tampico&PrepaTec Tampico",
+        "nickname": "PrepaTec - Titanium Rams",
+        "state_prov": "Tamaulipas",
+        "team_number": 5959
+    },
+    {
+        "city": "Santa Catarina",
+        "country": "Mexico",
+        "key": "frc6017",
+        "name": "PrepaTec Santa Catarina/Talos Industries/Crafting Buddies&Tecnologico de Monterrey, PrepaTec Santa Catarina",
+        "nickname": "PrepaTec - Cyberius",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 6017
+    },
+    {
+        "city": "MONTERREY",
+        "country": "Mexico",
+        "key": "frc6647",
+        "name": "PrepaTec/John Deere/Gene Haas Foundation/Qualcomm/Benevity/Sap Labs Latin America/McGraw Hill/Equitek&PrepaTec Eugenio Garza Lag\u00fcera",
+        "nickname": "PrepaTec - VOLTEC",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 6647
+    },
+    {
+        "city": "San Nicolas de los Garza",
+        "country": "Mexico",
+        "key": "frc6652",
+        "name": "John Deere&Universidad Autonoma de Nuevo Le\u00f3n&Facultad de Ingenier\u00eda Mec\u00e1nica y El\u00e9ctrica",
+        "nickname": "Tigres",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 6652
+    },
+    {
+        "city": "Tlajomulco de Z\u00fa\u00f1iga",
+        "country": "Mexico",
+        "key": "frc6702",
+        "name": "MOLEX/Tec de Monterrey&ITESM, Prepa Tec Santa Anita",
+        "nickname": "PrepaTec - StingBots",
+        "state_prov": "Jalisco",
+        "team_number": 6702
+    },
+    {
+        "city": "Zapopan",
+        "country": "Mexico",
+        "key": "frc7102",
+        "name": "Prepa Tec Guadalajara  & PrepaTec Guadalajara",
+        "nickname": "PrepaTec - Daedalus",
+        "state_prov": "Jalisco",
+        "team_number": 7102
+    },
+    {
+        "city": "Monterrey",
+        "country": "Mexico",
+        "key": "frc7421",
+        "name": "PrepaTec Cumbres",
+        "nickname": "PrepaTec - OVERTURE",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 7421
+    },
+    {
+        "city": "Guadalupe ",
+        "country": "Mexico",
+        "key": "frc7546",
+        "name": "John Deere&Prepa Tec Zacatecas",
+        "nickname": "Prepa Tec - MinerZ",
+        "state_prov": "Zacatecas",
+        "team_number": 7546
+    },
+    {
+        "city": "Monterrey",
+        "country": "Mexico",
+        "key": "frc7725",
+        "name": "John Deere&Prepa Tec Valle Alto",
+        "nickname": "PrepaTec - NUTS & VOLTS",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 7725
+    },
+    {
+        "city": "Monterrey",
+        "country": "Mexico",
+        "key": "frc8740",
+        "name": "John Deere&UNIVERSIDAD TECMILENIO",
+        "nickname": "Prepa Tecmilenio - Quantum Force",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 8740
+    },
+    {
+        "city": "Pesqueria",
+        "country": "Mexico",
+        "key": "frc9213",
+        "name": "Ternium M\u00e9xico&Escuela T\u00e9cnica Roberto Rocca",
+        "nickname": "Tecuani",
+        "state_prov": "Nuevo Le\u00f3n",
+        "team_number": 9213
+    },
+    {
+        "city": "Toluca",
+        "country": "Mexico",
+        "key": "frc9280",
+        "name": "GEO Gran Turismo/LA MODERNA&Tecnol\u00f3gico de Monterrey Campus Toluca",
+        "nickname": "PrepaTec - High Altitude Robotics",
+        "state_prov": "Mexico",
+        "team_number": 9280
+    },
+    {
+        "city": "Culiacan",
+        "country": "Mexico",
+        "key": "frc9282",
+        "name": "PREPA TEC CAMPUS SINALOA",
+        "nickname": "PrepaTec- SINAVOLT",
+        "state_prov": "Sinaloa",
+        "team_number": 9282
+    },
+    {
+        "city": "Chihuahua",
+        "country": "Mexico",
+        "key": "frc9301",
+        "name": "Tecnol\u00f3gico de Monterrey",
+        "nickname": "PrepaTec - MechRams",
+        "state_prov": "Chihuahua",
+        "team_number": 9301
+    },
+    {
+        "city": "Manchester",
+        "country": "USA",
+        "key": "frc9978",
+        "name": "Team 9978",
+        "nickname": "Off-Season Demo Team 9978",
+        "state_prov": "NH",
+        "team_number": 9978
+    },
+    {
+        "city": "Manchester",
+        "country": "USA",
+        "key": "frc9982",
+        "name": "FIRST Off-Season Demo Team",
+        "nickname": "Off-Season Demo Team 9982",
+        "state_prov": "NH",
+        "team_number": 9982
+    },
+    {
+        "city": "Manchester",
+        "country": "USA",
+        "key": "frc9991",
+        "name": "FIRST Off-Season Demo Team",
+        "nickname": "Off-Season Demo Team 9991",
+        "state_prov": "NH",
+        "team_number": 9991
+    },
+    {
+        "city": "Manchester",
+        "country": "USA",
+        "key": "frc9995",
+        "name": "FIRST Off-Season Demo Team",
+        "nickname": "Off-Season Demo Team 9995",
+        "state_prov": "NH",
+        "team_number": 9995
+    },
+    {
+        "city": "Manchester",
+        "country": "USA",
+        "key": "frc9999",
+        "name": "FIRST Off-Season Demo Team",
+        "nickname": "Off-Season Demo Team 9999",
+        "state_prov": "NH",
+        "team_number": 9999
+    }
+]

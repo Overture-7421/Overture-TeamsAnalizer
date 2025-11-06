@@ -219,23 +219,39 @@ class AllianceSelector:
         recommended_pick2 = set()
 
         # Pick 1 (1-8)
+        # New logic: Recommend the captain of the next alliance if available.
+        all_captains = [a.captain for a in self.alliances if a.captain]
+        
         for idx, a in enumerate(self.alliances):
             if not a.pick1:
-                available = self.get_available_teams(a.captainRank, 'pick1')
-                # Filter out already recommended teams
-                available = [t for t in available if t.team not in recommended_pick1]
-                if available:
-                    preferred = None
-                    if a.captainRank:
-                        for team in available:
-                            if team.rank > a.captainRank:
-                                preferred = team
-                                break
-                    chosen = preferred if preferred else available[0]
-                    a.pick1Rec = chosen.team
-                    recommended_pick1.add(chosen.team)
+                # Determine the target for recommendation
+                target_captain_team = None
+                if idx + 1 < len(all_captains):
+                    # Target the next alliance's captain
+                    target_captain_team = all_captains[idx + 1]
                 else:
-                    a.pick1Rec = None
+                    # For the last alliance, find the next best team by rank not already a captain or picked
+                    selected_teams = set(self.get_selected_picks()) | set(all_captains)
+                    next_best_options = [t for t in self.teams if t.team not in selected_teams]
+                    next_best_options.sort(key=lambda t: t.rank)
+                    if next_best_options:
+                        target_captain_team = next_best_options[0].team
+
+                available = self.get_available_teams(a.captainRank, 'pick1')
+                available_teams_set = {t.team for t in available}
+                
+                # Check if the desired target is available
+                if target_captain_team and target_captain_team in available_teams_set:
+                    a.pick1Rec = target_captain_team
+                    recommended_pick1.add(target_captain_team)
+                else:
+                    # Fallback to best available if target is not available
+                    available = [t for t in available if t.team not in recommended_pick1]
+                    if available:
+                        a.pick1Rec = available[0].team
+                        recommended_pick1.add(available[0].team)
+                    else:
+                        a.pick1Rec = None
             else:
                 a.pick1Rec = None
 
@@ -255,10 +271,17 @@ class AllianceSelector:
                 a.pick2Rec = None
 
     def set_pick(self, alliance_index, pick_type, team_number):
-        team_number = int(team_number)
-        
         # Get the alliance that is making this pick
         picking_alliance = self.alliances[alliance_index]
+
+        # Allow clearing a pick by passing None or 0
+        if team_number in (None, 0):
+            setattr(picking_alliance, pick_type, None)
+            self.update_alliance_captains()
+            self.update_recommendations()
+            return
+
+        team_number = int(team_number)
         
         # Check if the team is the captain of the SAME alliance (captains cannot pick themselves)
         if team_number == picking_alliance.captain:
