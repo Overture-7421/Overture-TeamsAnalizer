@@ -1,5 +1,3 @@
-import copy
-
 # Enhanced scoring weights based on comprehensive analysis
 W_AUTO = 1.5      # Increased weight for autonomous performance 
 W_TELEOP = 1.0    # Base teleop weight
@@ -9,7 +7,9 @@ W_CONSISTENCY = 5 # New weight for consistency bonus
 W_CLUTCH = 8      # New weight for high-pressure performance
 
 class Team:
-    def __init__(self, num, rank, total_epa, auto_epa, teleop_epa, endgame_epa, defense=False, name=None, robot_valuation=0, consistency_score=0, clutch_factor=0):
+    def __init__(self, num, rank, total_epa, auto_epa, teleop_epa, endgame_epa, defense=False, name=None,
+                 robot_valuation=0, consistency_score=0, clutch_factor=0, death_rate=0.0, defended_rate=0.0,
+                 defense_rate=0.0, algae_score=0.0):
         self.team = int(num)
         self.rank = int(rank)
         self.total_epa = float(total_epa)
@@ -23,6 +23,10 @@ class Team:
         self.robot_valuation = float(robot_valuation) if robot_valuation else 0
         self.consistency_score = float(consistency_score) if consistency_score else 0
         self.clutch_factor = float(clutch_factor) if clutch_factor else 0
+        self.death_rate = float(death_rate) if death_rate else 0.0
+        self.defended_rate = float(defended_rate) if defended_rate else 0.0
+        self.defense_rate = float(defense_rate) if defense_rate else 0.0
+        self.algae_score = float(algae_score) if algae_score else 0.0
         
         self.score = self.compute_score()
 
@@ -63,7 +67,11 @@ class Team:
             "score": self.score,
             "robot_valuation": self.robot_valuation,
             "consistency_score": self.consistency_score,
-            "clutch_factor": self.clutch_factor
+            "clutch_factor": self.clutch_factor,
+            "death_rate": self.death_rate,
+            "defended_rate": self.defended_rate,
+            "defense_rate": self.defense_rate,
+            "algae_score": self.algae_score
         }
 
 class Alliance:
@@ -75,6 +83,7 @@ class Alliance:
         self.pick2 = None
         self.pick1Rec = None
         self.pick2Rec = None
+        self.manual_captain = False
 
     def as_dict(self):
         return {
@@ -105,16 +114,38 @@ class AllianceSelector:
         return selected
 
     def update_alliance_captains(self):
-        selected_picks = self.get_selected_picks()
-        available = [t for t in self.teams if t.team not in selected_picks]
+        selected_picks = set(self.get_selected_picks())
+
+        # Validate existing captains and keep manual selections intact when possible
+        used_captains = set()
+        for alliance in self.alliances:
+            if alliance.captain is None:
+                continue
+            if alliance.captain in selected_picks:
+                alliance.captain = None
+                alliance.captainRank = None
+                alliance.manual_captain = False
+                continue
+            used_captains.add(alliance.captain)
+
+        available = [t for t in self.teams if t.team not in selected_picks and t.team not in used_captains]
         available.sort(key=lambda t: t.rank)
-        for i, a in enumerate(self.alliances):
-            if i < len(available):
-                a.captain = available[i].team
-                a.captainRank = available[i].rank
+
+        for alliance in self.alliances:
+            if alliance.captain is None and available:
+                team = available.pop(0)
+                alliance.captain = team.team
+                alliance.captainRank = team.rank
+                alliance.manual_captain = False
+            elif alliance.captain is not None:
+                # Ensure captain rank stays in sync
+                for team in self.teams:
+                    if team.team == alliance.captain:
+                        alliance.captainRank = team.rank
+                        break
             else:
-                a.captain = None
-                a.captainRank = None
+                alliance.captain = None
+                alliance.captainRank = None
 
     def get_available_teams(self, drafting_captain_rank, pick_type):
         selected_picks = self.get_selected_picks()
@@ -142,17 +173,36 @@ class AllianceSelector:
                     break
             
             if is_captain:
-                # If team is a captain, it can only be picked by OTHER alliances
-                if drafting_alliance and captain_alliance and drafting_alliance.allianceNumber == captain_alliance.allianceNumber:
-                    # Same alliance - captain cannot pick themselves
+                if drafting_alliance and captain_alliance:
+                    # Captains can be drafted only by higher-ranked alliances (lower alliance number)
+                    if drafting_alliance.allianceNumber == captain_alliance.allianceNumber:
+                        continue
+                    if drafting_alliance.allianceNumber > captain_alliance.allianceNumber:
+                        continue
+                elif captain_alliance:
+                    # If no drafting alliance identified (failsafe), disallow picking own captain
                     continue
-                # Different alliance - captain can be picked
             
             # Team is available
             available.append(team)
         
-        # Sort by score descending, then by rank ascending for tie-breaker
-        available.sort(key=lambda t: (-t.score, t.rank))
+        if pick_type == 'pick2':
+            def pick2_key(team):
+                # Prioritize defensive specialists and algae scorers with reliable performance
+                defense_priority = team.defense_rate if hasattr(team, 'defense_rate') else 0.0
+                algae_priority = team.algae_score if hasattr(team, 'algae_score') else 0.0
+                reliability_penalty = team.death_rate if hasattr(team, 'death_rate') else 0.0
+                return (
+                    -defense_priority,
+                    -algae_priority,
+                    reliability_penalty,
+                    -team.score,
+                    team.rank
+                )
+
+            available.sort(key=pick2_key)
+        else:
+            available.sort(key=lambda t: (-t.score, t.rank))
         return available
 
     def get_team_score(self, team_number):
@@ -175,8 +225,15 @@ class AllianceSelector:
                 # Filter out already recommended teams
                 available = [t for t in available if t.team not in recommended_pick1]
                 if available:
-                    a.pick1Rec = available[0].team
-                    recommended_pick1.add(available[0].team)
+                    preferred = None
+                    if a.captainRank:
+                        for team in available:
+                            if team.rank > a.captainRank:
+                                preferred = team
+                                break
+                    chosen = preferred if preferred else available[0]
+                    a.pick1Rec = chosen.team
+                    recommended_pick1.add(chosen.team)
                 else:
                     a.pick1Rec = None
             else:
@@ -228,6 +285,50 @@ class AllianceSelector:
         self.update_alliance_captains()
         self.update_recommendations()
 
+    def set_captain(self, alliance_index, team_number):
+        alliance = self.alliances[alliance_index]
+
+        if team_number in (None, 0):
+            alliance.captain = None
+            alliance.captainRank = None
+            alliance.manual_captain = False
+            self.update_alliance_captains()
+            self.update_recommendations()
+            return
+
+        if team_number in self.get_selected_picks():
+            raise ValueError(f"Team {team_number} is already selected as a pick and cannot be captain.")
+
+        team = next((t for t in self.teams if t.team == team_number), None)
+        if not team:
+            raise ValueError(f"Team {team_number} does not exist in the team list.")
+
+        # Remove captain assignment from other alliances if necessary
+        for idx, other in enumerate(self.alliances):
+            if idx == alliance_index:
+                continue
+            if other.captain == team_number:
+                other.captain = None
+                other.captainRank = None
+                other.manual_captain = False
+
+        alliance.captain = team.team
+        alliance.captainRank = team.rank
+        alliance.manual_captain = True
+        self.update_alliance_captains()
+        self.update_recommendations()
+
+    def get_available_captains(self, alliance_index):
+        picks = set(self.get_selected_picks())
+        alliance = self.alliances[alliance_index]
+        options = []
+        for team in self.teams:
+            if team.team in picks and team.team != alliance.captain:
+                continue
+            options.append(team)
+        options.sort(key=lambda t: t.rank)
+        return options
+
     def get_alliance_table(self):
         table = []
         for a in self.alliances:
@@ -242,7 +343,8 @@ class AllianceSelector:
                 "Recommendation 1": a.pick1Rec,
                 "Pick 2": a.pick2,
                 "Recommendation 2": a.pick2Rec,
-                "Alliance Score": round(alliance_score, 1)
+                "Alliance Score": round(alliance_score, 1),
+                "Captain Mode": "Manual" if a.manual_captain else "Auto"
             })
         return table
 
@@ -291,6 +393,10 @@ def teams_from_dicts(team_dicts):
             name=d.get("name", None),
             robot_valuation=d.get("robot_valuation", 0),
             consistency_score=d.get("consistency_score", 0),
-            clutch_factor=d.get("clutch_factor", 0)
+            clutch_factor=d.get("clutch_factor", 0),
+            death_rate=d.get("death_rate", 0.0),
+            defended_rate=d.get("defended_rate", 0.0),
+            defense_rate=d.get("defense_rate", 0.0),
+            algae_score=d.get("algae_score", 0.0)
         ))
     return teams

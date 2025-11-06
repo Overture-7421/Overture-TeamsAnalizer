@@ -10,7 +10,6 @@ import base64
 from main import AnalizadorRobot
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
 from school_system import TeamScoring, BehaviorReportType
-from firebase_integration import FirebaseManager, FIREBASE_AVAILABLE
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
@@ -34,10 +33,6 @@ if 'alliance_selector' not in st.session_state:
     st.session_state.alliance_selector = None
 if 'school_system' not in st.session_state:
     st.session_state.school_system = TeamScoring()
-if 'firebase_manager' not in st.session_state:
-    st.session_state.firebase_manager = None
-if 'firebase_connected' not in st.session_state:
-    st.session_state.firebase_connected = False
 
 # Enhanced Custom CSS for better UI
 st.markdown("""
@@ -50,20 +45,26 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     
+    body, .stApp, .main {
+        background-color: #000000;
+        color: #f5f5f5;
+    }
+    
     /* Main container */
     .main {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #000000;
         background-attachment: fixed;
     }
     
     /* Content area */
     .block-container {
         padding: 2rem 3rem;
-        background: rgba(255, 255, 255, 0.95);
+        background: rgba(18, 18, 20, 0.95);
         border-radius: 20px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        backdrop-filter: blur(10px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(16px);
         margin: 1rem;
+        color: #f5f5f5;
     }
     
     /* Headers */
@@ -81,10 +82,10 @@ st.markdown("""
     .sub-header {
         font-size: 1.8rem;
         font-weight: 600;
-        color: #667eea;
+        color: #9f9dfd;
         margin-top: 2rem;
         margin-bottom: 1rem;
-        border-left: 4px solid #667eea;
+        border-left: 4px solid #9f9dfd;
         padding-left: 1rem;
     }
     
@@ -92,50 +93,50 @@ st.markdown("""
     div[data-testid="stMetricValue"] {
         font-size: 2rem;
         font-weight: 700;
-        color: #667eea;
+        color: #c3c2ff;
     }
     
     div[data-testid="stMetricLabel"] {
         font-weight: 600;
-        color: #4a5568;
+        color: #d1d5db;
     }
     
     .metric-card {
-        background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+        background: linear-gradient(135deg, rgba(50, 50, 70, 0.6) 0%, rgba(30, 30, 45, 0.8) 100%);
         padding: 1.5rem;
         border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        box-shadow: 0 10px 24px rgba(15, 15, 25, 0.7);
         margin: 0.5rem 0;
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(159, 157, 253, 0.35);
         transition: transform 0.2s, box-shadow 0.2s;
     }
     
     .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 8px 12px rgba(102, 126, 234, 0.15);
+        box-shadow: 0 12px 24px rgba(102, 126, 234, 0.25);
     }
     
     /* Buttons */
     .stButton>button {
         width: 100%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: linear-gradient(135deg, #7f7eff 0%, #a855f7 100%);
+        color: #ffffff;
         border: none;
         border-radius: 8px;
         padding: 0.6rem 1.2rem;
         font-weight: 600;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 6px 14px rgba(128, 90, 213, 0.5);
     }
     
     .stButton>button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 12px 24px rgba(128, 90, 213, 0.6);
     }
     
     /* Sidebar */
     section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(180deg, #111118 0%, #1f1b2b 100%);
     }
     
     section[data-testid="stSidebar"] .css-1d391kg {
@@ -164,29 +165,34 @@ st.markdown("""
     }
     
     .stTabs [data-baseweb="tab"] {
-        background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+        background: linear-gradient(135deg, rgba(40, 40, 60, 0.8) 0%, rgba(30, 30, 45, 0.9) 100%);
         border-radius: 8px;
         padding: 0.5rem 1rem;
         font-weight: 600;
-        border: 1px solid #e2e8f0;
+        border: 1px solid rgba(159, 157, 253, 0.25);
+        color: #e5e7ff;
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white !important;
+        background: linear-gradient(135deg, #7f7eff 0%, #a855f7 100%);
+        color: #ffffff !important;
     }
     
     /* DataFrames */
     .dataframe {
         border-radius: 8px;
         overflow: hidden;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
+        color: #f5f5f5;
+        background: rgba(15, 15, 20, 0.85);
     }
     
     /* Info/Warning/Success boxes */
     .stAlert {
         border-radius: 8px;
         border-left: 4px solid;
+        background: rgba(30, 30, 45, 0.9);
+        color: #f8fafc;
     }
     
     /* File uploader */
@@ -198,13 +204,14 @@ st.markdown("""
     /* Plotly charts */
     .js-plotly-plot {
         border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
+        background: rgba(15, 15, 20, 0.8);
     }
     
     /* Team badge */
     .team-badge {
         display: inline-block;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #7f7eff 0%, #a855f7 100%);
         color: white;
         padding: 0.3rem 0.8rem;
         border-radius: 20px;
@@ -215,19 +222,19 @@ st.markdown("""
     
     /* Stats card */
     .stats-card {
-        background: white;
+        background: linear-gradient(135deg, rgba(40, 40, 60, 0.85) 0%, rgba(25, 25, 40, 0.9) 100%);
         padding: 1.5rem;
         border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        box-shadow: 0 12px 32px rgba(10, 10, 20, 0.7);
         margin: 1rem 0;
-        border-left: 4px solid #667eea;
+        border-left: 4px solid #9f9dfd;
     }
     
     /* Footer */
     .footer {
         text-align: center;
         padding: 2rem;
-        color: #718096;
+        color: #9ca3af;
         font-size: 0.9rem;
         margin-top: 3rem;
     }
@@ -248,82 +255,6 @@ def load_csv_data(uploaded_file):
         return True, "CSV loaded successfully!"
     except Exception as e:
         return False, f"Error loading CSV: {str(e)}"
-
-def initialize_firebase(credentials_file):
-    """Initialize Firebase connection with uploaded credentials"""
-    try:
-        # Save credentials temporarily
-        credentials_path = "temp_firebase_credentials.json"
-        with open(credentials_path, "wb") as f:
-            f.write(credentials_file.getbuffer())
-        
-        # Initialize Firebase
-        firebase_manager = FirebaseManager(credentials_path)
-        
-        if firebase_manager.is_connected():
-            st.session_state.firebase_manager = firebase_manager
-            st.session_state.firebase_connected = True
-            return True, "Firebase connected successfully!"
-        else:
-            return False, "Failed to connect to Firebase. Check your credentials."
-            
-    except Exception as e:
-        return False, f"Error initializing Firebase: {str(e)}"
-
-def load_firebase_data(collection_name='scouting_data'):
-    """Load data from Firebase and convert to CSV format"""
-    try:
-        if not st.session_state.firebase_connected:
-            return False, "Firebase not connected"
-        
-        firebase_manager = st.session_state.firebase_manager
-        data = firebase_manager.get_all_scouting_data(collection_name)
-        
-        if not data:
-            return False, "No data found in Firebase"
-        
-        # Convert to DataFrame
-        df = pd.DataFrame(data)
-        
-        # Save as temporary CSV
-        csv_path = "temp_firebase_data.csv"
-        df.to_csv(csv_path, index=False)
-        
-        # Load into analyzer
-        st.session_state.analizador.load_csv(csv_path)
-        
-        return True, f"Loaded {len(data)} records from Firebase!"
-        
-    except Exception as e:
-        return False, f"Error loading Firebase data: {str(e)}"
-
-def upload_to_firebase(collection_name='scouting_data'):
-    """Upload current data to Firebase"""
-    try:
-        if not st.session_state.firebase_connected:
-            return False, "Firebase not connected"
-        
-        firebase_manager = st.session_state.firebase_manager
-        raw_data = st.session_state.analizador.get_raw_data()
-        
-        if not raw_data or len(raw_data) <= 1:
-            return False, "No data to upload"
-        
-        # Convert to list of dictionaries
-        headers = raw_data[0]
-        data_rows = raw_data[1:]
-        data = [dict(zip(headers, row)) for row in data_rows]
-        
-        # Upload to Firebase
-        success = firebase_manager.upload_scouting_data(data, collection_name)
-        
-        if success:
-            return True, f"Uploaded {len(data)} records to Firebase!"
-        else:
-            return False, "Failed to upload data to Firebase"
-            
-    except Exception as e:
-        return False, f"Error uploading to Firebase: {str(e)}"
 
 def get_team_stats_dataframe():
     """Get team statistics as a pandas DataFrame"""
@@ -357,6 +288,10 @@ def create_alliance_selector_teams():
         
         # Get phase scores
         phase_scores = st.session_state.analizador.calculate_team_phase_scores(int(team_num))
+        death_rate = get_rate_from_stat(stat, ("Died", "Died?"))
+        defended_rate = get_rate_from_stat(stat, ("Defended", "Was the robot Defended by someone?"))
+        defense_rate = get_rate_from_stat(stat, ("Crossed Field/Defense", "Crossed Feild/Played Defense?"))
+        algae_score = stat.get('teleop_algae_avg', 0.0)
         
         teams.append(Team(
             num=team_num,
@@ -365,14 +300,52 @@ def create_alliance_selector_teams():
             auto_epa=phase_scores.get('autonomous', 0),
             teleop_epa=phase_scores.get('teleop', 0),
             endgame_epa=phase_scores.get('endgame', 0),
-            defense=False,  # Can be enhanced
+            defense=defense_rate >= 0.4,
             name=f"Team {team_num}",
             robot_valuation=robot_val,
             consistency_score=100 - stat.get('overall_std', 20),
-            clutch_factor=75  # Default value
+            clutch_factor=75,  # Default value
+            death_rate=death_rate,
+            defended_rate=defended_rate,
+            defense_rate=defense_rate,
+            algae_score=algae_score
         ))
     
     return teams
+
+def compute_numeric_average(team_rows, column_name):
+    """Calculate the average numeric value for a given column across a team's matches."""
+    analyzer = st.session_state.analizador
+    col_idx = analyzer._column_indices.get(column_name)
+    if col_idx is None:
+        return 0.0
+
+    values = []
+    for row in team_rows:
+        if col_idx < len(row):
+            cell = row[col_idx]
+            if isinstance(cell, str):
+                cell = cell.strip()
+                if not cell:
+                    continue
+            try:
+                values.append(float(cell))
+            except (ValueError, TypeError):
+                continue
+
+    return sum(values) / len(values) if values else 0.0
+
+def get_rate_from_stat(team_stat, column_name):
+    """Retrieve a precomputed rate statistic for the requested column."""
+    analyzer = st.session_state.analizador
+    column_candidates = column_name if isinstance(column_name, (list, tuple)) else [column_name]
+
+    for candidate in column_candidates:
+        key = analyzer._generate_stat_key(candidate, 'rate')
+        if key in team_stat:
+            return team_stat.get(key, 0.0)
+
+    return 0.0
 
 # Sidebar navigation with enhanced design
 st.sidebar.markdown("""
@@ -442,34 +415,27 @@ if page == "📊 Dashboard":
         st.metric("🤝 Alliances Configured", alliances)
         st.markdown("</div>", unsafe_allow_html=True)
     
-    # Quick overview chart with enhanced styling
+    # Quick overview ranking table with enhanced styling
     if stats:
         st.markdown("<div class='sub-header'>🏆 Top 10 Teams by Overall Performance</div>", unsafe_allow_html=True)
-        
-        top_10 = stats[:10]
-        teams_list = [str(s.get('team', 'N/A')) for s in top_10]
-        overall_list = [s.get('overall_avg', 0) for s in top_10]
-        
-        fig = px.bar(
-            x=teams_list,
-            y=overall_list,
-            labels={'x': 'Team Number', 'y': 'Overall Average'},
-            title="",
-            color=overall_list,
-            color_continuous_scale='Purples',
-            text=overall_list
+
+        ranking_rows = []
+        for rank, team_stat in enumerate(stats[:10], 1):
+            overall_avg = team_stat.get('overall_avg', 0.0)
+            overall_std = team_stat.get('overall_std', 0.0)
+            ranking_rows.append({
+                'Rank': rank,
+                'Team': str(team_stat.get('team', 'N/A')),
+                'Overall ± Std': f"{overall_avg:.2f} ± {overall_std:.2f}",
+                'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2)
+            })
+
+        ranking_df = pd.DataFrame(ranking_rows)
+        st.dataframe(
+            ranking_df,
+            use_container_width=True,
+            height=360
         )
-        fig.update_traces(texttemplate='%{text:.2f}', textposition='outside')
-        fig.update_layout(
-            showlegend=False,
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font=dict(size=12, color='#4a5568'),
-            xaxis=dict(showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor='rgba(0,0,0,0.05)'),
-            margin=dict(t=10, b=10, l=10, r=10)
-        )
-        st.plotly_chart(fig, use_container_width=True)
         
         # Additional insights
         st.markdown("<div class='sub-header'>💡 Quick Insights</div>", unsafe_allow_html=True)
@@ -505,16 +471,7 @@ if page == "📊 Dashboard":
 elif page == "📁 Data Management":
     st.markdown("<div class='main-header'>📁 Data Management</div>", unsafe_allow_html=True)
     
-    # Firebase status indicator
-    if FIREBASE_AVAILABLE:
-        if st.session_state.firebase_connected:
-            st.success("🔥 Firebase Connected")
-        else:
-            st.info("🔥 Firebase Available - Connect to enable cloud features")
-    else:
-        st.warning("⚠️ Firebase SDK not installed. Install with: pip install firebase-admin google-cloud-firestore")
-    
-    tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload Data", "🔥 Firebase", "📋 View Raw Data", "💾 Export Data"])
+    tab1, tab2, tab3 = st.tabs(["📤 Upload Data", "📋 View Raw Data", "💾 Export Data"])
     
     with tab1:
         st.markdown("### 📁 Upload CSV File (Manual)")
@@ -539,163 +496,8 @@ elif page == "📁 Data Management":
                 st.rerun()
             else:
                 st.warning("Please paste QR data first")
-    
+
     with tab2:
-        st.markdown("### 🔥 Firebase Cloud Database")
-        
-        if not FIREBASE_AVAILABLE:
-            st.error("Firebase SDK not installed. Please install required packages:")
-            st.code("pip install firebase-admin google-cloud-firestore", language="bash")
-        else:
-            col1, col2 = st.columns([2, 1])
-            
-            with col1:
-                st.markdown("#### Firebase Configuration")
-                
-                if not st.session_state.firebase_connected:
-                    st.markdown("""
-                    **Setup Instructions:**
-                    1. Go to [Firebase Console](https://console.firebase.google.com/)
-                    2. Select your project or create a new one
-                    3. Go to Project Settings → Service Accounts
-                    4. Click "Generate new private key"
-                    5. Upload the JSON file below
-                    """)
-                    
-                    credentials_file = st.file_uploader(
-                        "Upload Firebase Credentials (JSON)", 
-                        type=['json'],
-                        key="firebase_credentials"
-                    )
-                    
-                    if credentials_file is not None:
-                        if st.button("🔗 Connect to Firebase"):
-                            success, message = initialize_firebase(credentials_file)
-                            if success:
-                                st.success(message)
-                                st.rerun()
-                            else:
-                                st.error(message)
-                else:
-                    st.success("✅ Firebase Connected!")
-                    
-                    if st.button("🔌 Disconnect"):
-                        st.session_state.firebase_connected = False
-                        st.session_state.firebase_manager = None
-                        st.rerun()
-            
-            with col2:
-                st.markdown("#### Quick Actions")
-                
-                if st.session_state.firebase_connected:
-                    st.markdown("**Status:** Connected ✓")
-                    
-                    # Display connection info
-                    st.markdown("**Operations:**")
-                    st.markdown("- Load from cloud")
-                    st.markdown("- Upload to cloud")
-                    st.markdown("- Sync data")
-                else:
-                    st.markdown("**Status:** Not Connected")
-                    st.markdown("Upload credentials to connect")
-            
-            if st.session_state.firebase_connected:
-                st.markdown("---")
-                st.markdown("#### 📥 Load Data from Firebase")
-                
-                collection_name_load = st.text_input(
-                    "Collection Name",
-                    value="scouting_data",
-                    key="load_collection"
-                )
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    if st.button("📥 Load All Data", use_container_width=True):
-                        with st.spinner("Loading data from Firebase..."):
-                            success, message = load_firebase_data(collection_name_load)
-                            if success:
-                                st.success(message)
-                                st.rerun()
-                            else:
-                                st.error(message)
-                
-                with col2:
-                    team_filter = st.number_input("Filter by Team #", min_value=0, value=0, key="team_filter")
-                    if team_filter > 0:
-                        if st.button("📥 Load Team Data", use_container_width=True):
-                            try:
-                                firebase_manager = st.session_state.firebase_manager
-                                data = firebase_manager.get_scouting_data_by_team(team_filter, collection_name_load)
-                                
-                                if data:
-                                    df = pd.DataFrame(data)
-                                    csv_path = "temp_firebase_data.csv"
-                                    df.to_csv(csv_path, index=False)
-                                    st.session_state.analizador.load_csv(csv_path)
-                                    st.success(f"Loaded {len(data)} records for team {team_filter}")
-                                    st.rerun()
-                                else:
-                                    st.warning(f"No data found for team {team_filter}")
-                            except Exception as e:
-                                st.error(f"Error: {str(e)}")
-                
-                with col3:
-                    match_filter = st.number_input("Filter by Match #", min_value=0, value=0, key="match_filter")
-                    if match_filter > 0:
-                        if st.button("📥 Load Match Data", use_container_width=True):
-                            try:
-                                firebase_manager = st.session_state.firebase_manager
-                                data = firebase_manager.get_scouting_data_by_match(match_filter, collection_name_load)
-                                
-                                if data:
-                                    df = pd.DataFrame(data)
-                                    csv_path = "temp_firebase_data.csv"
-                                    df.to_csv(csv_path, index=False)
-                                    st.session_state.analizador.load_csv(csv_path)
-                                    st.success(f"Loaded {len(data)} records for match {match_filter}")
-                                    st.rerun()
-                                else:
-                                    st.warning(f"No data found for match {match_filter}")
-                            except Exception as e:
-                                st.error(f"Error: {str(e)}")
-                
-                st.markdown("---")
-                st.markdown("#### 📤 Upload Data to Firebase")
-                
-                collection_name_upload = st.text_input(
-                    "Collection Name",
-                    value="scouting_data",
-                    key="upload_collection"
-                )
-                
-                if st.button("📤 Upload Current Data to Firebase"):
-                    with st.spinner("Uploading data to Firebase..."):
-                        success, message = upload_to_firebase(collection_name_upload)
-                        if success:
-                            st.success(message)
-                        else:
-                            st.error(message)
-                
-                st.markdown("---")
-                st.markdown("#### ⚠️ Advanced Operations")
-                
-                with st.expander("🗑️ Clear Firebase Collection"):
-                    st.warning("**Warning:** This will delete all data in the collection!")
-                    clear_collection = st.text_input("Type collection name to confirm", key="clear_collection")
-                    
-                    if st.button("🗑️ Clear Collection"):
-                        if clear_collection == collection_name_load:
-                            firebase_manager = st.session_state.firebase_manager
-                            if firebase_manager.clear_collection(clear_collection):
-                                st.success(f"Cleared collection '{clear_collection}'")
-                            else:
-                                st.error("Failed to clear collection")
-                        else:
-                            st.error("Collection name doesn't match. Operation cancelled.")
-    
-    with tab3:
         st.markdown("### 📋 Raw Data View")
         raw_data = st.session_state.analizador.get_raw_data()
         
@@ -705,9 +507,9 @@ elif page == "📁 Data Management":
             
             st.markdown(f"**Total Records:** {len(raw_data) - 1}")
         else:
-            st.info("No data loaded yet. Please upload a CSV file, paste QR data, or load from Firebase.")
+            st.info("No data loaded yet. Please upload a CSV file or paste QR data.")
     
-    with tab4:
+    with tab3:
         st.markdown("### 💾 Export Options")
         
         if st.button("Export Raw Data as CSV"):
@@ -782,32 +584,120 @@ elif page == "📈 Team Statistics":
         with tab1:
             st.markdown("### Overall Team Rankings")
             
-            # Create a comprehensive DataFrame
-            df_data = []
-            for rank, team_stat in enumerate(stats, 1):
-                df_data.append({
-                    'Rank': rank,
-                    'Team': team_stat.get('team', 'N/A'),
-                    'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
-                    'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
-                    'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
-                })
-            
-            df = pd.DataFrame(df_data)
-            st.dataframe(df, use_container_width=True, height=500)
-            
-            # Visualization
-            st.markdown("### Performance Visualization")
-            fig = px.scatter(
-                df,
-                x='Overall Avg',
-                y='Robot Valuation',
-                size='Overall Std',
-                hover_data=['Team', 'Rank'],
-                title='Overall Average vs Robot Valuation (size = std deviation)',
-                labels={'Overall Avg': 'Overall Average', 'Robot Valuation': 'Robot Valuation'}
+            team_data_grouped = st.session_state.analizador.get_team_data_grouped()
+
+            auto_coral_columns = [
+                ("Coral L1 (Auto)", "Auto Coral L1"),
+                ("Coral L2 (Auto)", "Auto Coral L2"),
+                ("Coral L3 (Auto)", "Auto Coral L3"),
+                ("Coral L4 (Auto)", "Auto Coral L4"),
+            ]
+            teleop_coral_columns = [
+                ("Coral L1 (Teleop)", "Teleop Coral L1"),
+                ("Coral L2 (Teleop)", "Teleop Coral L2"),
+                ("Coral L3 (Teleop)", "Teleop Coral L3"),
+                ("Coral L4 (Teleop)", "Teleop Coral L4"),
+            ]
+            auto_algae_columns = [
+                ("Barge Algae (Auto)", "Auto Barge Algae"),
+                ("Processor Algae (Auto)", "Auto Processor Algae"),
+                ("Dislodged Algae (Auto)", "Auto Dislodged Algae"),
+            ]
+            teleop_algae_columns = [
+                ("Barge Algae (Teleop)", "Teleop Barge Algae"),
+                ("Processor Algae (Teleop)", "Teleop Processor Algae"),
+                ("Dislodged Algae (Teleop)", "Teleop Dislodged Algae"),
+            ]
+            rate_columns = [
+                (("Died", "Died?"), "Died Rate (%)"),
+                (("No Show",), "No Show Rate (%)"),
+                (("Moved (Auto)",), "Auto Mobility Rate (%)"),
+                (("Crossed Field/Defense", "Crossed Feild/Played Defense?"), "Defense Rate (%)"),
+                (("Defended", "Was the robot Defended by someone?"), "Defended Rate (%)"),
+                (("Tipped/Fell",), "Tip/Fall Rate (%)"),
+                (("Broke",), "Broke Rate (%)"),
+            ]
+
+            base_columns = [
+                'Rank', 'Team', 'Matches',
+                'Robot Valuation', 'Overall Avg', 'Overall Std',
+                'Teleop Coral Score', 'Teleop Algae Score'
+            ]
+            auto_labels = [label for _, label in auto_coral_columns]
+            teleop_labels = [label for _, label in teleop_coral_columns]
+            auto_algae_labels = [label for _, label in auto_algae_columns]
+            teleop_algae_labels = [label for _, label in teleop_algae_columns]
+            rate_labels = [label for _, label in rate_columns]
+            columns_order = (
+                base_columns
+                + auto_labels
+                + teleop_labels
+                + auto_algae_labels
+                + teleop_algae_labels
+                + rate_labels
             )
-            st.plotly_chart(fig, use_container_width=True)
+
+            df_rows = []
+            for rank, team_stat in enumerate(stats, 1):
+                team_number = str(team_stat.get('team', 'N/A'))
+                team_rows = team_data_grouped.get(team_number, [])
+
+                row = {
+                    'Rank': rank,
+                    'Team': team_number,
+                    'Matches': len(team_rows),
+                    'Robot Valuation': float(team_stat.get('RobotValuation', 0.0)),
+                    'Overall Avg': float(team_stat.get('overall_avg', 0.0)),
+                    'Overall Std': float(team_stat.get('overall_std', 0.0)),
+                    'Teleop Coral Score': float(team_stat.get('teleop_coral_avg', 0.0)),
+                    'Teleop Algae Score': float(team_stat.get('teleop_algae_avg', 0.0)),
+                }
+
+                for source_col, label in auto_coral_columns + teleop_coral_columns + auto_algae_columns + teleop_algae_columns:
+                    row[label] = compute_numeric_average(team_rows, source_col)
+
+                for source_candidates, label in rate_columns:
+                    rate_value = get_rate_from_stat(team_stat, source_candidates) * 100.0
+                    row[label] = rate_value
+
+                df_rows.append(row)
+
+            df = pd.DataFrame(df_rows)
+
+            if not df.empty:
+                df = df[columns_order]
+                float_columns = [col for col in columns_order if col not in ['Rank', 'Team', 'Matches']]
+                styled_df = df.style.format({col: "{:.2f}" for col in float_columns})
+                st.dataframe(styled_df, use_container_width=True, height=520)
+
+                # Visualization
+                st.markdown("### Performance Visualization")
+                fig = px.scatter(
+                    df,
+                    x='Overall Avg',
+                    y='Robot Valuation',
+                    size='Overall Std',
+                    hover_data=['Team', 'Rank'],
+                    title='Overall Average vs Robot Valuation (size = std deviation)',
+                    labels={'Overall Avg': 'Overall Average', 'Robot Valuation': 'Robot Valuation'}
+                )
+                fig.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#f8fafc'),
+                    xaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)'),
+                    yaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)')
+                )
+                fig.update_layout(
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#f8fafc'),
+                    xaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)'),
+                    yaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)')
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No ranking data available. Please load scouting data first.")
         
         with tab2:
             st.markdown("### Detailed Team Statistics")
@@ -834,19 +724,55 @@ elif page == "📈 Team Statistics":
                     with col3:
                         teleop_algae_avg = team_stat.get('teleop_algae_avg', 0)
                         st.metric("Teleop Algae Avg", f"{teleop_algae_avg:.2f}")
-                        died_rate = team_stat.get(st.session_state.analizador._generate_stat_key('Died?', 'rate'), 0)
-                        st.metric("Death Rate", f"{died_rate:.3f}")
+                        died_rate = get_rate_from_stat(team_stat, ("Died", "Died?"))
+                        st.metric("Death Rate", f"{died_rate * 100:.1f}%")
                     
-                    # Phase scores visualization
-                    phase_scores = st.session_state.analizador.calculate_team_phase_scores(int(selected_team))
-                    
-                    fig = go.Figure(data=[
-                        go.Bar(name='Phase Scores', 
-                               x=['Autonomous', 'Teleop', 'Endgame'],
-                               y=[phase_scores['autonomous'], phase_scores['teleop'], phase_scores['endgame']])
-                    ])
-                    fig.update_layout(title=f'Team {selected_team} - Phase Performance')
-                    st.plotly_chart(fig, use_container_width=True)
+                    # Complete metrics table
+                    st.markdown("### Complete Metric Snapshot")
+                    formatted_metrics = {}
+                    for key, value in team_stat.items():
+                        if isinstance(value, (float, int)):
+                            formatted_metrics[key] = round(float(value), 3)
+                        else:
+                            formatted_metrics[key] = value
+
+                    metrics_df = pd.DataFrame.from_dict(formatted_metrics, orient='index', columns=['Value'])
+                    metrics_df.index.name = 'Metric'
+                    st.dataframe(metrics_df, use_container_width=True, height=420)
+
+                    # Match performance line chart
+                    st.markdown("### Match Performance Trend")
+                    match_performance = st.session_state.analizador.get_team_match_performance([selected_team])
+                    team_performance = match_performance.get(selected_team) or match_performance.get(str(selected_team))
+
+                    if team_performance:
+                        matches = [match for match, _ in team_performance]
+                        overall_scores = [score for _, score in team_performance]
+
+                        trend_fig = go.Figure(
+                            data=[
+                                go.Scatter(
+                                    x=matches,
+                                    y=overall_scores,
+                                    mode='lines+markers',
+                                    line=dict(color='#a855f7', width=3),
+                                    marker=dict(size=8)
+                                )
+                            ]
+                        )
+                        trend_fig.update_layout(
+                            title=f'Team {selected_team} - Overall Score by Match',
+                            xaxis_title='Match Number',
+                            yaxis_title='Overall Score',
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            font=dict(color='#f8fafc'),
+                            xaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)'),
+                            yaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)')
+                        )
+                        st.plotly_chart(trend_fig, use_container_width=True)
+                    else:
+                        st.info("No match performance data available for this team.")
         
         with tab3:
             st.markdown("### Simplified Ranking")
@@ -919,21 +845,30 @@ elif page == "🤝 Alliance Selector":
             st.markdown("### Actions")
             
             if st.button("Auto-Optimize All"):
-                selector.reset_picks()
-                
-                # Pick 1 round
+                made_changes = False
+
+                # Pick 1 round (highest seeds first)
                 for alliance in selector.alliances:
+                    if not alliance.captain or alliance.pick1:
+                        continue
                     available_teams = selector.get_available_teams(alliance.captainRank, 'pick1')
                     if available_teams:
                         selector.set_pick(alliance.allianceNumber - 1, 'pick1', available_teams[0].team)
-                
-                # Pick 2 round
+                        made_changes = True
+
+                # Pick 2 round (snake order)
                 for alliance in reversed(selector.alliances):
+                    if not alliance.captain or alliance.pick2:
+                        continue
                     available_teams = selector.get_available_teams(alliance.captainRank, 'pick2')
                     if available_teams:
                         selector.set_pick(alliance.allianceNumber - 1, 'pick2', available_teams[0].team)
-                
-                st.success("Alliances auto-optimized!")
+                        made_changes = True
+
+                if made_changes:
+                    st.success("Auto-optimization filled remaining picks.")
+                else:
+                    st.info("No auto-optimization needed – all picks already assigned.")
                 st.rerun()
             
             if st.button("Reset All Picks"):
@@ -945,28 +880,90 @@ elif page == "🤝 Alliance Selector":
         st.markdown("### Manual Alliance Configuration")
         
         with st.expander("Configure Individual Alliances"):
+            team_lookup = {team.team: team for team in selector.teams}
             for idx, alliance in enumerate(selector.alliances):
-                st.markdown(f"**Alliance {alliance.allianceNumber}** (Captain: {alliance.captain})")
+                captain_label = "Manual" if alliance.manual_captain else "Auto"
+                captain_display = alliance.captain if alliance.captain else "TBD"
+                st.markdown(f"**Alliance {alliance.allianceNumber}** — Captain: {captain_display} ({captain_label})")
+
+                captain_options = selector.get_available_captains(idx)
+                option_values = [0] + [team.team for team in captain_options]
+                if alliance.manual_captain and alliance.captain and alliance.captain not in option_values:
+                    option_values.append(alliance.captain)
+
+                def format_captain_option(value, lookup=team_lookup):
+                    if value == 0:
+                        return "Auto (highest remaining seed)"
+                    team = lookup.get(value)
+                    if not team:
+                        return str(value)
+                    return (
+                        f"{team.team} (Rank {team.rank}, Score {team.score:.1f}, "
+                        f"Death {team.death_rate * 100:.1f}%, Def {team.defended_rate * 100:.1f}%)"
+                    )
+
+                default_captain = alliance.captain if alliance.manual_captain else 0
+                if default_captain not in option_values:
+                    option_values.append(default_captain)
+
+                captain_cols = st.columns([3, 1])
+                with captain_cols[0]:
+                    selected_captain = st.selectbox(
+                        f"Captain Selection (Alliance {alliance.allianceNumber})",
+                        options=option_values,
+                        index=option_values.index(default_captain) if default_captain in option_values else 0,
+                        format_func=format_captain_option,
+                        key=f"captain_select_{idx}"
+                    )
+                with captain_cols[1]:
+                    if st.button("Set Captain", key=f"set_captain_{idx}"):
+                        try:
+                            if selected_captain == 0 and not alliance.manual_captain:
+                                st.info("Captain already managed automatically.")
+                            elif alliance.manual_captain and selected_captain == alliance.captain:
+                                st.info("Captain unchanged.")
+                            elif selected_captain == 0:
+                                selector.set_captain(idx, None)
+                            else:
+                                selector.set_captain(idx, int(selected_captain))
+                            st.success(f"Captain updated for Alliance {alliance.allianceNumber}!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error: {str(e)}")
                 
                 col1, col2 = st.columns(2)
                 
                 with col1:
                     available_pick1 = selector.get_available_teams(alliance.captainRank, 'pick1')
-                    pick1_options = ["None"] + [f"{t.team} (Score: {t.score:.1f})" for t in available_pick1]
-                    current_pick1 = f"{alliance.pick1} (Score: {selector.get_team_score(alliance.pick1):.1f})" if alliance.pick1 else "None"
-                    
+                    pick1_values = [None] + [team.team for team in available_pick1]
+                    if alliance.pick1 and alliance.pick1 not in pick1_values:
+                        pick1_values.append(alliance.pick1)
+
+                    def format_pick1_option(value, lookup=team_lookup):
+                        if value is None:
+                            return "None"
+                        team = lookup.get(value)
+                        if not team:
+                            return str(value)
+                        return f"{team.team} (Score: {team.score:.1f})"
+
+                    current_pick1 = alliance.pick1 if alliance.pick1 else None
                     selected_pick1 = st.selectbox(
                         f"Pick 1 for Alliance {alliance.allianceNumber}",
-                        pick1_options,
-                        index=pick1_options.index(current_pick1) if current_pick1 in pick1_options else 0,
+                        options=pick1_values,
+                        index=pick1_values.index(current_pick1) if current_pick1 in pick1_values else 0,
+                        format_func=format_pick1_option,
                         key=f"pick1_{idx}"
                     )
-                    
+
                     if st.button(f"Set Pick 1", key=f"set_pick1_{idx}"):
-                        if selected_pick1 != "None":
-                            team_num = int(selected_pick1.split()[0])
+                        if selected_pick1 is None:
+                            st.warning("Choose a team to set as Pick 1.")
+                        elif alliance.pick1 == selected_pick1:
+                            st.info("Pick 1 unchanged.")
+                        else:
                             try:
-                                selector.set_pick(idx, 'pick1', team_num)
+                                selector.set_pick(idx, 'pick1', int(selected_pick1))
                                 st.success(f"Pick 1 set for Alliance {alliance.allianceNumber}!")
                                 st.rerun()
                             except Exception as e:
@@ -974,21 +971,38 @@ elif page == "🤝 Alliance Selector":
                 
                 with col2:
                     available_pick2 = selector.get_available_teams(alliance.captainRank, 'pick2')
-                    pick2_options = ["None"] + [f"{t.team} (Score: {t.score:.1f})" for t in available_pick2]
-                    current_pick2 = f"{alliance.pick2} (Score: {selector.get_team_score(alliance.pick2):.1f})" if alliance.pick2 else "None"
-                    
+                    pick2_values = [None] + [team.team for team in available_pick2]
+                    if alliance.pick2 and alliance.pick2 not in pick2_values:
+                        pick2_values.append(alliance.pick2)
+
+                    def format_pick2_option(value, lookup=team_lookup):
+                        if value is None:
+                            return "None"
+                        team = lookup.get(value)
+                        if not team:
+                            return str(value)
+                        return (
+                            f"{team.team} (Score: {team.score:.1f}, Death {team.death_rate * 100:.1f}%, "
+                            f"Def {team.defended_rate * 100:.1f}%)"
+                        )
+
+                    current_pick2 = alliance.pick2 if alliance.pick2 else None
                     selected_pick2 = st.selectbox(
                         f"Pick 2 for Alliance {alliance.allianceNumber}",
-                        pick2_options,
-                        index=pick2_options.index(current_pick2) if current_pick2 in pick2_options else 0,
+                        options=pick2_values,
+                        index=pick2_values.index(current_pick2) if current_pick2 in pick2_values else 0,
+                        format_func=format_pick2_option,
                         key=f"pick2_{idx}"
                     )
-                    
+
                     if st.button(f"Set Pick 2", key=f"set_pick2_{idx}"):
-                        if selected_pick2 != "None":
-                            team_num = int(selected_pick2.split()[0])
+                        if selected_pick2 is None:
+                            st.warning("Choose a team to set as Pick 2.")
+                        elif alliance.pick2 == selected_pick2:
+                            st.info("Pick 2 unchanged.")
+                        else:
                             try:
-                                selector.set_pick(idx, 'pick2', team_num)
+                                selector.set_pick(idx, 'pick2', int(selected_pick2))
                                 st.success(f"Pick 2 set for Alliance {alliance.allianceNumber}!")
                                 st.rerun()
                             except Exception as e:
