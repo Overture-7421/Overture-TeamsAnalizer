@@ -212,7 +212,7 @@ For local development with hot-reload:
 1. Uncomment the volume mount in `docker-compose.yml`:
    ```yaml
    volumes:
-     - ./streamlit_app.py:/app/streamlit_app.py
+  - ../lib/streamlit_app.py:/app/lib/streamlit_app.py
    ```
 
 2. Start the container:
@@ -220,7 +220,7 @@ For local development with hot-reload:
    docker-compose up
    ```
 
-3. Edit `streamlit_app.py` locally - changes will be reflected immediately!
+3. Edit `lib/streamlit_app.py` locally - changes will be reflected immediately!  
 
 ## 📊 Resource Requirements
 

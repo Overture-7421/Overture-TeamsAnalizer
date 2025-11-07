@@ -302,8 +302,8 @@ class CSVFormatConverter:
         return "\n".join(report_lines)
 
 
-def convert_csv_file(input_file: str, output_file: Optional[str] = None, 
-                    config_file: str = "columnsConfig.json") -> str:
+def convert_csv_file(input_file: str, output_file: Optional[str] = None,
+                    config_file: Optional[str] = None) -> str:
     """
     Convenience function to convert a CSV file to the new format
     

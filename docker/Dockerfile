@@ -28,11 +28,18 @@ RUN pip install --upgrade pip && \
     pip install -r requirements_web.txt
 
 # Copy application files
-COPY *.py ./
-COPY *.json ./
-COPY *.md ./
-COPY test_data.csv ./
-COPY extended_test_data.csv ./
+COPY lib/ ./lib/
+COPY docs/ ./docs/
+COPY "archivos ejemplo"/ "./archivos ejemplo/"
+COPY example_robot_images/ ./example_robot_images/
+COPY example_tier_list.txt ./example_tier_list.txt
+COPY example_tier_list_with_images.txt ./example_tier_list_with_images.txt
+COPY CHANGES_OVERVIEW.txt ./CHANGES_OVERVIEW.txt
+COPY UI_MOCKUP.txt ./UI_MOCKUP.txt
+COPY requirements_web.txt ./requirements_web.txt
+
+# Ensure Python can locate the lib package
+ENV PYTHONPATH="/app/lib:${PYTHONPATH}"
 
 # Create directory for uploaded files and Firebase credentials
 RUN mkdir -p /app/uploads /app/firebase
@@ -44,7 +51,7 @@ EXPOSE 8501
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
 
 # Run the application
-CMD ["streamlit", "run", "streamlit_app.py", \
+CMD ["streamlit", "run", "lib/streamlit_app.py", \
      "--server.port=8501", \
      "--server.address=0.0.0.0", \
      "--server.headless=true", \

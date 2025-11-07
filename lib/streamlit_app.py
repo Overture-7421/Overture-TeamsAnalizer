@@ -8,6 +8,7 @@ import pandas as pd
 import io
 import base64
 from collections import Counter
+from pathlib import Path
 from main import AnalizadorRobot
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
 from school_system import TeamScoring, BehaviorReportType
@@ -17,6 +18,9 @@ import plotly.graph_objects as go
 import os
 from tba_manager import TBAManager
 from foreshadowing import TeamStatsExtractor, MatchSimulator
+
+
+APP_DIR = Path(__file__).resolve().parent
 
 # Page configuration
 st.set_page_config(
@@ -273,11 +277,12 @@ def load_csv_data(uploaded_file):
     """Load CSV data into the analyzer"""
     try:
         # Save uploaded file temporarily
-        with open("temp_upload.csv", "wb") as f:
+        temp_file = APP_DIR / "temp_upload.csv"
+        with temp_file.open("wb") as f:
             f.write(uploaded_file.getbuffer())
-        
+
         # Load into analyzer
-        st.session_state.analizador.load_csv("temp_upload.csv")
+        st.session_state.analizador.load_csv(str(temp_file))
         
         return True, "CSV loaded successfully!"
     except Exception as e:

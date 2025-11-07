@@ -7,9 +7,10 @@ and to manage a local cache of team names to avoid excessive API calls.
 
 import requests
 import json
-import os
+from pathlib import Path
 
 BASE_URL = "https://www.thebluealliance.com/api/v3"
+DATA_DIR = Path(__file__).resolve().parent
 
 class TBAManager:
     """
@@ -92,9 +93,9 @@ class TBAManager:
             event_key (str): The event key, used for the filename.
             teams_data (list): The list of team data to save.
         """
-        filename = f"teams_{event_key}.json"
+        filename = DATA_DIR / f"teams_{event_key}.json"
         try:
-            with open(filename, "w", encoding="utf-8") as f:
+            with filename.open("w", encoding="utf-8") as f:
                 json.dump(teams_data, f, indent=4)
             print(f"Successfully saved team data to {filename}")
             return True
@@ -113,16 +114,16 @@ class TBAManager:
             bool: True if the file was loaded successfully, False otherwise.
         """
         candidate_filenames = [
-            f"tba_teams_{event_key}.json",
-            f"teams_{event_key}.json"
+            DATA_DIR / f"tba_teams_{event_key}.json",
+            DATA_DIR / f"teams_{event_key}.json"
         ]
 
-        target_file = next((name for name in candidate_filenames if os.path.exists(name)), None)
+        target_file = next((path for path in candidate_filenames if path.exists()), None)
         if not target_file:
             return False
 
         try:
-            with open(target_file, "r", encoding="utf-8") as f:
+            with target_file.open("r", encoding="utf-8") as f:
                 teams_data = json.load(f)
 
             updated_names = {}
@@ -138,7 +139,7 @@ class TBAManager:
                 return False
 
             self.team_names.update(updated_names)
-            print(f"Successfully loaded {len(updated_names)} teams from {target_file}")
+            print(f"Successfully loaded {len(updated_names)} teams from {target_file.name}")
             return True
         except (IOError, json.JSONDecodeError) as e:
             print(f"Error loading or parsing team data from {target_file}: {e}")

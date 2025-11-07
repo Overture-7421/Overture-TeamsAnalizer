@@ -5,6 +5,7 @@ Test script to verify simplified ranking export functionality
 
 import os
 import csv
+from pathlib import Path
 from main import AnalizadorRobot
 
 def test_simplified_ranking_export():
@@ -16,15 +17,15 @@ def test_simplified_ranking_export():
     analizador = AnalizadorRobot()
     
     # Check if test data exists
-    test_file = "test_data.csv"
-    if not os.path.exists(test_file):
+    test_file = Path(__file__).resolve().parents[1] / "archivos ejemplo" / "test_data.csv"
+    if not test_file.exists():
         print(f"✗ Test data file '{test_file}' not found!")
         return False
     
     print(f"✓ Found test data file: {test_file}")
     
     # Load test data
-    analizador.load_csv(test_file)
+    analizador.load_csv(str(test_file))
     print(f"✓ Loaded CSV data")
     
     # Get team stats

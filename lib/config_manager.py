@@ -2,9 +2,11 @@
 """
 
 import json
-import os
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional
+from pathlib import Path
+from typing import Dict, List, Optional, Union
+
+BASE_DIR = Path(__file__).resolve().parent
 
 @dataclass 
 class ColumnConfig:
@@ -25,9 +27,12 @@ class RobotValuationConfig:
 
 class ConfigManager:
     """Manages configuration presets and format detection"""
-    
-    def __init__(self, config_file: str = "columnsConfig.json"):
-        self.config_file = config_file
+
+    def __init__(self, config_file: Optional[Union[str, Path]] = None):
+        resolved_path = Path(config_file) if config_file is not None else BASE_DIR / "columnsConfig.json"
+        if not resolved_path.is_absolute():
+            resolved_path = BASE_DIR / resolved_path
+        self.config_file = resolved_path
         self.presets = self._load_presets()
     
     def _load_presets(self) -> Dict:

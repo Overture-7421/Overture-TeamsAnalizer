@@ -11,6 +11,11 @@ import sys
 import json
 from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
+EXAMPLES_DIR = ROOT_DIR / "archivos ejemplo"
+CONFIG_PATH = BASE_DIR / "columnsConfig.json"
+
 def check_dependencies():
     """Check if required dependencies are installed"""
     required_packages = ['streamlit', 'pandas', 'numpy', 'matplotlib']
@@ -32,15 +37,13 @@ def check_dependencies():
 
 def check_configuration():
     """Check if configuration file exists and is valid"""
-    config_file = "columnsConfig.json"
-    
-    if not os.path.exists(config_file):
-        print(f"⚠️  Configuration file {config_file} not found")
+    if not CONFIG_PATH.exists():
+        print(f"⚠️  Configuration file {CONFIG_PATH.name} not found")
         create_default_config()
         return True
     
     try:
-        with open(config_file, 'r') as f:
+        with CONFIG_PATH.open('r', encoding='utf-8') as f:
             config = json.load(f)
         
         required_keys = ['headers', 'column_configuration']
@@ -114,27 +117,32 @@ def create_default_config():
             "description": "Alliance Simulator Column Configuration"
         }
     }
-    
-    with open("columnsConfig.json", 'w') as f:
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with CONFIG_PATH.open('w', encoding='utf-8') as f:
         json.dump(default_config, f, indent=4)
-    
-    print("✅ Created default configuration file")
+
+    print(f"✅ Created default configuration file at {CONFIG_PATH}")
 
 def convert_sample_data():
     """Convert sample data if available"""
     sample_files = ["test_data.csv", "sample_data.csv", "legacy_data.csv"]
-    
+
+    if not EXAMPLES_DIR.exists():
+        print(f"⚠️  Sample directory not found: {EXAMPLES_DIR}")
+        return
+
     for sample_file in sample_files:
-        if os.path.exists(sample_file):
-            print(f"📄 Found sample data: {sample_file}")
-            
+        sample_path = EXAMPLES_DIR / sample_file
+        if sample_path.exists():
+            print(f"📄 Found sample data: {sample_path}")
+
             try:
                 from csv_converter import convert_csv_file
-                output_file = f"converted_{sample_file}"
-                convert_csv_file(sample_file, output_file)
-                print(f"✅ Converted {sample_file} to {output_file}")
+                output_path = sample_path.with_name(f"converted_{sample_path.name}")
+                convert_csv_file(str(sample_path), str(output_path))
+                print(f"✅ Converted {sample_path.name} to {output_path.name}")
             except Exception as e:
-                print(f"⚠️  Could not convert {sample_file}: {e}")
+                print(f"⚠️  Could not convert {sample_path.name}: {e}")
 
 def interactive_setup():
     """Interactive setup for first-time users"""
@@ -154,10 +162,10 @@ def interactive_setup():
     
     print("\n4. Setup complete! 🎉")
     print("\nHow to proceed:")
-    print("• For web interface: streamlit run streamlit_app.py")
-    print("• For desktop app: python main.py")
-    print("• For CSV conversion: python csv_converter.py input.csv output.csv")
-    print("• For configuration: python config_manager.py")
+    print("• For web interface: streamlit run lib/streamlit_app.py")
+    print("• For desktop app: python lib/main.py")
+    print("• For CSV conversion: python lib/csv_converter.py input.csv output.csv")
+    print("• For configuration: python lib/config_manager.py")
     
     # Ask user what they want to do
     print("\nWhat would you like to do now?")
@@ -170,13 +178,13 @@ def interactive_setup():
     
     if choice == "1":
         print("\nStarting web interface...")
-        os.system("streamlit run streamlit_app.py")
+        os.system("streamlit run lib/streamlit_app.py")
     elif choice == "2":
         csv_file = input("Enter path to CSV file: ").strip()
         if os.path.exists(csv_file):
             try:
                 from csv_converter import convert_csv_file
-                output_file = f"converted_{os.path.basename(csv_file)}"
+                output_file = f"converted_{Path(csv_file).name}"
                 convert_csv_file(csv_file, output_file)
                 print(f"✅ Converted to {output_file}")
             except Exception as e:
@@ -218,10 +226,10 @@ def main():
                 print(f"❌ Error: {e}")
         else:
             print("Usage:")
-            print("  python setup.py                 # Interactive setup")
-            print("  python setup.py --check         # Check system")
-            print("  python setup.py --config        # Create default config")
-            print("  python setup.py --convert file  # Convert CSV file")
+            print("  python lib/setup.py                 # Interactive setup")
+            print("  python lib/setup.py --check         # Check system")
+            print("  python lib/setup.py --config        # Create default config")
+            print("  python lib/setup.py --convert file  # Convert CSV file")
     else:
         interactive_setup()
 

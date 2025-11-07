@@ -39,17 +39,17 @@ block_cipher = None
 
 # Add all data files
 a = Analysis(
-    ['main.py'],
+    ['lib/main.py'],
     pathex=[],
     binaries=[],
     datas=[
-        ('columnsConfig.json', '.'),
-        ('test_data.csv', '.'),
-        ('extended_test_data.csv', '.'),
-        ('test_data_config.json', '.'),
-        ('example_phase_config.json', '.'),
-        ('simple_presets.py', '.'),
-        ('*.md', '.'),
+        ('lib/columnsConfig.json', '.'),
+        ('archivos ejemplo/test_data.csv', '.'),
+        ('archivos ejemplo/extended_test_data.csv', '.'),
+        ('lib/test_data_config.json', '.'),
+        ('lib/example_phase_config.json', '.'),
+        ('lib/simple_presets.py', '.'),
+        ('docs/*.md', '.'),
         ('requirements_web.txt', '.'),
     ],
     hiddenimports=[
@@ -142,10 +142,10 @@ def build_desktop_executable():
             "--onefile",
             "--windowed",
             "--name", "Alliance_Simulator",
-            "--add-data", "columnsConfig.json;.",
-            "--add-data", "test_data.csv;.",
-            "--add-data", "extended_test_data.csv;.",
-            "--add-data", "README.md;.",
+            "--add-data", "lib/columnsConfig.json;.",
+            "--add-data", "archivos ejemplo/test_data.csv;.",
+            "--add-data", "archivos ejemplo/extended_test_data.csv;.",
+            "--add-data", "docs/README.md;.",
             "--hidden-import", "tkinter",
             "--hidden-import", "pandas",
             "--hidden-import", "numpy",
@@ -203,16 +203,16 @@ python -m pip install -r requirements_web.txt
 :: Create desktop shortcut
 echo Creating desktop shortcut...
 set SHORTCUT_PATH=%USERPROFILE%\\Desktop\\Alliance Simulator.lnk
-powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%SHORTCUT_PATH%'); $Shortcut.TargetPath = 'python'; $Shortcut.Arguments = '%INSTALL_DIR%\\main.py'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Description = 'Alliance Simulator - Team Analysis Tool'; $Shortcut.Save()"
+powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%SHORTCUT_PATH%'); $Shortcut.TargetPath = 'python'; $Shortcut.Arguments = '%INSTALL_DIR%\\lib\\main.py'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Description = 'Alliance Simulator - Team Analysis Tool'; $Shortcut.Save()"
 
 :: Create start menu shortcut
 echo Creating start menu shortcut...
 set STARTMENU_PATH=%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Alliance Simulator.lnk
-powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%STARTMENU_PATH%'); $Shortcut.TargetPath = 'python'; $Shortcut.Arguments = '%INSTALL_DIR%\\main.py'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Description = 'Alliance Simulator - Team Analysis Tool'; $Shortcut.Save()"
+powershell -Command "$WshShell = New-Object -ComObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('%STARTMENU_PATH%'); $Shortcut.TargetPath = 'python'; $Shortcut.Arguments = '%INSTALL_DIR%\\lib\\main.py'; $Shortcut.WorkingDirectory = '%INSTALL_DIR%'; $Shortcut.Description = 'Alliance Simulator - Team Analysis Tool'; $Shortcut.Save()"
 
 :: Run initial setup
-echo Running initial setup...
-python setup.py --check
+        echo Running initial setup...
+        python lib\setup.py --check
 
 echo.
 echo ====================================
@@ -222,7 +222,7 @@ echo.
 echo You can now run Alliance Simulator from:
 echo • Desktop shortcut
 echo • Start menu
-echo • Or directly: %INSTALL_DIR%\\main.py
+echo • Or directly: %INSTALL_DIR%\\lib\\main.py
 echo.
 echo For web interface: streamlit run %INSTALL_DIR%\\streamlit_app.py
 echo.
