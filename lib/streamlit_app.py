@@ -44,6 +44,8 @@ if 'tba_manager' not in st.session_state:
     st.session_state.tba_manager = None
 if 'tba_api_key' not in st.session_state:
     st.session_state.tba_api_key = ""
+if 'tba_use_api' not in st.session_state:
+    st.session_state.tba_use_api = True
 if 'tba_event_key' not in st.session_state:
     st.session_state.tba_event_key = ""
 if 'events_list' not in st.session_state:
@@ -1470,35 +1472,54 @@ elif page == "🔮 Foreshadowing":
 elif page == "⚙️ TBA Settings":
     st.markdown("<div class='main-header'>⚙️ The Blue Alliance Settings</div>", unsafe_allow_html=True)
 
-    st.markdown("""
-    <div class='stats-card'>
-    <p>To get team names, you need a <strong>The Blue Alliance (TBA) API Key</strong>. 
-    Follow these steps to get one:</p>
-    <ol>
-        <li>Go to <a href='https://www.thebluealliance.com/account' target='_blank'>thebluealliance.com/account</a>.</li>
-        <li>Log in or create a new account.</li>
-        <li>In the 'Read API Keys' section, add a description (e.g., 'Overture Alliance App') and click 'Add New Key'.</li>
-        <li>Copy the generated 'X-TBA-Auth-Key' and paste it below.</li>
-    </ol>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # API Key Input
-    st.session_state.tba_api_key = st.text_input(
-        "TBA Auth Key (X-TBA-Auth-Key)", 
-        value=st.session_state.tba_api_key, 
-        type="password"
+    use_api = st.toggle(
+        "Use The Blue Alliance API (requires internet)",
+        key="tba_use_api"
     )
 
+    if use_api:
+        st.markdown("""
+        <div class='stats-card'>
+        <p>To fetch the latest team names, provide your <strong>The Blue Alliance (TBA) API Key</strong>:</p>
+        <ol>
+            <li>Visit <a href='https://www.thebluealliance.com/account' target='_blank'>thebluealliance.com/account</a>.</li>
+            <li>Log in or create an account.</li>
+            <li>In <em>Read API Keys</em>, add a description (e.g., "Overture Alliance App") and click <strong>Add New Key</strong>.</li>
+            <li>Copy the generated <code>X-TBA-Auth-Key</code> and paste it below.</li>
+        </ol>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.session_state.tba_api_key = st.text_input(
+            "TBA Auth Key (X-TBA-Auth-Key)",
+            value=st.session_state.tba_api_key,
+            type="password"
+        )
+    else:
+        st.info(
+            "Offline mode active: the app will only use cached JSON files (e.g., `events_YYYY.json`, "
+            "`teams_<event>.json`) located next to the application."
+        )
+
     if st.button("Initialize TBA Manager"):
-        if st.session_state.tba_api_key:
-            try:
-                st.session_state.tba_manager = TBAManager(api_key=st.session_state.tba_api_key)
-                st.success("TBA Manager initialized successfully!")
-            except ValueError as e:
-                st.error(str(e))
-        else:
-            st.warning("Please enter a TBA API Key.")
+        api_key = st.session_state.tba_api_key.strip() or None
+        try:
+            st.session_state.tba_manager = TBAManager(
+                api_key=api_key,
+                use_api=use_api
+            )
+            st.success("TBA Manager initialized successfully!")
+        except ValueError as e:
+            st.error(str(e))
+
+    if st.session_state.tba_manager:
+        st.session_state.tba_manager.api_key = st.session_state.tba_api_key.strip() or st.session_state.tba_manager.api_key
+        try:
+            st.session_state.tba_manager.set_api_usage(use_api)
+        except ValueError:
+            st.warning("API access could not be enabled because no key is configured. Staying in offline mode.")
+            st.session_state.tba_use_api = False
+            use_api = False
 
     if st.session_state.tba_manager:
         st.markdown("---")
@@ -1513,7 +1534,10 @@ elif page == "⚙️ TBA Settings":
                 st.success(f"Found {len(events)} events for {year}.")
             else:
                 st.session_state.events_list = []
-                st.error("Could not fetch events. Check your API key and internet connection.")
+                if use_api:
+                    st.error("Could not fetch events. Check your API key and internet connection.")
+                else:
+                    st.warning(f"No cached events found for {int(year)}. Add an `events_{int(year)}.json` file to the app directory or enable API access.")
 
         if st.session_state.events_list:
             event_options = {event['key']: event['name'] for event in st.session_state.events_list}
@@ -1540,7 +1564,10 @@ elif page == "⚙️ TBA Settings":
                             st.session_state.selected_event_name = event_options[selected_key]
                             st.success(f"Fetched and saved {len(teams_data)} teams for {st.session_state.selected_event_name}.")
                         else:
-                            st.error("Failed to fetch team data from TBA API.")
+                            if use_api:
+                                st.error("Failed to fetch team data from TBA API.")
+                            else:
+                                st.warning(f"No cached team data available for that event. Place a `teams_{selected_key}.json` file in the app directory or enable API access.")
     
     st.markdown("---")
     st.markdown("### Current Status")
