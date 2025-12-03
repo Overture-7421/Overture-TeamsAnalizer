@@ -14,6 +14,7 @@ from school_system import TeamScoring, BehaviorReportType
 from config_manager import ConfigManager
 from csv_converter import CSVFormatConverter
 from default_robot_image import load_team_image
+from exam_integrator import ExamDataIntegrator
 
 class AnalizadorRobot:
     def __init__(self, default_column_names=None, config_file="columnsConfig.json"):
@@ -1386,6 +1387,7 @@ class AnalizadorGUI:
         honor_controls = ttk.Frame(self.honor_roll_frame)
         honor_controls.pack(side=tk.TOP, fill=tk.X, padx=5, pady=5)
         ttk.Button(honor_controls, text="Auto-populate from Team Data", command=self.auto_populate_school_system).pack(side=tk.LEFT, padx=2)
+        ttk.Button(honor_controls, text="Import Exam Data", command=self.open_exam_import_window).pack(side=tk.LEFT, padx=2)
         ttk.Button(honor_controls, text="Manual Team Entry", command=self.manual_team_entry).pack(side=tk.LEFT, padx=2)
         ttk.Button(honor_controls, text="Edit Team Scores", command=self.edit_team_scores).pack(side=tk.LEFT, padx=2)
         ttk.Button(honor_controls, text="Export to Tier List", command=self.export_tier_list).pack(side=tk.RIGHT, padx=2)
@@ -3041,7 +3043,58 @@ Configuration:
         min_score_var = tk.DoubleVar(value=self.school_system.min_honor_roll_score)
         ttk.Entry(thresh_frame, textvariable=min_score_var, width=10).grid(row=2, column=1, padx=5)
         
+        # Scoring Weights Section
+        weights_frame = ttk.LabelFrame(quick_config_frame, text="Scoring Weights (must sum to 100%)")
+        weights_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        weights_inner = ttk.Frame(weights_frame)
+        weights_inner.pack(fill=tk.X, padx=5, pady=5)
+        
+        ttk.Label(weights_inner, text="Match Performance %:").grid(row=0, column=0, sticky=tk.W, padx=5)
+        match_weight_var = tk.IntVar(value=int(self.school_system.match_performance_weight * 100))
+        ttk.Entry(weights_inner, textvariable=match_weight_var, width=10).grid(row=0, column=1, padx=5)
+        
+        ttk.Label(weights_inner, text="Pit Scouting %:").grid(row=1, column=0, sticky=tk.W, padx=5)
+        pit_weight_var = tk.IntVar(value=int(self.school_system.pit_scouting_weight * 100))
+        ttk.Entry(weights_inner, textvariable=pit_weight_var, width=10).grid(row=1, column=1, padx=5)
+        
+        ttk.Label(weights_inner, text="During Event %:").grid(row=2, column=0, sticky=tk.W, padx=5)
+        during_weight_var = tk.IntVar(value=int(self.school_system.during_event_weight * 100))
+        ttk.Entry(weights_inner, textvariable=during_weight_var, width=10).grid(row=2, column=1, padx=5)
+        
+        # Weight validation label
+        weights_status_var = tk.StringVar(value="✅ Weights sum to 100%")
+        weights_status_label = ttk.Label(weights_inner, textvariable=weights_status_var, foreground="green")
+        weights_status_label.grid(row=3, column=0, columnspan=2, pady=5)
+        
+        def validate_weights(*args):
+            total = match_weight_var.get() + pit_weight_var.get() + during_weight_var.get()
+            if total == 100:
+                weights_status_var.set("✅ Weights sum to 100%")
+                weights_status_label.configure(foreground="green")
+            else:
+                weights_status_var.set(f"⚠️ Weights sum to {total}% (should be 100%)")
+                weights_status_label.configure(foreground="red")
+        
+        match_weight_var.trace_add("write", validate_weights)
+        pit_weight_var.trace_add("write", validate_weights)
+        during_weight_var.trace_add("write", validate_weights)
+        
         def apply_config():
+            # Validate weights first
+            total = match_weight_var.get() + pit_weight_var.get() + during_weight_var.get()
+            if total != 100:
+                messagebox.showwarning("Invalid Weights", f"Scoring weights must sum to 100% (currently {total}%)")
+                return
+            
+            # Apply weights
+            self.school_system.set_weights(
+                match_weight_var.get() / 100.0,
+                pit_weight_var.get() / 100.0,
+                during_weight_var.get() / 100.0
+            )
+            
+            # Apply other settings
             self.school_system.competencies_multiplier = comp_mult_var.get()
             self.school_system.subcompetencies_multiplier = subcomp_mult_var.get()
             self.school_system.min_competencies_count = min_comp_var.get()
@@ -3235,6 +3288,146 @@ Configuration:
         message += f"💡 Note: Review and adjust pit scouting scores as needed."
         
         messagebox.showinfo("Enhanced Auto-populate Complete", message)
+
+    def open_exam_import_window(self):
+        """Open window for importing exam CSV files into SchoolSystem"""
+        exam_window = tk.Toplevel(self.root)
+        exam_window.title("Import Exam Data")
+        exam_window.geometry("650x350")
+        exam_window.transient(self.root)
+        exam_window.resizable(False, False)
+        
+        # File path variables
+        programming_path = tk.StringVar()
+        mechanical_path = tk.StringVar()
+        electrical_path = tk.StringVar()
+        competencies_path = tk.StringVar()
+        
+        # Main frame with padding
+        main_frame = ttk.Frame(exam_window, padding=15)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        ttk.Label(main_frame, text="📥 Import Exam CSV Files", 
+                  font=("Arial", 14, "bold")).grid(row=0, column=0, columnspan=3, pady=(0, 15))
+        
+        # Description
+        ttk.Label(main_frame, text="Select the exam CSV files to integrate into the Honor Roll System.",
+                  foreground="gray").grid(row=1, column=0, columnspan=3, pady=(0, 15), sticky=tk.W)
+        
+        def browse_file(var, title):
+            path = filedialog.askopenfilename(
+                title=title,
+                filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")]
+            )
+            if path:
+                var.set(path)
+        
+        # Row 2: Programming Exam
+        ttk.Label(main_frame, text="Programming Exam:").grid(row=2, column=0, sticky=tk.W, pady=5)
+        prog_entry = ttk.Entry(main_frame, textvariable=programming_path, width=45, state="readonly")
+        prog_entry.grid(row=2, column=1, padx=5, pady=5)
+        ttk.Button(main_frame, text="Browse...", 
+                   command=lambda: browse_file(programming_path, "Select Programming Exam CSV")).grid(row=2, column=2, padx=5, pady=5)
+        
+        # Row 3: Mechanical Exam
+        ttk.Label(main_frame, text="Mechanical Exam:").grid(row=3, column=0, sticky=tk.W, pady=5)
+        mech_entry = ttk.Entry(main_frame, textvariable=mechanical_path, width=45, state="readonly")
+        mech_entry.grid(row=3, column=1, padx=5, pady=5)
+        ttk.Button(main_frame, text="Browse...", 
+                   command=lambda: browse_file(mechanical_path, "Select Mechanical Exam CSV")).grid(row=3, column=2, padx=5, pady=5)
+        
+        # Row 4: Electrical Exam
+        ttk.Label(main_frame, text="Electrical Exam:").grid(row=4, column=0, sticky=tk.W, pady=5)
+        elec_entry = ttk.Entry(main_frame, textvariable=electrical_path, width=45, state="readonly")
+        elec_entry.grid(row=4, column=1, padx=5, pady=5)
+        ttk.Button(main_frame, text="Browse...", 
+                   command=lambda: browse_file(electrical_path, "Select Electrical Exam CSV")).grid(row=4, column=2, padx=5, pady=5)
+        
+        # Row 5: Competencies Exam
+        ttk.Label(main_frame, text="Competencies Exam:").grid(row=5, column=0, sticky=tk.W, pady=5)
+        comp_entry = ttk.Entry(main_frame, textvariable=competencies_path, width=45, state="readonly")
+        comp_entry.grid(row=5, column=1, padx=5, pady=5)
+        ttk.Button(main_frame, text="Browse...", 
+                   command=lambda: browse_file(competencies_path, "Select Competencies Exam CSV")).grid(row=5, column=2, padx=5, pady=5)
+        
+        # Status label
+        status_var = tk.StringVar(value="Select exam files to import")
+        status_label = ttk.Label(main_frame, textvariable=status_var, foreground="gray")
+        status_label.grid(row=6, column=0, columnspan=3, pady=10)
+        
+        def import_and_calculate():
+            """Process selected exam files and update SchoolSystem"""
+            prog_file = programming_path.get()
+            mech_file = mechanical_path.get()
+            elec_file = electrical_path.get()
+            comp_file = competencies_path.get()
+            
+            if not any([prog_file, mech_file, elec_file, comp_file]):
+                messagebox.showwarning("No Files", "Please select at least one exam file to import.")
+                return
+            
+            try:
+                status_var.set("Processing exam files...")
+                exam_window.update()
+                
+                integrator = ExamDataIntegrator()
+                results = []
+                
+                # Integrate each exam type
+                if prog_file and os.path.exists(prog_file):
+                    prog_results = integrator.integrate_programming_exam(prog_file)
+                    results.append(f"Programming: {len(prog_results)} teams")
+                
+                if mech_file and os.path.exists(mech_file):
+                    mech_results = integrator.integrate_mechanical_exam(mech_file)
+                    results.append(f"Mechanical: {len(mech_results)} teams")
+                
+                if elec_file and os.path.exists(elec_file):
+                    elec_results = integrator.integrate_electrical_exam(elec_file)
+                    results.append(f"Electrical: {len(elec_results)} teams")
+                
+                if comp_file and os.path.exists(comp_file):
+                    comp_results = integrator.integrate_competencies_exam(comp_file)
+                    results.append(f"Competencies: {len(comp_results)} teams")
+                
+                # Apply to school system
+                integrator.apply_to_scoring_system(self.school_system)
+                
+                # Calculate all scores
+                self.school_system.calculate_all_scores()
+                
+                # Refresh Honor Roll tab
+                self.refresh_honor_roll_tab()
+                
+                # Get statistics
+                stats = integrator.get_exam_statistics()
+                
+                # Show success message
+                message = "✅ Exam data imported successfully!\n\n"
+                message += "📊 Import Summary:\n"
+                for result in results:
+                    message += f"  • {result}\n"
+                message += f"\n🏆 Total teams in system: {stats['total_teams']}"
+                message += f"\n💬 Scouting comments collected: {stats['total_comments']}"
+                
+                messagebox.showinfo("Import Complete", message)
+                status_var.set(f"Import complete - {stats['total_teams']} teams processed")
+                
+            except Exception as e:
+                messagebox.showerror("Import Error", f"Failed to import exam data:\n{str(e)}")
+                status_var.set("Import failed")
+        
+        # Row 7: Import button
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.grid(row=7, column=0, columnspan=3, pady=20)
+        
+        import_btn = ttk.Button(btn_frame, text="📥 Import & Calculate", 
+                                command=import_and_calculate, width=25)
+        import_btn.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(btn_frame, text="Cancel", 
+                   command=exam_window.destroy, width=15).pack(side=tk.LEFT, padx=5)
 
     def manual_team_entry(self):
         """Open manual team entry dialog"""

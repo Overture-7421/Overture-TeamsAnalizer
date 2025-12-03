@@ -7,6 +7,7 @@ import streamlit as st
 import pandas as pd
 import io
 import base64
+import tempfile
 from collections import Counter
 from pathlib import Path
 from main import AnalizadorRobot
@@ -18,6 +19,7 @@ import plotly.graph_objects as go
 import os
 from tba_manager import TBAManager
 from foreshadowing import TeamStatsExtractor, MatchSimulator
+from exam_integrator import ExamDataIntegrator
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -66,6 +68,12 @@ if 'foreshadowing_team_performance' not in st.session_state:
     st.session_state.foreshadowing_team_performance = {"red": [], "blue": []}
 if 'foreshadowing_quick_slider' not in st.session_state:
     st.session_state.foreshadowing_quick_slider = 1000
+if 'exam_integrator' not in st.session_state:
+    st.session_state.exam_integrator = None
+if 'scoring_weights' not in st.session_state:
+    st.session_state.scoring_weights = {"match": 50, "pit": 30, "event": 20}
+if 'selected_team_for_details' not in st.session_state:
+    st.session_state.selected_team_for_details = None
 
 # Enhanced Custom CSS for better UI
 st.markdown("""
@@ -1151,6 +1159,183 @@ elif page == "🤝 Alliance Selector":
 elif page == "🏆 Honor Roll System":
     st.markdown("<div class='main-header'>🏆 Honor Roll System</div>", unsafe_allow_html=True)
     
+    # Exam Import Section
+    with st.expander("📥 Import Exam Data", expanded=False):
+        st.markdown("Upload exam CSV files to integrate scores into the Honor Roll System.")
+        
+        exam_col1, exam_col2 = st.columns(2)
+        
+        with exam_col1:
+            programming_file = st.file_uploader(
+                "Upload Programming Exam (.csv)", 
+                type=['csv'], 
+                key="programming_exam_upload",
+                help="CSV file with programming/autonomous exam results"
+            )
+            mechanical_file = st.file_uploader(
+                "Upload Mechanical Exam (.csv)", 
+                type=['csv'], 
+                key="mechanical_exam_upload",
+                help="CSV file with mechanical exam results"
+            )
+        
+        with exam_col2:
+            electrical_file = st.file_uploader(
+                "Upload Electrical Exam (.csv)", 
+                type=['csv'], 
+                key="electrical_exam_upload",
+                help="CSV file with electrical exam results"
+            )
+            competencies_file = st.file_uploader(
+                "Upload Competencies Exam (.csv)", 
+                type=['csv'], 
+                key="competencies_exam_upload",
+                help="CSV file with competencies/soft skills exam results"
+            )
+        
+        if st.button("🔄 Process Exams", type="primary", use_container_width=True):
+            if not any([programming_file, mechanical_file, electrical_file, competencies_file]):
+                st.warning("Please upload at least one exam file to process.")
+            else:
+                try:
+                    with st.spinner("Processing exam files..."):
+                        integrator = ExamDataIntegrator()
+                        results_summary = []
+                        
+                        # Process Programming Exam
+                        if programming_file is not None:
+                            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
+                                tmp.write(programming_file.getvalue())
+                                tmp_path = tmp.name
+                            prog_results = integrator.integrate_programming_exam(tmp_path)
+                            os.unlink(tmp_path)
+                            results_summary.append(f"✅ Programming: {len(prog_results)} teams")
+                        
+                        # Process Mechanical Exam
+                        if mechanical_file is not None:
+                            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
+                                tmp.write(mechanical_file.getvalue())
+                                tmp_path = tmp.name
+                            mech_results = integrator.integrate_mechanical_exam(tmp_path)
+                            os.unlink(tmp_path)
+                            results_summary.append(f"✅ Mechanical: {len(mech_results)} teams")
+                        
+                        # Process Electrical Exam
+                        if electrical_file is not None:
+                            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
+                                tmp.write(electrical_file.getvalue())
+                                tmp_path = tmp.name
+                            elec_results = integrator.integrate_electrical_exam(tmp_path)
+                            os.unlink(tmp_path)
+                            results_summary.append(f"✅ Electrical: {len(elec_results)} teams")
+                        
+                        # Process Competencies Exam
+                        if competencies_file is not None:
+                            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
+                                tmp.write(competencies_file.getvalue())
+                                tmp_path = tmp.name
+                            comp_results = integrator.integrate_competencies_exam(tmp_path)
+                            os.unlink(tmp_path)
+                            results_summary.append(f"✅ Competencies: {len(comp_results)} teams")
+                        
+                        # Apply to school system
+                        integrator.apply_to_scoring_system(st.session_state.school_system)
+                        
+                        # Calculate all scores
+                        st.session_state.school_system.calculate_all_scores()
+                        
+                        # Store integrator for later reference
+                        st.session_state.exam_integrator = integrator
+                        
+                        # Get statistics
+                        stats = integrator.get_exam_statistics()
+                        
+                        # Display success message
+                        st.success("Exam data imported successfully!")
+                        
+                        # Show results summary
+                        for result in results_summary:
+                            st.write(result)
+                        
+                        st.info(f"📊 Total teams in system: {stats['total_teams']} | 💬 Scouting comments: {stats['total_comments']}")
+                        
+                except Exception as e:
+                    st.error(f"Failed to process exam files: {str(e)}")
+        
+        # Show exam statistics if integrator exists
+        if st.session_state.exam_integrator is not None:
+            st.markdown("---")
+            st.markdown("**📈 Current Exam Statistics:**")
+            stats = st.session_state.exam_integrator.get_exam_statistics()
+            
+            stat_cols = st.columns(4)
+            exam_types = ["programming", "mechanical", "electrical", "competencies"]
+            for i, exam_type in enumerate(exam_types):
+                with stat_cols[i]:
+                    s = stats[exam_type]
+                    if s['count'] > 0:
+                        st.metric(
+                            exam_type.title(), 
+                            f"{s['count']} teams",
+                            f"Avg: {s['avg_score']:.1f}%"
+                        )
+                    else:
+                        st.metric(exam_type.title(), "No data")
+    
+    # Scoring Settings Section
+    with st.expander("⚙️ Scoring Settings", expanded=False):
+        st.markdown("**Configure Honor Roll Score Weights**")
+        st.markdown("Adjust the weight of each scoring component. Weights must sum to 100%.")
+        
+        weight_cols = st.columns(3)
+        with weight_cols[0]:
+            match_weight = st.number_input(
+                "Match Performance %", 
+                min_value=0, max_value=100, 
+                value=st.session_state.scoring_weights["match"],
+                step=5,
+                help="Weight for autonomous, teleop, and endgame scores"
+            )
+        with weight_cols[1]:
+            pit_weight = st.number_input(
+                "Pit Scouting %", 
+                min_value=0, max_value=100, 
+                value=st.session_state.scoring_weights["pit"],
+                step=5,
+                help="Weight for electrical, mechanical, and equipment scores"
+            )
+        with weight_cols[2]:
+            event_weight = st.number_input(
+                "During Event %", 
+                min_value=0, max_value=100, 
+                value=st.session_state.scoring_weights["event"],
+                step=5,
+                help="Weight for organization and collaboration scores"
+            )
+        
+        total_weight = match_weight + pit_weight + event_weight
+        
+        if total_weight != 100:
+            st.warning(f"⚠️ Weights must sum to 100%. Current sum: {total_weight}%")
+        else:
+            st.success(f"✅ Weights sum to 100%")
+        
+        if st.button("Apply Scoring Weights", disabled=(total_weight != 100)):
+            # Update session state
+            st.session_state.scoring_weights = {"match": match_weight, "pit": pit_weight, "event": event_weight}
+            
+            # Apply to school system
+            st.session_state.school_system.set_scoring_weights(
+                match_weight / 100.0,
+                pit_weight / 100.0,
+                event_weight / 100.0
+            )
+            
+            # Recalculate scores
+            st.session_state.school_system.calculate_all_scores()
+            st.success("Scoring weights updated! Rankings recalculated.")
+            st.rerun()
+    
     col1, col2 = st.columns([1, 1])
     
     with col1:
@@ -1198,6 +1383,296 @@ elif page == "🏆 Honor Roll System":
                 st.success(f"Added {len(stats)} teams to Honor Roll System!")
             else:
                 st.warning("No team data available")
+        
+        # Export to TierList button
+        if st.session_state.school_system.teams:
+            st.markdown("---")
+            st.markdown("**📥 Export Options**")
+            
+            # Generate TierList plain text file with custom format
+            def generate_tierlist_txt():
+                """
+                Generate a plain text file in the TierList Maker format.
+                
+                Format:
+                Tier: [Tier Name]
+                  Image: [Base64_String]
+                    Title: Team [Team_Number]
+                    Text: [JSON_String with stats]
+                    DriverSkills: [Value]
+                    ImageList:
+                
+                (blank line between tiers)
+                
+                Tier Assignment Logic (respects user's dynamic configuration):
+                1. Uses min_honor_roll_score from session_state (NOT hardcoded)
+                2. Qualified teams are sorted by final_points (includes weight adjustments)
+                3. Defense Pick: Qualified teams with defense > 0
+                4. 1st/2nd/3rd Pick: Qualified non-defensive teams split into thirds
+                5. "-" Tier: ONLY disqualified teams (those below min_honor_roll_score or lacking competencies)
+                6. Unassigned: Empty (all qualified teams are assigned to top tiers)
+                
+                Data Source: Uses real-time data from school_system.calculated_scores
+                """
+                # Get current configuration values from school_system (reflects UI settings)
+                current_min_score = st.session_state.school_system.min_honor_roll_score
+                current_min_comp = st.session_state.school_system.min_competencies_count
+                current_min_subcomp = st.session_state.school_system.min_subcompetencies_count
+                
+                # Get rankings and disqualified teams (these respect the current configuration)
+                rankings = st.session_state.school_system.get_honor_roll_ranking()
+                disqualified = st.session_state.school_system.get_disqualified_teams()
+                
+                # Build a lookup for team stats from analizador (for defense info and additional stats)
+                team_stats_lookup = {}
+                if hasattr(st.session_state, 'analizador') and st.session_state.analizador:
+                    all_team_stats = st.session_state.analizador.get_detailed_team_stats()
+                    for stat in all_team_stats:
+                        team_num = str(stat.get("team", ""))
+                        team_stats_lookup[team_num] = stat
+                
+                # Helper to check if team played defense
+                def has_played_defense(team_num):
+                    stat = team_stats_lookup.get(str(team_num), {})
+                    # Check various possible field names for defense
+                    defense_val = stat.get("defense_rate", 0) or stat.get("defended", 0) or stat.get("defense_count", 0)
+                    return defense_val > 0
+                
+                # ===============================================================
+                # STEP 1: Separate QUALIFIED teams into defensive vs non-defensive
+                # rankings already contains ONLY qualified teams, sorted by final_points
+                # ===============================================================
+                defense_pick_teams = []
+                qualified_non_defensive = []
+                
+                for team_num, result in rankings:
+                    if has_played_defense(team_num):
+                        defense_pick_teams.append((team_num, result))
+                    else:
+                        qualified_non_defensive.append((team_num, result))
+                
+                # ===============================================================
+                # STEP 2: Distribute QUALIFIED non-defensive teams into 1st/2nd/3rd Pick
+                # These are already sorted by final_points (descending)
+                # ===============================================================
+                total_qualified_non_def = len(qualified_non_defensive)
+                
+                if total_qualified_non_def > 0:
+                    # Split evenly into thirds for 1st, 2nd, 3rd pick
+                    tier_size = max(1, total_qualified_non_def // 3)
+                    remainder = total_qualified_non_def % 3
+                    
+                    # Distribute remainder to higher tiers first
+                    tier_1_size = tier_size + (1 if remainder >= 1 else 0)
+                    tier_2_size = tier_size + (1 if remainder >= 2 else 0)
+                    tier_3_size = total_qualified_non_def - tier_1_size - tier_2_size
+                    
+                    tier_1 = qualified_non_defensive[:tier_1_size]
+                    tier_2 = qualified_non_defensive[tier_1_size:tier_1_size + tier_2_size]
+                    tier_3 = qualified_non_defensive[tier_1_size + tier_2_size:]
+                else:
+                    tier_1, tier_2, tier_3 = [], [], []
+                
+                # ===============================================================
+                # STEP 3: DISQUALIFIED teams go to "-" tier (did not meet threshold)
+                # This includes teams below min_honor_roll_score or lacking competencies
+                # ===============================================================
+                disqualified_teams_list = []
+                for team_num, reason in disqualified:
+                    result = st.session_state.school_system.calculated_scores.get(str(team_num))
+                    disqualified_teams_list.append((team_num, result, reason))
+                
+                # Default placeholder image (small transparent PNG in base64)
+                default_image = "iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAIAAACzY+a1AAAEn0lEQVR4nO3dwW+TdRzH8d+zPutaVtzqlFaSZcKYRNmmhqFZdsCFiHLAaCAkQjxrsosx+i948mCMi3rVhHhwBPGCkUOnxIQJEgOrJW7iAnNAYWNdsXRtNzObzMLM41PWZzxv/bxOa7/wpPu982uftrRY3T3PGSGru983QFZLCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnx"
+                
+                # Helper function to get team stats for the Text JSON field
+                # Uses REAL-TIME data from school_system.calculated_scores
+                def get_team_stats_json(team_num, result):
+                    # Get the calculated scores from school_system (real-time data)
+                    calculated = st.session_state.school_system.calculated_scores.get(str(team_num))
+                    team_scores = st.session_state.school_system.teams.get(str(team_num))
+                    
+                    # Get additional stats from analizador if available
+                    stat = team_stats_lookup.get(str(team_num), {})
+                    overall_avg = stat.get("overall_avg", 0.0)
+                    robot_valuation = stat.get("robot_valuation", 0.0)
+                    defense_rate = stat.get("defense_rate", 0.0) or stat.get("defended", 0.0) or stat.get("defense_count", 0.0)
+                    died_rate = stat.get("died_rate", 0.0)
+                    matches_played = stat.get("matches_played", 0)
+                    
+                    # Build stats dict with real-time calculated data
+                    stats_dict = {
+                        "honor_score": round(calculated.honor_roll_score, 1) if calculated else (round(result.honor_roll_score, 1) if result else 0.0),
+                        "curved_score": round(calculated.curved_score, 1) if calculated else 0.0,
+                        "final_points": calculated.final_points if calculated else (result.final_points if result else 0),
+                        "match_performance": round(calculated.match_performance_score, 1) if calculated else 0.0,
+                        "pit_scouting": round(calculated.pit_scouting_score, 1) if calculated else 0.0,
+                        "during_event": round(calculated.during_event_score, 1) if calculated else 0.0,
+                        "competencies_score": round(calculated.competencies_score, 1) if calculated else 0.0,
+                        "overall_avg": round(overall_avg, 1),
+                        "robot_valuation": round(robot_valuation, 1),
+                        "defense_rate": round(defense_rate, 2),
+                        "died_rate": round(died_rate, 2),
+                        "matches_played": matches_played
+                    }
+                    
+                    # Add competencies count if available
+                    if team_scores:
+                        # Use the TeamCompetencies methods to get counts
+                        c_count = team_scores.competencies.get_competencies_count()
+                        sc_count = team_scores.competencies.get_subcompetencies_count()
+                        stats_dict["competencies"] = c_count
+                        stats_dict["subcompetencies"] = sc_count
+                    
+                    # Add feedback text from calculated scores (real-time)
+                    feedback_text = ""
+                    if calculated and calculated.final_feedback:
+                        feedback_text = calculated.final_feedback
+                    elif result and result.final_feedback:
+                        feedback_text = result.final_feedback
+                    
+                    if feedback_text:
+                        stats_dict["feedback"] = feedback_text
+                    
+                    return json.dumps(stats_dict, ensure_ascii=False)
+                
+                # Helper function to generate team block with DriverSkills based on defense
+                def generate_team_block(team_num, result, is_defensive=False):
+                    stats_json = get_team_stats_json(team_num, result)
+                    driver_skills = "Defensive" if is_defensive else "Offensive"
+                    
+                    # Get scores for title - prioritize final_points since that's the ranking criteria
+                    calculated = st.session_state.school_system.calculated_scores.get(str(team_num))
+                    final_pts = calculated.final_points if calculated else (result.final_points if result else 0)
+                    honor_score = calculated.honor_roll_score if calculated else (result.honor_roll_score if result else 0.0)
+                    
+                    lines = []
+                    lines.append(f"  Image: {default_image}")
+                    lines.append(f"    Title: Team {team_num} | Points: {final_pts} | HR: {honor_score:.1f}")
+                    lines.append(f"    Text: {stats_json}")
+                    lines.append(f"    DriverSkills: {driver_skills}")
+                    lines.append(f"    ImageList:")
+                    return "\n".join(lines)
+                
+                # Build the output
+                output_lines = []
+                
+                # Add export header with configuration info
+                output_lines.append(f"# TierList Export - Configuration Used:")
+                output_lines.append(f"# Min Honor Roll Score: {current_min_score}")
+                output_lines.append(f"# Min Competencies: {current_min_comp}")
+                output_lines.append(f"# Min Subcompetencies: {current_min_subcomp}")
+                output_lines.append(f"# Qualified Teams: {len(rankings)}")
+                output_lines.append(f"# Disqualified Teams: {len(disqualified)}")
+                output_lines.append("")
+                
+                # Tier: 1st Pick (top third of qualified non-defensive teams)
+                output_lines.append("Tier: 1st Pick")
+                for team_num, result in tier_1:
+                    output_lines.append(generate_team_block(team_num, result, is_defensive=False))
+                output_lines.append("")  # Blank line between tiers
+                
+                # Tier: 2nd Pick (middle third of qualified non-defensive teams)
+                output_lines.append("Tier: 2nd Pick")
+                for team_num, result in tier_2:
+                    output_lines.append(generate_team_block(team_num, result, is_defensive=False))
+                output_lines.append("")
+                
+                # Tier: 3rd Pick (lower third of qualified non-defensive teams)
+                output_lines.append("Tier: 3rd Pick")
+                for team_num, result in tier_3:
+                    output_lines.append(generate_team_block(team_num, result, is_defensive=False))
+                output_lines.append("")
+                
+                # Tier: Ojito (empty placeholder - can be used for teams to watch)
+                output_lines.append("Tier: Ojito")
+                output_lines.append("")
+                
+                # Tier: - (DISQUALIFIED teams - those below min_honor_roll_score or lacking competencies)
+                output_lines.append("Tier: -")
+                for team_num, result, reason in disqualified_teams_list:
+                    output_lines.append(generate_team_block(team_num, result, is_defensive=False))
+                output_lines.append("")
+                
+                # Tier: Defense Pick (QUALIFIED teams with defense > 0)
+                output_lines.append("Tier: Defense Pick")
+                for team_num, result in defense_pick_teams:
+                    output_lines.append(generate_team_block(team_num, result, is_defensive=True))
+                output_lines.append("")
+                
+                # Tier: Unassigned (empty - all qualified teams are assigned)
+                output_lines.append("Tier: Unassigned")
+                # No teams here - all qualified teams are distributed to top tiers
+                
+                return "\n".join(output_lines)
+            
+            import json
+            
+            # Get summary stats for display
+            summary = st.session_state.school_system.get_summary_stats()
+            
+            # Show export preview info
+            st.info(f"""
+            **Export Preview:**
+            - Min Honor Roll Score: **{st.session_state.school_system.min_honor_roll_score}**
+            - Qualified Teams: **{summary.get('qualified_teams', 0)}**
+            - Disqualified Teams: **{summary.get('disqualified_teams', 0)}**
+            
+            *The export will match the qualified teams shown in the Honor Roll Rankings table.*
+            """)
+            
+            tierlist_txt = generate_tierlist_txt()
+            
+            # TXT Download (primary export format)
+            st.download_button(
+                label="📥 Export to TierList Maker (.txt)",
+                data=tierlist_txt,
+                file_name="tier_list.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
+    
+    # Team Competency Editor Section
+    if st.session_state.school_system.teams:
+        with st.expander("✏️ Team Competency Editor", expanded=False):
+            st.markdown("Select a team to edit their competencies and subcompetencies.")
+            
+            team_list = sorted(st.session_state.school_system.teams.keys())
+            selected_team_edit = st.selectbox(
+                "Select Team to Edit",
+                options=team_list,
+                key="team_competency_editor_select"
+            )
+            
+            if selected_team_edit:
+                comp_status = st.session_state.school_system.get_team_competencies_status(selected_team_edit)
+                comp_labels = TeamScoring.get_competency_labels()
+                subcomp_labels = TeamScoring.get_subcompetency_labels()
+                
+                st.markdown("#### Competencies")
+                comp_cols = st.columns(2)
+                
+                for i, (key, label) in enumerate(comp_labels.items()):
+                    with comp_cols[i % 2]:
+                        current_val = comp_status["competencies"].get(key, False)
+                        new_val = st.checkbox(label, value=current_val, key=f"comp_{selected_team_edit}_{key}")
+                        if new_val != current_val:
+                            st.session_state.school_system.update_competency(selected_team_edit, key, new_val)
+                
+                st.markdown("#### Subcompetencies")
+                subcomp_cols = st.columns(2)
+                
+                for i, (key, label) in enumerate(subcomp_labels.items()):
+                    with subcomp_cols[i % 2]:
+                        current_val = comp_status["subcompetencies"].get(key, False)
+                        new_val = st.checkbox(label, value=current_val, key=f"subcomp_{selected_team_edit}_{key}")
+                        if new_val != current_val:
+                            st.session_state.school_system.update_competency(selected_team_edit, key, new_val)
+                
+                if st.button("💾 Save & Recalculate", key="save_competencies"):
+                    st.session_state.school_system.calculate_all_scores()
+                    st.success(f"Competencies saved for Team {selected_team_edit}!")
+                    st.rerun()
     
     # Display rankings
     st.markdown("### Honor Roll Rankings")
@@ -1206,18 +1681,120 @@ elif page == "🏆 Honor Roll System":
         rankings = st.session_state.school_system.get_honor_roll_ranking()
         
         ranking_data = []
+        team_numbers_list = []
         for rank, (team_num, results) in enumerate(rankings, 1):
-            team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else team_num
+            team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else None
+            c, sc, rp = st.session_state.school_system.calculate_competencies_score(team_num)
+            team_numbers_list.append(team_num)
             ranking_data.append({
                 "Rank": rank,
-                "Team": f"{team_num} - {team_name}",
-                "Score": round(results['score'], 2),
-                "Competencies": ", ".join(results['competencies']),
+                "Team": f"{team_num} - {team_name}" if team_name else team_num,
+                "Final Points": results.final_points,
+                "Honor Roll": round(results.honor_roll_score, 1),
+                "Curved Score": round(results.curved_score, 1),
+                "C/SC/RP": f"{c}/{sc}/{rp}",
+                "Feedback": results.final_feedback[:50] + "..." if len(results.final_feedback) > 50 else results.final_feedback,
                 "Status": "Qualified"
             })
         
         df_rankings = pd.DataFrame(ranking_data)
         st.dataframe(df_rankings, use_container_width=True, height=400)
+        
+        # Team Details Inspector
+        st.markdown("### 🔍 Team Details Inspector")
+        
+        if team_numbers_list:
+            selected_detail_team = st.selectbox(
+                "Select a team to view detailed breakdown",
+                options=team_numbers_list,
+                key="team_detail_selector"
+            )
+            
+            if selected_detail_team:
+                breakdown = st.session_state.school_system.get_team_score_breakdown(selected_detail_team)
+                comp_status = st.session_state.school_system.get_team_competencies_status(selected_detail_team)
+                
+                detail_col1, detail_col2 = st.columns([1, 1])
+                
+                with detail_col1:
+                    st.markdown("#### 📊 Score Breakdown")
+                    
+                    # Create radar chart data
+                    categories = ['Match Performance', 'Pit Scouting', 'During Event']
+                    values = [
+                        breakdown['match_performance']['total'],
+                        breakdown['pit_scouting']['total'],
+                        breakdown['during_event']['total']
+                    ]
+                    
+                    # Create bar chart for score breakdown
+                    fig = go.Figure()
+                    fig.add_trace(go.Bar(
+                        x=categories,
+                        y=values,
+                        marker_color=['#667eea', '#764ba2', '#f093fb'],
+                        text=[f"{v:.1f}" for v in values],
+                        textposition='auto'
+                    ))
+                    fig.update_layout(
+                        title=f"Team {selected_detail_team} Score Breakdown",
+                        yaxis_title="Score",
+                        height=300,
+                        template="plotly_dark"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                    
+                    # Detailed sub-scores
+                    st.markdown("**Match Performance Details:**")
+                    mp = breakdown['match_performance']
+                    st.write(f"• Autonomous: {mp['autonomous']:.1f}")
+                    st.write(f"• Teleop: {mp['teleop']:.1f}")
+                    st.write(f"• Endgame: {mp['endgame']:.1f}")
+                    
+                    st.markdown("**Pit Scouting Details:**")
+                    ps = breakdown['pit_scouting']
+                    st.write(f"• Electrical: {ps['electrical']:.1f}")
+                    st.write(f"• Mechanical: {ps['mechanical']:.1f}")
+                    st.write(f"• Driver Station: {ps['driver_station']:.1f}")
+                    st.write(f"• Tools: {ps['tools']:.1f}")
+                    st.write(f"• Spare Parts: {ps['spare_parts']:.1f}")
+                
+                with detail_col2:
+                    st.markdown("#### ✅ Competencies Status")
+                    
+                    comp_labels = TeamScoring.get_competency_labels()
+                    subcomp_labels = TeamScoring.get_subcompetency_labels()
+                    
+                    st.markdown("**Competencies:**")
+                    for key, label in comp_labels.items():
+                        status = comp_status["competencies"].get(key, False)
+                        icon = "🟢" if status else "🔴"
+                        st.write(f"{icon} {label}")
+                    
+                    st.markdown("**Subcompetencies:**")
+                    for key, label in subcomp_labels.items():
+                        status = comp_status["subcompetencies"].get(key, False)
+                        icon = "🟢" if status else "🔴"
+                        st.write(f"{icon} {label}")
+                    
+                    st.markdown("**Summary:**")
+                    counts = comp_status["counts"]
+                    st.metric("Competencies Met", f"{counts['competencies']}/7")
+                    st.metric("Subcompetencies Met", f"{counts['subcompetencies']}/5")
+                
+                # Feedback section
+                st.markdown("#### 💬 Scouting Comments & Feedback")
+                feedback = breakdown.get('final_feedback', '')
+                if feedback:
+                    st.text_area(
+                        "Aggregated Feedback",
+                        value=feedback,
+                        height=150,
+                        disabled=True,
+                        key=f"feedback_{selected_detail_team}"
+                    )
+                else:
+                    st.info("No feedback available for this team.")
     else:
         st.info("No teams in Honor Roll System. Please auto-populate from data.")
 

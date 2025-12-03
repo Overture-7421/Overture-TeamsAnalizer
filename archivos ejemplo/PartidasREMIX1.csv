@@ -1,0 +1,325 @@
+Scouter Initials,Match Number,Robot,Future Alliance,Team Number,Starting Position,No Show,Moved (Auto),Coral L1 (Auto),Coral L2 (Auto),Coral L3 (Auto),Coral L4 (Auto),Barge Algae (Auto),Processor Algae (Auto),Dislodged Algae (Auto),Foul (Auto),Dislodged Algae (Teleop),Pickup Location,Coral L1 (Teleop),Coral L2 (Teleop),Coral L3 (Teleop),Coral L4 (Teleop),Barge Algae (Teleop),Processor Algae (Teleop),Crossed Field/Defense,Tipped/Fell,Touched Opposing Cage,Died,End Position,Broke,Defended,Coral HP Mistake,Yellow/Red Card
+Maximiliano Santana Lﾃｳpez,1,Red 3,false,118,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,0,5,7,3,3,0,false,false,0,false,Deep Climb,false,false,false,None
+ERC,1,Blue 1,false,4587,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,3,0,0,false,false,0,false,Parked,false,false,false,None
+CAPC,1,Blue 1,false,3735,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,2,0,0,false,false,0,false,Parked,false,false,true,None
+RCF,1,Blue 3,false,1477,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,1,0,0,0,false,false,0,false,Parked,false,false,false,None
+pau,1,Red 2,false,231,Middle,false,true,1,0,0,0,0,0,false,0,true,Source,0,1,0,3,0,0,false,false,0,false,Parked,false,false,false,None
+DIHP,2,Red 1,false,8370,No-Processor Side,false,false,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,true,false,0,false,Parked,false,true,false,None
+DIHP,1,Red 1,false,7691,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,1,0,2,3,0,0,false,false,0,false,Parked,false,false,false,None
+Maximiliano Santana Lﾃｳpez,2,Red 3,false,9512,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,1,0,0,0,0,0,false,false,0,false,Parked,false,false,true,None
+ERC,2,Blue 2,false,624,Processor Side,false,false,0,0,0,1,0,0,false,0,true,Ground,0,2,3,5,2,0,false,false,0,false,Parked,false,false,false,None
+RCF,2,Blue 3,false,8576,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,1,0,true,false,0,false,Deep Climb,false,false,false,None
+PH,2,Red 2,false,7421,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,4,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+CAPC,2,Blue 1,false,6800,No-Processor Side,false,true,0,0,0,2,0,0,false,0,true,Source,0,5,3,3,5,0,false,false,0,false,Deep Climb,false,false,false,None
+pau,3,Red 2,false,4639,Processor Side,false,false,0,0,0,0,0,0,false,0,true,Source,0,1,3,2,0,0,false,false,0,false,None,false,false,false,None
+ERC,3,Blue 2,false,8769,No-Processor Side,false,true,0,1,0,0,0,0,false,0,false,Source,0,5,4,0,0,0,false,false,0,true,Parked,false,false,false,None
+Maximiliano Santana Lﾃｳpez,3,Red 3,false,4328,Middle,false,false,0,0,0,0,0,0,false,0,true,Ground,0,0,0,0,0,0,true,false,0,false,Parked,false,true,false,None
+RCF,3,Blue 3,false,6647,Middle,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,0,4,0,0,false,false,0,false,Parked,false,false,false,None
+DIHP,3,Red 1,false,2582,No-Processor Side,false,true,0,0,0,2,0,0,false,0,true,Source,0,0,1,4,0,0,false,false,0,false,Deep Climb,false,false,false,None
+CAPC,3,Blue 1,false,8177,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Both,0,0,1,3,0,0,false,false,0,false,Deep Climb,false,false,false,None
+Maximiliano Santana Lﾃｳpez,4,Red 3,false,5414,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,0,0,0,5,1,0,false,false,0,false,Parked,false,false,false,None
+pau,4,Red 2,false,7492,Processor Side,false,true,1,0,0,1,0,0,false,0,true,Ground,0,0,0,2,1,0,false,false,0,false,Parked,false,false,false,None
+ERC,4,Blue 2,false,6243,Middle,false,true,1,0,0,0,0,0,false,0,false,Source,11,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,4,Blue 3,false,4010,Processor Side,true,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+DIHP,4,Red 1,false,2881,Middle,false,true,0,0,0,1,1,0,true,0,true,Source,0,0,0,0,1,0,false,false,0,false,Parked,false,false,false,None
+CAPC,4,Blue 1,false,5829,No-Processor Side,false,false,0,0,0,0,0,0,false,0,false,Source,0,0,1,2,0,0,false,false,0,false,Parked,false,false,false,None
+DIHP,5,Red 1,false,5427,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,1,0,3,2,0,false,false,0,false,Parked,false,false,false,None
+ERC,5,Blue 2,false,7312,Middle,false,true,0,0,0,0,0,0,false,0,true,Source,0,0,0,0,1,0,false,false,0,false,Parked,false,false,false,None
+Maximiliano Santana Lﾃｳpez,5,Blue 1,false,4635,No-Processor Side,false,false,0,0,0,0,0,0,false,0,false,Ground,1,0,0,2,0,0,false,false,0,true,Parked,false,false,false,None
+CAPC,5,Blue 1,false,8515,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,true,Parked,false,false,false,None
+RCF,5,Blue 3,false,4295,Processor Side,true,true,0,0,0,0,0,0,false,0,false,Source,1,3,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+pau,5,Red 2,false,9137,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,0,0,1,0,false,false,0,false,None,false,false,false,None
+DIHP,6,Red 1,false,5892,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,1,1,4,4,0,0,false,false,0,false,Deep Climb,false,false,false,None
+ERC,6,Blue 2,false,9181,Middle,false,true,0,0,0,1,0,0,false,0,false,Source,0,1,0,3,0,0,false,false,0,false,Deep Climb,false,false,false,None
+RCF,6,Blue 3,true,2848,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,3,2,0,false,false,0,false,None,false,false,false,None
+Maximiliano Santana Lﾃｳpez,6,Red 3,false,9991,Processor Side,false,true,1,0,0,0,0,0,false,0,false,Source,13,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+CAPC,6,Blue 1,false,5908,No-Processor Side,false,false,0,0,0,0,0,0,false,0,true,Source,0,1,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+PAU,6,Red 2,false,6357,Middle,false,false,0,0,0,1,2,0,true,0,true,Ground,0,0,0,3,1,0,false,false,0,false,Shallow Climb,false,false,false,None
+DIHP,7,Red 1,false,8370,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,1,0,0,true,false,0,false,Parked,false,false,false,None
+ERC,7,Blue 2,false,118,Processor Side,false,false,0,0,0,3,0,0,false,0,true,Ground,0,0,6,6,4,0,false,false,0,false,Deep Climb,false,false,false,None
+RCF,7,Blue 3,false,2587,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,2,0,0,false,false,0,false,None,false,false,false,None
+MS,7,Red 3,false,9994,Middle,false,true,1,0,0,0,0,0,false,0,false,Source,4,0,0,0,1,0,false,false,0,false,None,false,false,false,None
+CAPC,7,Blue 1,false,6647,No-Processor Side,false,false,0,0,0,0,0,0,false,0,true,Ground,0,0,0,1,0,0,false,false,0,false,Parked,false,false,false,None
+PAU,7,Red 2,false,3847,Processor Side,false,false,0,0,0,3,0,0,false,0,true,Both,1,0,4,2,0,0,false,false,0,false,None,false,false,false,None
+DIHP,8,Red 1,false,6243,Middle,false,true,1,0,0,0,0,0,false,0,false,Source,5,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+ERC,8,Blue 2,false,4639,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+PAU,7,Red 2,false,5414,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,7,0,0,false,false,0,false,Parked,false,false,false,None
+CAPC,8,Blue 1,false,7421,Processor Side,false,true,0,0,0,1,0,0,false,0,true,Ground,0,0,2,5,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,9,Blue 3,false,8177,Processor Side,false,false,0,0,0,1,0,0,false,0,false,Source,0,0,0,1,0,0,false,false,0,false,None,false,false,false,None
+CAPC,9,Blue 1,false,4295,No-Processor Side,false,false,0,0,0,0,0,0,false,0,true,Ground,1,1,0,0,0,0,false,false,0,false,Parked,false,false,true,None
+Maximiliano Santana Lﾃｳpez,9,Red 3,false,624,No-Processor Side,false,true,0,0,0,1,0,0,false,0,false,Ground,0,3,5,2,3,0,false,false,0,false,Parked,false,false,false,None
+ERC,9,Blue 2,false,4328,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+Maximiliano Santana Lﾃｳpez,10,Red 3,false,8769,No-Processor Side,false,true,0,1,0,0,0,0,false,0,false,Ground,0,1,3,0,0,0,false,false,0,false,Parked,false,false,false,None
+ERC,10,Red 2,false,4635,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,0,6,4,1,2,0,false,false,0,false,Deep Climb,false,false,false,None
+PAU,10,Red 2,false,8515,No-Processor Side,false,false,0,0,0,0,0,0,false,0,false,Source,0,0,0,2,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+CAPC,10,Blue 1,false,7492,Middle,false,false,0,0,0,1,0,0,false,0,true,Source,0,0,4,3,0,1,false,false,0,false,Parked,false,false,false,None
+RCF,10,Blue 3,false,6357,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,4,0,1,2,0,0,false,false,0,false,Deep Climb,false,false,false,None
+ERC,11,Blue 2,false,5892,No-Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,0,0,0,true,false,0,false,Parked,false,false,false,None
+MSL,11,Red 3,false,7691,Middle,false,true,0,0,0,0,0,0,false,0,false,Both,0,1,2,2,0,0,false,false,0,false,None,false,false,false,None
+PAU,11,Red 2,false,7312,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,1,0,0,false,false,0,false,None,true,false,false,None
+Ricardo Cavazos Fernandez,11,Blue 3,false,3847,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,0,0,0,6,0,0,false,false,0,false,None,true,false,false,None
+CAPC,11,Blue 1,false,4010,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,Parked,false,true,false,None
+MSL,12,Red 3,false,9512,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,1,1,0,0,0,0,false,false,0,false,Parked,false,false,true,None
+DIHP,12,Red 1,false,2587,Middle,false,true,0,0,0,1,0,0,false,0,true,Source,0,0,0,2,0,0,false,false,0,false,None,false,false,false,None
+DIHP,11,Red 1,false,6800,No-Processor Side,false,true,0,0,0,3,0,0,false,0,true,Source,0,6,4,2,0,0,false,false,0,false,Deep Climb,false,false,false,None
+DIHP,10,Red 1,false,5908,Middle,false,true,0,0,0,0,0,0,false,0,true,Both,0,1,0,0,0,4,false,false,0,false,Parked,false,false,false,None
+DIHP,9,Red 1,false,231,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,1,4,0,0,false,false,0,false,Deep Climb,false,false,false,None
+PAU,12,Red 2,false,2582,Processor Side,false,true,0,0,1,0,0,0,false,0,false,Ground,1,4,2,2,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+RICARDO CAVAZOS FEENANDE,12,Blue 3,false,9991,Processor Side,false,false,2,0,0,0,0,0,false,0,false,Source,12,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+ERC,12,Blue 2,false,9994,No-Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,8,0,0,false,false,0,false,Parked,false,false,false,None
+CAPC,12,Blue 1,false,9181,Middle,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,2,0,0,false,false,0,false,Deep Climb,true,false,false,None
+ERC,13,Blue 2,false,5829,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,1,0,3,0,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,13,Blue 3,false,1477,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,1,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+MSL,13,Red 3,false,9137,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,2,0,0,true,false,0,false,Parked,false,true,false,None
+AJBF,13,Blue 1,false,5427,Middle,true,false,0,0,0,1,1,0,false,0,false,Ground,0,0,0,3,1,0,false,false,0,false,Parked,true,false,false,None
+PAU,13,Red 2,false,8576,No-Processor Side,false,false,0,0,0,0,0,0,false,0,true,Ground,0,0,0,0,3,0,true,false,0,false,Parked,false,false,false,None
+ERC,14,Blue 2,false,624,No-Processor Side,false,true,0,0,0,1,0,0,false,0,true,Ground,0,4,4,1,1,0,false,false,0,false,None,false,false,false,None
+MSL,14,Red 3,false,8370,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,1,1,0,0,false,false,0,false,None,false,false,false,None
+CAPC,14,Blue 1,false,6647,Middle,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,1,3,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,14,Blue 3,false,5414,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,0,0,1,4,2,0,false,false,0,false,Parked,false,false,false,None
+PAU,14,Red 2,false,8765,Processor Side,false,true,0,1,0,0,0,0,false,0,false,Source,0,0,3,0,0,0,false,false,0,false,Parked,false,false,false,None
+ERC,15,Blue 2,false,3847,Processor Side,false,true,0,0,0,2,0,0,false,0,true,Both,0,0,0,5,0,0,false,false,0,false,Deep Climb,false,false,false,None
+RCF,15,Blue 3,false,231,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,1,3,4,0,0,false,false,0,false,Parked,false,false,false,None
+PAU,15,Red 2,false,2881,No-Processor Side,false,true,1,0,0,1,0,0,false,0,false,Ground,0,0,4,4,0,0,false,false,0,false,Parked,false,false,false,None
+MSL,15,Red 3,false,5908,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,2,1,0,0,0,0,false,false,0,false,None,false,false,false,None
+CAPC,15,Blue 1,false,6357,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,1,0,2,0,1,0,false,false,0,false,Parked,false,false,false,None
+ERC,16,Blue 2,false,4328,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,true,None,false,false,false,None
+PAU,16,Red 2,false,9991,No-Processor Side,false,false,1,0,0,0,0,0,false,0,false,Ground,11,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+MSL,16,Red 3,false,4587,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,3,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,16,Blue 3,false,8515,No-Processor Side,false,false,0,0,0,1,0,0,false,0,false,Source,0,0,0,3,0,0,false,false,0,false,None,false,false,false,None
+CAPC,16,Blue 1,false,7492,No-Processor Side,false,true,0,0,0,2,0,0,false,0,true,Source,0,0,1,4,0,1,false,false,0,false,None,false,false,false,None
+DIHP,16,Red 1,false,9512,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,1,0,0,0,0,false,false,0,false,None,false,false,false,None
+DIHP,14,Red 1,false,4635,Processor Side,false,true,0,0,0,1,0,0,false,0,true,Both,2,0,4,3,3,0,false,false,0,false,Parked,false,false,false,None
+DIHP,13,Red 1,false,2848,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,0,0,0,9,0,0,false,false,0,false,Parked,false,false,false,None
+DIHP,15,Red 1,false,6243,Middle,false,true,1,0,0,0,0,0,false,0,false,Source,3,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+MSL,17,Red 3,false,8576,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,Parked,false,true,false,None
+RCF,71,Blue 3,false,9181,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,Parked,false,false,false,None
+CAPC,17,Blue 1,false,7312,Processor Side,false,false,0,0,0,0,0,0,false,0,true,Ground,0,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+PAU,17,Red 2,false,5829,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Ground,1,0,0,0,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+DIHP,17,Red 1,false,3735,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+MSL,18,Red 3,false,4010,Processor Side,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,false,None,true,false,false,None
+DIHP,18,Red 1,false,7691,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,1,0,2,4,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,18,Blue 3,false,7421,Processor Side,false,false,0,0,0,1,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+CAPC,18,Blue 1,false,9994,No-Processor Side,false,true,2,0,0,0,0,0,true,0,false,Ground,0,0,0,4,0,0,false,false,0,false,Parked,false,false,false,None
+Isaac,18,Red 2,false,5427,Middle,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,0,4,3,0,false,false,0,false,Parked,false,false,false,None
+ERC,18,Blue 2,false,8177,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,1,2,3,0,0,false,false,0,false,Parked,false,false,false,None
+ERC,19,Blue 2,false,9137,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,1,0,0,2,0,0,false,false,0,false,Parked,false,false,false,None
+MSL,19,Red 3,false,6800,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,0,5,4,2,3,0,false,false,0,false,Parked,false,false,false,None
+CAPC,19,Blue 1,false,118,Processor Side,false,true,0,0,0,3,0,0,false,0,false,Ground,1,3,6,7,2,0,false,false,0,false,Shallow Climb,false,false,false,None
+RCF,19,Blue 3,false,4295,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,4,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+IVS,19,Red 2,false,2848,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,1,1,0,true,false,0,false,Shallow Climb,false,true,false,None
+DIHP,19,Red 1,false,5892,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,0,1,3,3,0,0,false,false,0,false,Deep Climb,false,false,false,None
+RCF,20,Blue 3,false,624,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Ground,0,1,4,1,0,0,false,false,0,false,None,false,false,false,None
+MSL,20,Red 3,false,3847,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,3,0,0,false,false,0,false,Parked,false,false,false,None
+CAPC,19,Blue 1,false,4639,Middle,false,false,0,0,0,0,0,0,false,0,false,Source,0,0,2,0,1,0,false,false,0,false,None,false,false,false,None
+DIHP,20,Red 1,false,2587,Middle,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,5,0,0,false,false,0,false,Parked,false,false,false,None
+JP,21,Blue 1,false,5908,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,5,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+IVS,21,Blue 2,false,4587,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,2,0,0,1,0,0,false,false,0,false,Parked,false,false,false,None
+AAHP,21,Blue 3,false,7312,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,2,0,0,false,false,0,false,None,false,false,false,None
+KS,21,Red 2,false,2582,No-Processor Side,false,false,0,0,0,0,0,0,false,0,false,Source,0,0,0,8,0,0,false,false,0,false,Deep Climb,false,false,false,None
+MF,21,Red 1,false,6647,Processor Side,false,true,0,0,0,2,0,0,true,0,false,Ground,3,0,0,2,0,0,false,false,0,false,Parked,false,false,false,None
+JP,22,Blue 1,false,2881,Processor Side,false,true,0,0,0,2,0,0,false,0,true,Both,0,0,0,4,3,0,false,false,0,false,None,false,false,false,None
+IVS,22,Blue 2,false,7691,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,1,1,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+MF,22,Red 1,false,4635,No-Processor Side,false,true,0,0,0,1,0,0,false,0,false,Ground,2,0,0,5,2,0,false,false,0,false,Parked,false,false,false,None
+KS,22,Blue 1,false,8576,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,0,0,0,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+AAHP,22,Blue 3,false,7691,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,2,3,0,0,false,false,0,false,Parked,false,false,false,None
+JP,23,Blue 1,false,5414,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,1,0,0,false,false,0,false,Parked,false,false,false,None
+IVS,23,Blue 2,false,231,Middle,false,true,1,0,0,0,0,0,false,0,false,Ground,0,0,3,3,0,0,false,false,0,false,Parked,false,false,false,None
+AAHP,23,Blue 3,false,8515,Processor Side,false,true,0,0,0,2,0,0,false,1,false,Source,0,0,0,3,0,0,false,false,0,false,Parked,false,false,false,None
+KS,23,Red 2,false,6800,No-Processor Side,false,false,0,0,0,3,0,0,false,0,true,Ground,0,3,6,2,5,0,false,false,0,false,Shallow Climb,false,false,false,None
+MF,23,Red 1,false,9991,Middle,false,true,0,0,0,0,0,0,true,0,false,Source,11,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+AMVL,23,Red 3,false,118,Processor Side,false,false,0,0,0,3,0,0,false,0,false,Both,0,3,9,2,2,0,false,false,0,false,Deep Climb,false,false,false,None
+JP,24,Blue 1,false,9512,No-Processor Side,false,true,0,0,0,1,0,0,false,0,true,Source,0,0,2,0,0,0,false,false,0,false,Parked,false,false,false,None
+MF,24,Red 1,false,4639,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,0,4,2,0,0,false,false,0,false,None,false,false,false,None
+AMVL,24,Red 3,false,8177,Processor Side,false,false,0,0,0,1,0,0,false,0,false,Ground,0,2,2,5,0,0,false,false,0,false,None,false,false,false,None
+ks,24,Red 2,true,5829,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,1,0,0,false,false,0,false,Deep Climb,true,false,false,None
+AMVL,25,Red 3,false,9137,Processor Side,true,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+JP,25,Blue 1,false,8769,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,1,3,5,0,0,0,false,false,0,false,None,false,false,false,None
+ks,25,Red 2,false,2587,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,6,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,25,Blue 3,false,7492,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,4,0,0,false,false,0,false,Parked,false,false,false,None
+IVS,25,Blue 2,false,2848,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,4,0,0,true,false,0,false,Deep Climb,false,false,false,None
+MF,25,Red 1,false,3735,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,3,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+JP,26,Blue 1,false,7421,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,0,0,2,2,0,0,false,false,0,false,Parked,false,false,false,None
+IVS,26,Blue 2,false,4010,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,Deep Climb,false,false,false,None
+RCF,26,Blue 3,false,4010,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,None,false,false,false,None
+ks,26,Red 2,false,9181,Middle,false,true,0,0,0,1,0,0,false,0,true,Source,0,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+AMVL,26,Red 3,false,1477,Processor Side,true,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+MF,26,Red 1,false,8370,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,true,false,0,false,Parked,false,true,false,None
+JP,27,Blue 1,false,2881,No-Processor Side,false,true,0,0,0,1,0,0,false,0,true,Both,0,0,0,3,1,0,false,false,0,false,Parked,false,false,false,None
+IVS,27,Blue 1,false,7312,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,3,2,0,false,false,0,false,Shallow Climb,false,false,false,None
+MF,27,Red 1,false,624,No-Processor Side,false,false,0,0,0,1,0,0,false,0,true,Source,0,0,3,4,1,0,false,false,0,false,Parked,false,false,false,None
+ks,27,Red 2,false,9991,No-Processor Side,false,false,1,0,0,0,0,0,false,0,false,Source,10,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+RCF,27,Blue 3,false,7312,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,2,0,2,false,false,0,false,Parked,false,false,false,None
+AMVL,27,Red 3,false,5908,Middle,false,false,0,0,0,0,0,0,false,0,false,Source,0,0,1,0,0,0,false,false,0,false,None,false,false,false,None
+IVS,28,Blue 2,false,6243,Middle,false,true,1,0,0,0,0,0,false,0,false,Ground,2,0,0,0,0,0,true,false,0,false,Parked,false,false,false,None
+JP,28,Blue 1,true,6243,Middle,false,true,1,0,0,0,0,0,false,0,false,Source,2,0,0,0,0,0,true,false,0,false,None,false,false,false,None
+MF,28,Red 1,false,4587,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,false,None,true,false,false,None
+AMVL,28,Red 3,false,5427,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,2,3,1,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+ks,28,Red 2,false,6800,Processor Side,false,true,0,0,0,2,0,0,false,0,true,Ground,0,0,2,2,3,0,false,false,0,false,Shallow Climb,false,false,false,None
+AAHP,28,Blue 3,false,6357,Processor Side,false,true,1,0,0,0,0,0,false,0,false,Source,0,0,0,4,0,0,false,false,0,false,Deep Climb,false,false,false,None
+JP,29,Blue 1,false,2582,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,0,0,1,3,0,0,false,false,0,false,Parked,false,false,false,None
+IVS,29,Blue 2,false,8576,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,1,3,false,false,0,false,Shallow Climb,false,false,false,None
+ks,29,Red 2,false,2848,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,0,0,1,4,1,false,false,0,false,None,false,false,false,None
+AAHP,29,Blue 3,false,8576,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,3,0,false,false,0,false,Parked,false,false,false,None
+JP,30,Blue 1,false,8177,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Ground,0,0,0,0,0,0,true,false,0,false,Parked,false,false,false,None
+AMVL,30,Red 3,false,9994,Processor Side,false,false,0,0,0,0,0,0,false,0,false,Source,0,0,0,2,0,0,false,false,0,false,None,false,false,false,None
+ks,30,Red 2,false,4295,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,1,1,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+MF,30,Red 1,false,5414,No-Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,4,0,0,false,false,0,false,Parked,false,false,false,None
+AAHP,30,Blue 3,false,7492,Processor Side,false,false,0,0,0,2,0,0,false,0,false,Source,0,0,1,7,0,0,false,false,0,false,None,false,false,false,None
+AAHP,31,Blue 3,false,5829,Processor Side,true,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+AK,30,Blue 2,false,8370,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,2,4,3,0,0,0,false,false,0,false,Parked,false,false,false,None
+JP,31,Blue 1,false,9137,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+ks,31,Red 2,false,2587,Middle,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,0,0,5,false,false,0,false,Parked,false,false,false,None
+MF,31,Red 1,false,231,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,1,2,4,0,0,false,false,0,false,Deep Climb,false,false,false,None
+AMVL,31,Red 3,false,7421,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Both,2,2,1,2,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+ks,32,Red 2,false,9181,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,true,Parked,false,false,false,None
+JP,32,Blue 1,false,4010,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,Parked,false,false,false,None
+MF,32,Red 1,false,4328,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+AMVL,32,Red 3,false,5892,No-Processor Side,false,false,0,0,0,2,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,false,Shallow Climb,true,false,false,None
+AAHP,32,Blue 3,false,4635,No-Processor Side,false,false,0,0,0,0,0,0,false,0,false,Ground,3,0,1,0,3,0,false,false,0,true,Deep Climb,false,false,false,None
+RCF,32,Blue 2,false,1477,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,1,0,0,0,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+MF,33,Red 1,false,3847,No-Processor Side,false,true,0,0,0,1,0,0,false,0,true,Source,0,0,0,4,0,0,false,false,0,false,Deep Climb,false,false,false,None
+JP,33,Blue 1,false,8769,No-Processor Side,false,true,0,2,0,0,0,0,false,0,false,Ground,0,4,3,0,0,0,false,false,0,false,Parked,false,false,false,None
+ks,33,Red 2,false,2881,Middle,false,true,0,0,0,1,1,0,true,0,true,Ground,0,0,2,0,2,0,false,false,0,false,None,false,false,false,None
+RCF,33,Blue 2,false,3735,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,1,0,0,4,0,0,false,false,0,false,None,false,false,false,None
+JP,31,Blue 1,false,6357,No-Processor Side,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,0,4,0,0,false,false,0,false,Deep Climb,false,false,false,None
+AAHP,33,Blue 3,false,2592,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,1,0,0,3,0,0,false,false,0,true,Deep Climb,false,false,false,None
+ks,34,Red 2,false,624,Middle,false,true,0,0,0,1,2,0,true,0,true,Source,0,1,5,0,1,0,false,false,0,false,Parked,false,false,false,None
+MF,34,Red 1,false,118,Processor Side,false,true,0,0,0,3,0,0,false,0,true,Source,0,4,5,3,2,0,false,false,0,false,Deep Climb,false,false,false,None
+AAHP,34,Blue 3,false,5427,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,true,false,0,true,Deep Climb,false,true,false,None
+AMVL,34,Red 3,false,7492,No-Processor Side,false,false,0,0,0,2,0,0,false,0,false,Ground,1,0,1,1,0,0,false,false,0,false,None,false,false,false,None
+RFC,34,Blue 2,false,8576,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,2,0,false,false,0,false,Parked,false,false,false,None
+ks,35,Red 2,false,7312,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,1,0,1,2,3,0,false,false,0,false,Parked,false,false,false,None
+AAHP,35,Blue 3,true,8370,Middle,true,false,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+JP,35,Blue 1,false,2848,No-Processor Side,false,true,0,0,0,2,0,0,false,0,true,Ground,0,1,4,4,0,0,false,false,0,false,Parked,false,false,false,None
+MF,35,Red 1,false,231,Middle,false,true,1,0,0,0,0,0,false,0,false,Source,0,1,3,4,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+RCF,35,Blue 2,false,5414,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,0,0,0,5,0,0,false,false,0,false,None,false,false,false,None
+MF,36,Red 1,false,1477,Middle,true,false,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+JP,36,Blue 1,false,2587,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,1,4,0,0,false,false,0,false,None,false,false,false,None
+AAHP,36,Blue 3,true,5892,No-Processor Side,false,false,0,0,0,1,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+ks,36,Red 2,false,6243,Middle,false,false,1,0,0,0,0,0,false,0,false,Source,4,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,36,Blue 2,false,9994,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,1,0,0,5,1,0,false,false,0,false,None,false,false,false,None
+AMVL,36,Red 3,false,8515,Processor Side,false,true,0,0,0,0,0,0,false,1,false,Ground,0,0,0,0,0,0,false,false,0,false,None,true,false,false,None
+AMVL,36,Red 3,false,3735,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,2,0,0,false,false,0,false,None,false,false,false,None
+JP,37,Blue 1,false,9137,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,1,0,0,false,false,0,true,None,false,false,false,None
+MF,37,Red 1,false,4328,No-Processor Side,true,true,0,0,0,0,0,0,false,0,true,Source,0,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,37,Blue 2,false,5908,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,1,4,1,0,0,0,false,false,0,false,Parked,false,false,false,None
+AAHP,37,Blue 3,false,4639,Processor Side,false,false,0,0,0,1,0,0,false,0,true,Source,0,0,0,2,1,0,false,false,0,false,Parked,false,false,false,None
+ks,37,Red 2,false,4810,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,None,false,false,false,None
+JP,38,Blue 1,false,7421,Processor Side,false,true,0,0,0,1,0,0,false,0,true,Ground,0,0,4,2,0,0,false,false,0,false,Parked,false,false,false,None
+MF,38,Red 1,false,9991,Processor Side,true,true,1,0,0,0,0,0,false,0,true,Source,14,0,0,0,0,0,false,false,0,false,Parked,false,false,false,None
+ks,38,Red 2,false,8177,Middle,false,true,1,0,0,0,0,0,false,0,false,Ground,0,0,0,4,0,0,false,false,0,false,Parked,false,false,false,None
+RFC,38,Blue 2,false,3847,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,1,1,2,3,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+AAHP,38,Blue 3,false,5829,Middle,false,true,0,0,0,1,0,0,false,0,true,Source,0,0,0,3,0,0,false,false,0,false,Deep Climb,false,false,false,None
+JP,89,Blue 1,false,4587,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,1,0,2,0,0,false,false,0,false,Deep Climb,false,false,false,None
+AMVL,39,Red 3,false,6800,Processor Side,false,false,0,0,0,3,0,0,false,0,false,Ground,1,1,4,3,3,0,false,false,0,false,Deep Climb,false,false,false,None
+ks,39,Red 2,false,4295,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,Parked,false,true,false,None
+MF,39,Red 1,false,8769,No-Processor Side,true,true,0,0,0,0,0,0,false,0,true,Source,0,6,3,0,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,39,Blue 2,false,7691,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,2,6,0,0,false,false,0,false,Parked,false,false,false,None
+AAHP,39,Blue 3,false,9181,Middle,false,true,0,0,0,1,0,0,false,0,true,Source,0,0,0,0,0,0,false,false,0,false,Deep Climb,false,false,false,None
+MSL,40,Red 3,false,7312,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,6,1,0,false,false,0,false,Parked,false,false,false,None
+DIHP,40,Red 1,false,6357,No-Processor Side,false,true,0,0,0,2,0,0,false,0,true,Ground,1,1,4,1,3,0,false,false,0,false,Deep Climb,false,false,false,None
+RCF,40,Blue 3,false,2583,No-Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,1,2,5,1,0,0,false,false,0,false,Parked,false,false,false,None
+JP,40,Blue 2,false,2881,Processor Side,false,true,0,0,0,1,0,0,false,0,true,Both,0,2,0,5,2,0,false,false,0,false,None,false,false,false,None
+CAPC,40,Blue 1,false,8515,Middle,false,true,0,0,0,0,1,0,false,0,false,Source,3,0,1,1,0,0,false,false,0,false,Deep Climb,false,false,false,None
+PAU,40,Red 2,false,1477,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+JP,41,Blue 2,false,3735,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,1,0,0,false,false,0,false,Parked,false,false,false,None
+DIHP,41,Red 1,false,624,Processor Side,false,true,1,0,0,2,0,0,false,0,true,Ground,0,5,4,7,0,0,false,false,0,false,None,false,false,false,None
+CAPC,41,Blue 1,false,2848,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,2,0,0,1,6,0,false,false,0,false,None,false,false,false,None
+RCF,41,Blue 3,true,6243,Middle,false,true,1,0,0,0,0,0,false,0,false,Source,5,0,0,0,0,0,true,false,0,false,Parked,false,false,false,Yellow Card
+MSL,41,Red 3,false,8370,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,2,0,0,true,false,0,false,Parked,false,true,false,None
+MSL,42,Red 3,false,5829,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,1,0,0,3,false,false,0,false,Parked,false,false,false,None
+DIHP,42,Red 1,false,118,Processor Side,false,true,0,0,0,3,0,0,false,0,true,Both,0,6,5,3,1,0,false,false,0,false,Deep Climb,false,false,false,None
+RCF,42,Blue 3,false,7421,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,2,5,0,0,false,false,0,false,Deep Climb,false,false,false,None
+PH,42,Red 2,false,5892,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,3,false,false,0,false,Parked,false,false,false,None
+CAPC,42,Blue 1,false,6647,No-Processor Side,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+JP,42,Blue 1,false,4328,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,None,false,false,false,None
+JP,43,Blue 1,false,231,Middle,false,true,1,0,0,0,0,0,false,0,true,Source,0,0,0,5,0,0,false,false,0,false,Deep Climb,false,false,false,None
+MSL,43,Red 3,false,4639,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,1,0,0,0,0,false,false,0,false,Parked,false,true,false,None
+CAPC,44,Blue 1,false,6800,No-Processor Side,false,true,0,0,0,3,0,0,false,0,true,Source,0,2,5,6,3,0,false,false,0,false,Deep Climb,false,false,false,None
+JP,45,Blue 2,false,9137,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,2,0,0,0,0,false,false,0,true,Parked,false,false,false,None
+DIHP,45,Red 1,false,3847,No-Processor Side,false,true,0,0,0,1,0,0,false,0,true,Source,1,4,2,0,0,0,false,false,0,false,Parked,false,false,false,None
+MSL,45,Red 3,false,7691,Middle,false,true,0,0,0,0,0,0,false,0,false,Both,0,0,0,0,0,0,true,false,0,false,None,false,true,false,None
+CAPC,45,Blue 1,false,9512,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,3,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,45,Blue 3,false,9181,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,3,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+JP,46,Blue 2,false,7421,Processor Side,false,true,0,0,0,2,0,0,false,0,true,Ground,0,0,0,2,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,46,Blue 3,false,2582,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,5,0,0,0,false,false,0,false,Parked,false,false,false,None
+PH,46,Red 2,false,7492,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,1,0,0,6,0,2,false,false,0,false,None,false,false,false,None
+DIHP,46,Red 1,false,4295,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,None,false,false,false,None
+CAPC,46,Blue 1,false,4635,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,false,Deep Climb,false,false,false,None
+DIHP,47,Red 1,false,9994,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,0,0,2,0,0,0,false,false,0,false,Parked,false,false,false,None
+JP,47,Blue 2,false,4639,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,1,0,0,true,false,0,false,Parked,false,false,false,None
+MSL,47,Red 3,false,624,Processor Side,false,true,0,0,0,0,0,0,true,0,false,Ground,0,3,3,1,0,0,false,false,0,false,Parked,false,false,false,None
+MF,47,Blue 1,false,5892,No-Processor Side,false,true,0,0,0,2,0,0,false,0,true,Source,0,0,0,2,0,0,true,false,0,false,Parked,false,false,false,None
+RCF,47,Blue 3,false,2881,Middle,false,true,0,0,0,1,1,0,false,0,false,Source,0,0,0,0,3,0,false,false,0,false,Parked,false,false,false,None
+JP,48,Blue 2,false,8679,No-Processor Side,false,false,1,1,0,0,0,0,false,0,false,Source,0,3,5,0,0,0,false,false,0,false,Parked,false,false,false,None
+RCF,48,Blue 3,false,118,Processor Side,false,true,0,0,0,4,0,0,false,0,false,Ground,0,4,2,4,5,0,false,false,0,false,Shallow Climb,false,false,false,None
+CAPC,48,Blue 1,false,4587,Middle,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,Deep Climb,false,true,false,None
+DIHP,48,Red 1,false,7312,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,5,0,0,0,0,false,false,0,false,None,false,false,false,None
+MSL,49,Red 3,false,5908,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,2,0,0,0,false,false,0,false,None,false,false,false,None
+JP,49,Blue 2,false,8370,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,1,1,2,2,0,0,false,false,0,false,None,false,false,false,None
+CAPC,49,Blue 1,false,7691,No-Processor Side,false,false,0,0,0,0,0,0,false,0,false,Ground,0,0,1,4,0,0,false,false,0,false,None,false,false,false,None
+RCF,49,Blue 3,false,9137,Middle,false,false,0,0,0,1,0,0,false,0,false,Source,0,0,1,0,0,0,false,false,0,true,None,false,false,false,None
+DIHP,49,Red 1,false,5829,Middle,false,true,0,0,0,1,0,0,false,0,false,Source,0,0,0,4,0,0,false,false,0,false,Deep Climb,false,false,false,None
+CAPC,50,Blue 1,false,1477,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Ground,0,0,0,0,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+MSL,50,Red 3,false,9991,Processor Side,false,true,1,0,0,0,0,0,false,0,false,Source,6,0,0,0,0,0,false,false,0,false,None,false,false,false,None
+RCF,50,Blue 3,false,8177,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,1,2,3,0,0,false,false,0,false,Parked,false,false,false,None
+JP,50,Blue 2,false,6800,No-Processor Side,false,true,0,0,0,2,0,0,false,0,true,Source,0,1,2,5,0,0,false,false,0,false,Deep Climb,false,false,false,None
+DIHP,50,Red 1,false,7492,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,1,0,2,5,0,1,false,false,0,false,None,false,false,false,None
+MF,51,Red 1,false,4295,Middle,false,false,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+IVS,51,Blue 2,true,231,Middle,false,true,1,0,0,0,0,0,false,0,false,Ground,0,0,0,5,0,0,false,false,0,false,Parked,false,false,false,None
+MA,51,Blue 3,false,8576,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,7,0,true,false,0,false,Shallow Climb,false,true,false,None
+ks,51,Red 2,false,4635,No-Processor Side,false,false,0,0,0,0,0,0,false,0,true,Ground,0,0,2,3,3,0,false,false,0,false,Deep Climb,false,false,false,None
+ERC,51,Blue 1,false,8576,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,7,0,true,false,0,false,Deep Climb,false,false,false,None
+AMVL,51,Red 3,false,3847,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,1,0,0,false,false,0,true,None,false,false,false,None
+AMVL,52,Red 3,false,5414,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,5,1,0,false,false,0,false,None,false,false,false,None
+MA,52,Blue 3,false,5472,Middle,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,0,6,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+MF,52,Red 1,false,9181,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,2,0,0,false,false,0,true,Deep Climb,false,false,false,None
+MF,53,Red 1,false,9137,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,1,2,2,3,1,0,false,false,0,true,None,false,false,false,None
+ERC,53,Blue 1,false,4639,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,3,0,0,false,false,0,true,None,false,false,false,None
+AMVL,53,Red 3,false,2881,Middle,false,false,0,0,0,0,1,0,false,0,false,Ground,0,0,3,0,1,0,false,false,0,false,None,false,false,false,None
+IVS,53,Blue 2,false,4587,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,2,1,0,0,false,false,0,false,Parked,false,false,false,None
+ks,53,Red 2,false,7421,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,3,4,0,0,false,false,0,false,Parked,false,false,false,None
+Maria,53,Blue 1,false,4587,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,3,0,0,0,false,false,0,false,Parked,false,false,false,None
+AMVL,54,Red 3,false,9994,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,0,0,0,3,0,0,false,false,0,false,None,false,false,false,None
+IVS,54,Blue 2,true,8515,Middle,false,true,0,0,0,1,0,0,false,0,false,Ground,1,5,3,0,0,0,false,false,0,false,Shallow Climb,true,false,false,None
+MF,54,Red 1,false,7312,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,3,0,false,false,0,true,None,false,false,false,None
+ks,54,Blue 1,false,3735,Processor Side,false,true,0,0,0,1,0,0,false,0,true,Ground,0,0,0,1,0,0,false,false,0,false,Parked,false,false,false,None
+ERC,54,Blue 1,false,5829,No-Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,0,1,0,0,0,true,false,0,false,Deep Climb,false,false,false,None
+ks,55,Red 2,false,6647,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Ground,0,0,0,4,0,0,false,false,0,false,Parked,false,false,false,None
+Maria,55,Blue 3,false,4295,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,Parked,false,true,false,None
+MF,55,Red 1,false,4010,Middle,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,true,false,0,true,Parked,false,false,false,None
+IVS,55,Blue 2,false,9991,No-Processor Side,false,true,3,0,0,0,0,0,false,0,false,Ground,10,0,0,0,0,0,false,false,0,false,Deep Climb,false,false,false,None
+ERC,55,Blue 1,false,8576,Middle,false,false,0,0,0,0,0,0,false,0,true,Ground,0,0,0,0,4,0,false,false,0,false,Shallow Climb,false,false,false,None
+AMVL,55,Red 3,false,6357,Processor Side,false,false,0,0,0,1,0,0,false,0,false,Ground,0,0,0,4,1,0,false,false,0,false,Shallow Climb,false,false,false,None
+MF,56,Red 1,false,5414,Processor Side,false,false,0,0,0,2,0,0,false,0,true,Source,0,0,0,7,1,0,false,false,0,true,Deep Climb,false,false,false,None
+IVS,56,Blue 2,false,5908,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,1,3,2,0,0,0,false,false,0,false,Parked,false,false,false,None
+ERC,56,Blue 1,false,1477,Processor Side,false,true,0,0,0,0,0,0,false,0,true,Source,0,0,0,0,0,0,false,false,0,false,Deep Climb,false,false,false,None
+AMVL,56,Red 3,false,8769,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,2,4,0,0,0,false,false,0,false,None,false,false,false,None
+ks,56,Red 2,false,9512,Middle,false,true,0,0,0,0,0,0,true,0,true,Source,1,0,1,0,0,0,false,false,0,false,Parked,false,false,false,None
+ERC,57,Blue 1,false,9181,Middle,false,false,0,0,0,1,0,0,false,0,true,Source,0,0,0,2,0,0,false,false,0,false,Deep Climb,false,false,false,None
+IVS,57,Blue 2,true,4635,Processor Side,false,true,0,0,0,2,0,0,false,0,false,Ground,0,0,1,6,0,3,false,false,0,false,Deep Climb,false,false,false,None
+MF,57,Red 1,false,8177,Middle,false,true,0,0,0,0,0,0,false,0,true,Source,0,4,5,2,0,0,false,false,0,true,Parked,false,false,false,None
+AMVL,57,Red 3,false,2848,Processor Side,false,false,0,0,0,2,0,0,false,0,false,Source,0,3,3,1,0,3,false,false,0,false,None,false,false,false,None
+ks,57,Blue 1,false,118,Processor Side,false,true,0,0,0,4,0,0,false,0,true,Ground,0,5,3,3,3,0,false,false,0,false,Deep Climb,false,false,false,None
+ERC,58,Blue 1,false,624,Processor Side,false,true,0,0,0,2,0,0,false,0,true,Ground,0,0,7,3,3,0,false,false,0,false,Parked,false,false,false,None
+MF,58,Red 1,false,2582,No-Processor Side,false,true,0,0,0,2,0,0,false,0,false,Source,1,0,1,5,0,0,false,false,0,true,Deep Climb,false,false,false,None
+ks,58,Red 2,false,7492,Processor Side,false,true,0,0,0,1,0,0,false,0,true,Source,0,0,4,1,0,2,false,false,0,false,Parked,false,false,false,None
+IVS,58,Blue 2,false,7691,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,2,5,1,0,0,false,false,0,false,Parked,false,false,false,None
+AMVL,59,Red 3,false,2881,Processor Side,false,true,0,0,0,1,1,0,false,0,false,Source,0,0,0,3,0,0,false,false,0,false,None,false,false,false,None
+MF,59,Red 1,false,4328,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Source,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+ERC,59,Blue 1,false,3847,Processor Side,false,true,0,0,0,2,0,0,false,0,true,Ground,0,2,2,0,0,0,false,false,0,false,Deep Climb,false,false,false,None
+ks,59,Red 2,false,8370,Middle,false,true,0,0,0,0,0,0,false,0,true,Ground,3,0,0,4,0,0,false,false,0,false,Parked,false,false,false,None
+AMVL,60,Red 3,false,3847,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,2,1,1,4,0,0,false,false,0,false,Shallow Climb,false,false,false,None
+ks,60,Red 2,false,4635,No-Processor Side,false,false,0,0,0,0,0,0,false,0,true,Ground,1,4,0,2,0,0,false,false,0,false,Parked,false,false,false,None
+emini,51,Blue 1,false,8576,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,5,0,false,false,0,false,Deep Climb,false,false,false,None
+IVS,60,Blue 2,false,9512,No-Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,3,0,0,false,false,0,false,Parked,false,false,false,None
+IVS,59,Blue 2,false,5427,Middle,false,true,0,0,0,1,0,0,false,0,false,Ground,1,0,1,3,0,0,false,false,0,false,Deep Climb,false,false,false,None
+PAU,41,Red 2,false,4010,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,1,4,0,0,0,true,false,0,false,None,false,true,false,None
+PAU,44,Red 2,false,8177,Processor Side,false,true,1,0,0,0,0,0,false,0,false,Ground,0,0,3,4,0,0,false,false,0,false,Parked,false,false,false,None
+pau,45,Red 2,false,5414,Processor Side,false,true,0,0,0,0,0,0,false,0,false,Ground,0,1,4,4,0,0,false,false,0,false,None,false,false,false,None
+PAU,46,Red 2,false,8515,No-Processor Side,false,true,0,0,0,1,0,0,false,0,false,Ground,0,0,0,0,0,0,false,false,0,true,None,false,false,false,None
+pau,48,Red 2,false,4010,Middle,false,true,0,0,0,0,0,0,false,0,false,Ground,0,0,0,0,0,0,true,false,0,false,None,false,true,false,None
+pau,49,Red 2,false,6357,Processor Side,false,true,0,0,0,2,0,0,false,0,true,Ground,0,1,0,3,1,0,false,false,0,false,Shallow Climb,false,false,false,None
+pau,50,Red 2,false,6647,Middle,false,true,0,0,0,0,0,0,false,0,true,Ground,1,0,0,3,0,0,false,false,0,false,Parked,false,false,false,None
+AMVL,60,Red 3,false,3847,Processor Side,false,true,0,0,0,1,0,0,false,0,false,Source,2,1,1,4,0,0,false,false,0,false,Shallow Climb,false,false,false,None

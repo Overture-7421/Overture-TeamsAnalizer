@@ -87,6 +87,9 @@ class TeamScores:
     
     # Competencies
     competencies: TeamCompetencies = field(default_factory=TeamCompetencies)
+    
+    # Scouting comments from exams
+    scouting_comments: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -101,6 +104,7 @@ class CalculatedScores:
     final_points: int = 0
     is_disqualified: bool = False
     disqualification_reason: str = ""
+    final_feedback: str = ""  # Combined feedback from all exams
 
 
 class TeamScoring:
@@ -109,10 +113,22 @@ class TeamScoring:
     Manages multiple teams and calculates comprehensive scores.
     """
     
-    def __init__(self):
-        """Initialize the scoring system"""
+    def __init__(self, match_weight: float = 0.50, pit_weight: float = 0.30, event_weight: float = 0.20):
+        """
+        Initialize the scoring system with configurable weights.
+        
+        Args:
+            match_weight: Weight for Match Performance Score (default 0.50 = 50%)
+            pit_weight: Weight for Pit Scouting Score (default 0.30 = 30%)
+            event_weight: Weight for During Event Score (default 0.20 = 20%)
+        """
         self.teams: Dict[str, TeamScores] = {}
         self.calculated_scores: Dict[str, CalculatedScores] = {}
+        
+        # Configurable scoring weights (must sum to 1.0)
+        self.match_performance_weight = match_weight
+        self.pit_scouting_weight = pit_weight
+        self.during_event_weight = event_weight
         
         # Configurable multipliers for final points calculation
         self.competencies_multiplier = 6
@@ -123,6 +139,48 @@ class TeamScoring:
         self.min_competencies_count = 2
         self.min_subcompetencies_count = 1
         self.min_honor_roll_score = 70.0
+    
+    def set_scoring_weights(self, match_weight: float, pit_weight: float, event_weight: float) -> bool:
+        """
+        Set custom scoring weights. Validates that they sum to 1.0 (100%).
+        
+        Args:
+            match_weight: Weight for Match Performance Score (0.0 to 1.0)
+            pit_weight: Weight for Pit Scouting Score (0.0 to 1.0)
+            event_weight: Weight for During Event Score (0.0 to 1.0)
+            
+        Returns:
+            True if weights are valid and set, False otherwise
+        """
+        total = match_weight + pit_weight + event_weight
+        if abs(total - 1.0) > 0.001:  # Allow small floating point tolerance
+            return False
+        
+        self.match_performance_weight = match_weight
+        self.pit_scouting_weight = pit_weight
+        self.during_event_weight = event_weight
+        return True
+    
+    def get_scoring_weights(self) -> Tuple[float, float, float]:
+        """
+        Get current scoring weights.
+        
+        Returns:
+            Tuple of (match_weight, pit_weight, event_weight)
+        """
+        return (self.match_performance_weight, self.pit_scouting_weight, self.during_event_weight)
+    
+    def validate_weights(self, match_weight: float, pit_weight: float, event_weight: float) -> Tuple[bool, str]:
+        """
+        Validate if the provided weights sum to 100%.
+        
+        Returns:
+            Tuple of (is_valid, message)
+        """
+        total = match_weight + pit_weight + event_weight
+        if abs(total - 1.0) > 0.001:
+            return False, f"Weights must sum to 100%. Current sum: {total * 100:.1f}%"
+        return True, "Weights are valid"
     
     def add_team(self, team_number: str) -> None:
         """Add a new team to the system"""
@@ -260,17 +318,17 @@ class TeamScoring:
     
     def calculate_honor_roll_score(self, team_number: str) -> float:
         """
-        Calculate the main Honor Roll Score
-        HonorRollScore = (MatchPerformanceScore * 0.50) + (PitScoutingScore * 0.30) + (DuringEventScore * 0.20)
+        Calculate the main Honor Roll Score using configurable weights.
+        HonorRollScore = (MatchPerformanceScore * match_weight) + (PitScoutingScore * pit_weight) + (DuringEventScore * event_weight)
         """
         match_performance = self.calculate_match_performance_score(team_number)
         pit_scouting = self.calculate_pit_scouting_score(team_number)
         during_event = self.calculate_during_event_score(team_number)
         
         honor_roll = (
-            match_performance * 0.50 +
-            pit_scouting * 0.30 +
-            during_event * 0.20
+            match_performance * self.match_performance_weight +
+            pit_scouting * self.pit_scouting_weight +
+            during_event * self.during_event_weight
         )
         return honor_roll
     
@@ -309,6 +367,11 @@ class TeamScoring:
             is_dq, reason = self.check_disqualification(team_number)
             calculated.is_disqualified = is_dq
             calculated.disqualification_reason = reason
+            
+            # Concatenate scouting comments into final feedback
+            team_scores = self.teams[team_number]
+            if team_scores.scouting_comments:
+                calculated.final_feedback = " | ".join(team_scores.scouting_comments)
     
     def apply_grading_curve_and_final_points(self) -> None:
         """Apply grading curve and calculate final ranking points"""
@@ -362,6 +425,109 @@ class TeamScoring:
             return None
         return self.calculated_scores[team_number]
     
+    def get_team_score_breakdown(self, team_number: str) -> Dict:
+        """
+        Get detailed score breakdown for a team including all component scores.
+        Useful for visualizations like radar charts.
+        
+        Returns:
+            Dict with all score components and metadata
+        """
+        if team_number not in self.teams:
+            return {}
+        
+        team_scores = self.teams[team_number]
+        calculated = self.calculated_scores.get(team_number)
+        
+        return {
+            "team_number": team_number,
+            "match_performance": {
+                "autonomous": team_scores.autonomous_score,
+                "teleop": team_scores.teleop_score,
+                "endgame": team_scores.endgame_score,
+                "total": calculated.match_performance_score if calculated else 0
+            },
+            "pit_scouting": {
+                "electrical": team_scores.electrical_score,
+                "mechanical": team_scores.mechanical_score,
+                "driver_station": team_scores.driver_station_layout_score,
+                "tools": team_scores.tools_score,
+                "spare_parts": team_scores.spare_parts_score,
+                "total": calculated.pit_scouting_score if calculated else 0
+            },
+            "during_event": {
+                "organization": team_scores.team_organization_score,
+                "collaboration": team_scores.collaboration_score,
+                "total": calculated.during_event_score if calculated else 0
+            },
+            "honor_roll_score": calculated.honor_roll_score if calculated else 0,
+            "curved_score": calculated.curved_score if calculated else 0,
+            "final_points": calculated.final_points if calculated else 0,
+            "scouting_comments": team_scores.scouting_comments,
+            "final_feedback": calculated.final_feedback if calculated else ""
+        }
+    
+    def get_team_competencies_status(self, team_number: str) -> Dict:
+        """
+        Get the status of all competencies and subcompetencies for a team.
+        
+        Returns:
+            Dict with competency names as keys and bool status as values
+        """
+        if team_number not in self.teams:
+            return {}
+        
+        comp = self.teams[team_number].competencies
+        
+        return {
+            "competencies": {
+                "team_communication": comp.team_communication,
+                "driving_skills": comp.driving_skills,
+                "reliability": comp.reliability,
+                "no_deaths": comp.no_deaths,
+                "pasar_inspeccion_primera": comp.pasar_inspeccion_primera,
+                "human_player": comp.human_player,
+                "necessary_drivers_fix": comp.necessary_drivers_fix
+            },
+            "subcompetencies": {
+                "working_under_pressure": comp.working_under_pressure,
+                "commitment": comp.commitment,
+                "win_most_games": comp.win_most_games,
+                "never_ask_pit_admin": comp.never_ask_pit_admin,
+                "knows_the_rules": comp.knows_the_rules
+            },
+            "behavior_reports": comp.behavior_reports,
+            "counts": {
+                "competencies": comp.get_competencies_count(),
+                "subcompetencies": comp.get_subcompetencies_count(),
+                "behavior_penalty": comp.get_behavior_reports_points()
+            }
+        }
+    
+    @staticmethod
+    def get_competency_labels() -> Dict[str, str]:
+        """Get human-readable labels for all competencies"""
+        return {
+            "team_communication": "Team Communication",
+            "driving_skills": "Driving Skills",
+            "reliability": "Reliability",
+            "no_deaths": "No Deaths (Robot Reliability)",
+            "pasar_inspeccion_primera": "Passed Inspection First Try",
+            "human_player": "Human Player Skills",
+            "necessary_drivers_fix": "Drivers Can Fix Issues"
+        }
+    
+    @staticmethod
+    def get_subcompetency_labels() -> Dict[str, str]:
+        """Get human-readable labels for all subcompetencies"""
+        return {
+            "working_under_pressure": "Works Under Pressure",
+            "commitment": "Team Commitment",
+            "win_most_games": "Wins Most Games",
+            "never_ask_pit_admin": "Self-Sufficient (No Pit Admin)",
+            "knows_the_rules": "Knows Game Rules"
+        }
+
     def get_honor_roll_ranking(self) -> List[Tuple[str, CalculatedScores]]:
         """
         Get final honor roll ranking sorted by final points (descending)
