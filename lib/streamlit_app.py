@@ -18,6 +18,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import os
 from tba_manager import TBAManager
+from default_robot_image import load_team_image
 from foreshadowing import TeamStatsExtractor, MatchSimulator
 from exam_integrator import ExamDataIntegrator
 
@@ -1375,10 +1376,22 @@ elif page == "🏆 Honor Roll System":
                     team_num = str(stat.get('team', ''))
                     st.session_state.school_system.add_team(team_num)
                     
-                    # Add default scores
-                    st.session_state.school_system.update_autonomous_score(team_num, 75.0)
-                    st.session_state.school_system.update_teleop_score(team_num, 80.0)
-                    st.session_state.school_system.update_endgame_score(team_num, 70.0)
+                    # Calculate scores based on actual performance
+                    overall_avg = stat.get('overall_avg', 0.0)
+                    robot_valuation = stat.get('RobotValuation', 0.0)
+                    
+                    # Auto: Fraction of overall (0.8), capped at 100
+                    auto_score = min(100.0, overall_avg * 0.8)
+                    
+                    # Teleop: Overall average, capped at 100
+                    teleop_score = min(100.0, overall_avg)
+                    
+                    # Endgame: Robot valuation * 0.9, capped at 100
+                    endgame_score = min(100.0, robot_valuation * 0.9)
+                    
+                    st.session_state.school_system.update_autonomous_score(team_num, auto_score)
+                    st.session_state.school_system.update_teleop_score(team_num, teleop_score)
+                    st.session_state.school_system.update_endgame_score(team_num, endgame_score)
                 
                 st.success(f"Added {len(stats)} teams to Honor Roll System!")
             else:
@@ -1390,7 +1403,7 @@ elif page == "🏆 Honor Roll System":
             st.markdown("**📥 Export Options**")
             
             # Generate TierList plain text file with custom format
-            def generate_tierlist_txt():
+            def generate_tierlist_txt(images_folder=None):
                 """
                 Generate a plain text file in the TierList Maker format.
                 
@@ -1406,8 +1419,8 @@ elif page == "🏆 Honor Roll System":
                 
                 Tier Assignment Logic (respects user's dynamic configuration):
                 1. Uses min_honor_roll_score from session_state (NOT hardcoded)
-                2. Qualified teams are sorted by final_points (includes weight adjustments)
-                3. Defense Pick: Qualified teams with defense > 0
+                2. Defense Pick: ANY team with defense_rate > 0, sorted by defense_rate (desc) then died_rate (asc)
+                3. Qualified teams (non-defensive) are sorted by final_points (includes weight adjustments)
                 4. 1st/2nd/3rd Pick: Qualified non-defensive teams split into thirds
                 5. "-" Tier: ONLY disqualified teams (those below min_honor_roll_score or lacking competencies)
                 6. Unassigned: Empty (all qualified teams are assigned to top tiers)
@@ -1419,10 +1432,6 @@ elif page == "🏆 Honor Roll System":
                 current_min_comp = st.session_state.school_system.min_competencies_count
                 current_min_subcomp = st.session_state.school_system.min_subcompetencies_count
                 
-                # Get rankings and disqualified teams (these respect the current configuration)
-                rankings = st.session_state.school_system.get_honor_roll_ranking()
-                disqualified = st.session_state.school_system.get_disqualified_teams()
-                
                 # Build a lookup for team stats from analizador (for defense info and additional stats)
                 team_stats_lookup = {}
                 if hasattr(st.session_state, 'analizador') and st.session_state.analizador:
@@ -1431,29 +1440,42 @@ elif page == "🏆 Honor Roll System":
                         team_num = str(stat.get("team", ""))
                         team_stats_lookup[team_num] = stat
                 
-                # Helper to check if team played defense
-                def has_played_defense(team_num):
+                # ===============================================================
+                # STEP 1: Identify Defensive Teams (ANY team with defense > 0)
+                # ===============================================================
+                all_teams_in_system = list(st.session_state.school_system.teams.keys())
+                defensive_teams_data = []
+                remaining_teams_nums = []
+
+                for team_num in all_teams_in_system:
                     stat = team_stats_lookup.get(str(team_num), {})
-                    # Check various possible field names for defense
-                    defense_val = stat.get("defense_rate", 0) or stat.get("defended", 0) or stat.get("defense_count", 0)
-                    return defense_val > 0
-                
-                # ===============================================================
-                # STEP 1: Separate QUALIFIED teams into defensive vs non-defensive
-                # rankings already contains ONLY qualified teams, sorted by final_points
-                # ===============================================================
-                defense_pick_teams = []
-                qualified_non_defensive = []
-                
-                for team_num, result in rankings:
-                    if has_played_defense(team_num):
-                        defense_pick_teams.append((team_num, result))
+                    # Use a more robust check for defense rate across possible keys
+                    defense_rate = stat.get("teleop_crossed_played_defense_rate", stat.get("defense_rate", 0.0))
+                    
+                    if defense_rate > 0:
+                        died_rate = stat.get("died_rate", 1.0) # Default to 1.0 (bad) if not found
+                        result = st.session_state.school_system.calculated_scores.get(str(team_num))
+                        defensive_teams_data.append({'team_num': team_num, 'result': result, 'defense_rate': defense_rate, 'died_rate': died_rate})
                     else:
-                        qualified_non_defensive.append((team_num, result))
+                        remaining_teams_nums.append(team_num)
+
+                # Sort the defensive teams by the new criteria: defense_rate (desc), died_rate (asc)
+                defensive_teams_data.sort(key=lambda x: (x['defense_rate'], -x['died_rate']), reverse=True)
                 
                 # ===============================================================
-                # STEP 2: Distribute QUALIFIED non-defensive teams into 1st/2nd/3rd Pick
-                # These are already sorted by final_points (descending)
+                # STEP 2: Process Remaining Teams (Qualified vs Disqualified)
+                # ===============================================================
+                # Get rankings and disqualified teams (these respect the current configuration)
+                rankings = st.session_state.school_system.get_honor_roll_ranking()
+                disqualified = st.session_state.school_system.get_disqualified_teams()
+                
+                # Filter rankings and disqualified lists to only include teams from `remaining_teams_nums`
+                qualified_non_defensive = [(team_num, result) for team_num, result in rankings if str(team_num) in remaining_teams_nums]
+                disqualified_non_defensive = [(team_num, reason) for team_num, reason in disqualified if str(team_num) in remaining_teams_nums]
+                
+                # ===============================================================
+                # STEP 3: Distribute QUALIFIED non-defensive teams into 1st/2nd/3rd Pick
+                # These are already sorted by final_points (descending) from get_honor_roll_ranking
                 # ===============================================================
                 total_qualified_non_def = len(qualified_non_defensive)
                 
@@ -1474,16 +1496,12 @@ elif page == "🏆 Honor Roll System":
                     tier_1, tier_2, tier_3 = [], [], []
                 
                 # ===============================================================
-                # STEP 3: DISQUALIFIED teams go to "-" tier (did not meet threshold)
-                # This includes teams below min_honor_roll_score or lacking competencies
+                # STEP 4: DISQUALIFIED teams go to "-" tier (did not meet threshold)
                 # ===============================================================
                 disqualified_teams_list = []
-                for team_num, reason in disqualified:
+                for team_num, reason in disqualified_non_defensive:
                     result = st.session_state.school_system.calculated_scores.get(str(team_num))
                     disqualified_teams_list.append((team_num, result, reason))
-                
-                # Default placeholder image (small transparent PNG in base64)
-                default_image = "iVBORw0KGgoAAAANSUhEUgAAAJYAAACWCAIAAACzY+a1AAAEn0lEQVR4nO3dwW+TdRzH8d+zPutaVtzqlFaSZcKYRNmmhqFZdsCFiHLAaCAkQjxrsosx+i948mCMi3rVhHhwBPGCkUOnxIQJEgOrJW7iAnNAYWNdsXRtNzObzMLM41PWZzxv/bxOa7/wpPu982uftrRY3T3PGSGru983QFZLCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnxlBBPCfGUEE8J8ZQQTwnx"
                 
                 # Helper function to get team stats for the Text JSON field
                 # Uses REAL-TIME data from school_system.calculated_scores
@@ -1495,8 +1513,13 @@ elif page == "🏆 Honor Roll System":
                     # Get additional stats from analizador if available
                     stat = team_stats_lookup.get(str(team_num), {})
                     overall_avg = stat.get("overall_avg", 0.0)
-                    robot_valuation = stat.get("robot_valuation", 0.0)
-                    defense_rate = stat.get("defense_rate", 0.0) or stat.get("defended", 0.0) or stat.get("defense_count", 0.0)
+                    
+                    # Correct data retrieval for key stats
+                    robot_valuation = stat.get("RobotValuation", 0.0)
+                    # Try multiple keys for defense rate to be safe
+                    defense_rate = stat.get("teleop_crossed_field_defense_rate", 0.0) or \
+                                   stat.get("teleop_crossed_played_defense_rate", 0.0) or \
+                                   stat.get("defense_rate", 0.0)
                     died_rate = stat.get("died_rate", 0.0)
                     matches_played = stat.get("matches_played", 0)
                     
@@ -1508,7 +1531,6 @@ elif page == "🏆 Honor Roll System":
                         "match_performance": round(calculated.match_performance_score, 1) if calculated else 0.0,
                         "pit_scouting": round(calculated.pit_scouting_score, 1) if calculated else 0.0,
                         "during_event": round(calculated.during_event_score, 1) if calculated else 0.0,
-                        "competencies_score": round(calculated.competencies_score, 1) if calculated else 0.0,
                         "overall_avg": round(overall_avg, 1),
                         "robot_valuation": round(robot_valuation, 1),
                         "defense_rate": round(defense_rate, 2),
@@ -1516,13 +1538,24 @@ elif page == "🏆 Honor Roll System":
                         "matches_played": matches_played
                     }
                     
-                    # Add competencies count if available
+                    # Add descriptive competency lists instead of counts
                     if team_scores:
-                        # Use the TeamCompetencies methods to get counts
-                        c_count = team_scores.competencies.get_competencies_count()
-                        sc_count = team_scores.competencies.get_subcompetencies_count()
-                        stats_dict["competencies"] = c_count
-                        stats_dict["subcompetencies"] = sc_count
+                        # Get labels
+                        comp_labels = TeamScoring.get_competency_labels()
+                        subcomp_labels = TeamScoring.get_subcompetency_labels()
+                        
+                        met_competencies = []
+                        for key, label in comp_labels.items():
+                            if getattr(team_scores.competencies, key, False):
+                                met_competencies.append(label)
+                                
+                        met_subcompetencies = []
+                        for key, label in subcomp_labels.items():
+                            if getattr(team_scores.competencies, key, False):
+                                met_subcompetencies.append(label)
+                                
+                        stats_dict["met_competencies"] = met_competencies
+                        stats_dict["met_subcompetencies"] = met_subcompetencies
                     
                     # Add feedback text from calculated scores (real-time)
                     feedback_text = ""
@@ -1538,17 +1571,30 @@ elif page == "🏆 Honor Roll System":
                 
                 # Helper function to generate team block with DriverSkills based on defense
                 def generate_team_block(team_num, result, is_defensive=False):
+                    # Define the path to the folder where team images might be stored
+                    # Use provided images_folder or default to 'images'
+                    images_folder_path = images_folder if images_folder else "images"
+                    
+                    # Call the function to get a dynamic image
+                    team_image_base64 = load_team_image(team_num, images_folder=images_folder_path)
+                    
                     stats_json = get_team_stats_json(team_num, result)
                     driver_skills = "Defensive" if is_defensive else "Offensive"
                     
-                    # Get scores for title - prioritize final_points since that's the ranking criteria
-                    calculated = st.session_state.school_system.calculated_scores.get(str(team_num))
-                    final_pts = calculated.final_points if calculated else (result.final_points if result else 0)
-                    honor_score = calculated.honor_roll_score if calculated else (result.honor_roll_score if result else 0.0)
+                    # Get team name if available
+                    team_name = ""
+                    if st.session_state.tba_manager:
+                        team_name = st.session_state.tba_manager.get_team_nickname(str(team_num))
+                    
+                    # Format title with number and name
+                    if team_name:
+                        title_str = f"{team_num} - {team_name}"
+                    else:
+                        title_str = f"Team {team_num}"
                     
                     lines = []
-                    lines.append(f"  Image: {default_image}")
-                    lines.append(f"    Title: Team {team_num} | Points: {final_pts} | HR: {honor_score:.1f}")
+                    lines.append(f"  Image: {team_image_base64}")
+                    lines.append(f"    Title: {title_str}")
                     lines.append(f"    Text: {stats_json}")
                     lines.append(f"    DriverSkills: {driver_skills}")
                     lines.append(f"    ImageList:")
@@ -1596,8 +1642,8 @@ elif page == "🏆 Honor Roll System":
                 
                 # Tier: Defense Pick (QUALIFIED teams with defense > 0)
                 output_lines.append("Tier: Defense Pick")
-                for team_num, result in defense_pick_teams:
-                    output_lines.append(generate_team_block(team_num, result, is_defensive=True))
+                for team_data in defensive_teams_data:
+                    output_lines.append(generate_team_block(team_data['team_num'], team_data['result'], is_defensive=True))
                 output_lines.append("")
                 
                 # Tier: Unassigned (empty - all qualified teams are assigned)
@@ -1621,7 +1667,13 @@ elif page == "🏆 Honor Roll System":
             *The export will match the qualified teams shown in the Honor Roll Rankings table.*
             """)
             
-            tierlist_txt = generate_tierlist_txt()
+            # NEW: Add a text input for the image folder path
+            image_folder_path = st.text_input(
+                "Local Image Folder Path (Optional)",
+                help="Paste the absolute path to the folder containing team images (e.g., C:/Users/YourUser/Documents/FRC/TeamImages). If left empty, default images will be generated."
+            )
+            
+            tierlist_txt = generate_tierlist_txt(images_folder=image_folder_path)
             
             # TXT Download (primary export format)
             st.download_button(

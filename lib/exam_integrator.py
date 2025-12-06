@@ -397,9 +397,46 @@ class ExamDataIntegrator:
         
         return summary
     
+    def assign_default_competencies(self, scoring_system) -> int:
+        """
+        Assigns default competencies to teams present in the scoring system
+        but not found in any of the processed exam files.
+        """
+        all_teams_in_exams = self.get_all_teams()
+        if not all_teams_in_exams:
+            print("No exam data processed, skipping default competency assignment.")
+            return 0
+
+        all_teams_in_scoring = set(scoring_system.teams.keys())
+        teams_without_exam_data = all_teams_in_scoring - set(all_teams_in_exams)
+        
+        if not teams_without_exam_data:
+            return 0
+
+        default_competencies = ["reliability", "driving_skills"]
+        default_subcompetency = "knows_the_rules"
+        
+        for team_num in teams_without_exam_data:
+            # Check if the team already has these competencies, to avoid overwriting
+            # This is a safeguard in case they were set manually
+            team_comp = scoring_system.teams[team_num].competencies
+            
+            # Assign default competencies
+            for comp in default_competencies:
+                if not getattr(team_comp, comp, False):
+                    scoring_system.update_competency(team_num, comp, True)
+            
+            # Assign default subcompetency
+            if not getattr(team_comp, default_subcompetency, False):
+                scoring_system.update_competency(team_num, default_subcompetency, True)
+
+        print(f"Assigned default competencies to {len(teams_without_exam_data)} teams: {teams_without_exam_data}")
+        return len(teams_without_exam_data)
+
     def apply_to_scoring_system(self, scoring_system) -> None:
         """
         Apply all integrated exam results to a TeamScoring instance.
+        NOW also assigns default competencies to teams without exam data.
         
         Args:
             scoring_system: Instance of TeamScoring from school_system
@@ -443,6 +480,9 @@ class ExamDataIntegrator:
                 # Store comments in the team's competencies or as a separate field
                 if hasattr(scoring_system.teams[team_number], 'scouting_comments'):
                     scoring_system.teams[team_number].scouting_comments = comments
+        
+        # NEW: After applying all exam data, assign defaults to the rest
+        self.assign_default_competencies(scoring_system)
     
     def get_all_teams(self) -> List[str]:
         """Get list of all team numbers that have exam data"""
