@@ -25,6 +25,53 @@ from exam_integrator import ExamDataIntegrator
 
 APP_DIR = Path(__file__).resolve().parent
 
+
+def get_config_column(column_key: str) -> str:
+    """
+    Get a column name from the configuration dynamically.
+    This allows the application to work with different CSV formats.
+    
+    Args:
+        column_key: A logical key for the column type (e.g., 'defense', 'died', 'end_position')
+        
+    Returns:
+        The actual column name from the config, or a fallback
+    """
+    # Column mapping from logical keys to possible column names
+    # The first match found in the actual headers will be used
+    column_mappings = {
+        'defense': ['DEFENDED?', 'Crossed Field/Defense', 'Crossed Feild/Played Defense?'],
+        'died': ['DIED?', 'Died', 'Died?'],
+        'pickup_location': ['PICKUP LOCATION', 'Pickup Location'],
+        'end_position': ['END POSITION', 'End Position'],
+        'moved': ['MOVED?', 'Moved (Auto)', 'Leave (Auto)'],
+        'broke': ['BROKE?', 'Broke'],
+        'tipped': ['TIPPED/FELL OVER?', 'Tipped/Fell', 'Tipped/Fell Over?'],
+        'team_number': ['TEAM NUMBER', 'Team Number'],
+        'match_number': ['MATCH NUMBER', 'Match Number'],
+        'artifacts_auto': ['ARTIFACTS (Auto)', 'Artifacts (Auto)'],
+        'artifacts_teleop': ['ARTIFACTS (Teleop)', 'Artifacts (Teleop)'],
+        'pattern_auto': ['ARTIFACTS IN PATTERN (Auto)', 'Artifacts In Pattern (Auto)'],
+        'pattern_teleop': ['ARTIFACTS IN PATTERN (Teleop)', 'Artifacts In Pattern (Teleop)'],
+        'overflow_auto': ['OVERFLOW ARTIFACTS (Auto)', 'Overflow Artifacts (Auto)'],
+        'overflow_teleop': ['OVERFLOW ARTIFACTS (Teleop)', 'Overflow Artifacts (Teleop)'],
+        'depot_teleop': ['DEPOT PLACED (Teleop)', 'Depot Placed (Teleop)'],
+    }
+    
+    if column_key not in column_mappings:
+        return column_key
+    
+    # Get available column names from the analyzer
+    if 'analizador' in st.session_state and st.session_state.analizador.sheet_data:
+        available_columns = set(st.session_state.analizador._column_indices.keys())
+        for possible_name in column_mappings[column_key]:
+            if possible_name in available_columns:
+                return possible_name
+    
+    # Return the first option as default
+    return column_mappings[column_key][0]
+
+
 # Page configuration
 st.set_page_config(
     page_title="Alliance Simulator - Overture 7421",
@@ -32,7 +79,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
-        'About': "Alliance Simulator - Team Overture 7421 | FRC 2025 REEFSCAPE"
+        'About': "Alliance Simulator - Team Overture 7421 | FTC DECODE"
     }
 )
 
@@ -308,6 +355,12 @@ def get_team_stats_dataframe():
     tba_manager = st.session_state.tba_manager
     team_data_grouped = st.session_state.analizador.get_team_data_grouped()
     
+    # Get dynamic column names from config
+    defense_col = get_config_column('defense')
+    died_col = get_config_column('died')
+    pickup_col = get_config_column('pickup_location')
+    end_pos_col = get_config_column('end_position')
+    
     # Convert to DataFrame with selected columns for simplified view
     df_data = []
     for team_stat in stats:
@@ -316,10 +369,10 @@ def get_team_stats_dataframe():
         team_key = str(team_num)
         team_rows = team_data_grouped.get(team_key, [])
 
-        defense_rate = get_rate_from_stat(team_stat, ("Crossed Field/Defense", "Crossed Feild/Played Defense?")) * 100.0
-        death_rate = get_rate_from_stat(team_stat, ("Died", "Died?")) * 100.0
-        pickup_mode = get_mode_from_rows(team_rows, "Pickup Location")
-        climb_mode = get_mode_from_rows(team_rows, "End Position")
+        defense_rate = get_rate_from_stat(team_stat, (defense_col,)) * 100.0
+        death_rate = get_rate_from_stat(team_stat, (died_col,)) * 100.0
+        pickup_mode = get_mode_from_rows(team_rows, pickup_col)
+        end_mode = get_mode_from_rows(team_rows, end_pos_col)
         df_data.append({
             'Team': f"{team_num} - {team_name}",
             'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
@@ -328,7 +381,7 @@ def get_team_stats_dataframe():
             'Defense Rate (%)': round(defense_rate, 2),
             'Died Rate (%)': round(death_rate, 2),
             'Pickup Mode': pickup_mode,
-            'Climb Mode': climb_mode,
+            'End Position': end_mode,
         })
     
     return pd.DataFrame(df_data)
@@ -339,6 +392,10 @@ def create_alliance_selector_teams():
     if not stats:
         return []
     
+    # Get dynamic column names
+    died_col = get_config_column('died')
+    defense_col = get_config_column('defense')
+    
     teams = []
     for rank, stat in enumerate(stats, 1):
         team_num = stat.get('team', 0)
@@ -347,10 +404,11 @@ def create_alliance_selector_teams():
         
         # Get phase scores
         phase_scores = st.session_state.analizador.calculate_team_phase_scores(int(team_num))
-        death_rate = get_rate_from_stat(stat, ("Died", "Died?"))
-        defended_rate = get_rate_from_stat(stat, ("Defended", "Was the robot Defended by someone?"))
-        defense_rate = get_rate_from_stat(stat, ("Crossed Field/Defense", "Crossed Feild/Played Defense?"))
-        algae_score = stat.get('teleop_algae_avg', 0.0)
+        death_rate = get_rate_from_stat(stat, (died_col,))
+        defended_rate = get_rate_from_stat(stat, (defense_col,))
+        defense_rate = get_rate_from_stat(stat, (defense_col,))
+        # For DECODE, use artifact score instead of algae
+        artifact_score = stat.get('teleop_artifacts_avg', stat.get('teleop_algae_avg', 0.0))
         
         team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else f"Team {team_num}"
 
@@ -369,7 +427,7 @@ def create_alliance_selector_teams():
             death_rate=death_rate,
             defended_rate=defended_rate,
             defense_rate=defense_rate,
-            algae_score=algae_score
+            algae_score=artifact_score  # Using artifact score for DECODE
         ))
     
     return teams
@@ -536,7 +594,7 @@ st.sidebar.markdown("""
     <h1 style='color: white; font-size: 2.5rem; margin: 0;'>🤖</h1>
     <h2 style='color: white; font-weight: 700; margin: 0.5rem 0;'>Alliance Simulator</h2>
     <p style='color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;'>Team Overture 7421</p>
-    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>FRC 2025 REEFSCAPE</p>
+    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>FTC DECODE</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1019,8 +1077,8 @@ elif page == "🤝 Alliance Selector":
             # Replace team numbers with names
             if st.session_state.tba_manager:
                 for row in alliance_table_data:
-                    for col in ['Captain', 'Pick 1', 'Pick 2', 'Recommendation 1', 'Recommendation 2']:
-                        if row[col]:
+                    for col in ['Captain', 'Pick 1', 'Recommendation']:
+                        if col in row and row[col]:
                             num = row[col]
                             name = st.session_state.tba_manager.get_team_nickname(num)
                             row[col] = f"{num} - {name}"
@@ -1034,22 +1092,13 @@ elif page == "🤝 Alliance Selector":
             if st.button("Auto-Optimize All"):
                 made_changes = False
 
-                # Pick 1 round (highest seeds first)
+                # Pick 1 round (highest seeds first) - DECODE only has 1 pick
                 for alliance in selector.alliances:
                     if not alliance.captain or alliance.pick1:
                         continue
                     available_teams = selector.get_available_teams(alliance.captainRank, 'pick1')
                     if available_teams:
                         selector.set_pick(alliance.allianceNumber - 1, 'pick1', available_teams[0].team)
-                        made_changes = True
-
-                # Pick 2 round (snake order)
-                for alliance in reversed(selector.alliances):
-                    if not alliance.captain or alliance.pick2:
-                        continue
-                    available_teams = selector.get_available_teams(alliance.captainRank, 'pick2')
-                    if available_teams:
-                        selector.set_pick(alliance.allianceNumber - 1, 'pick2', available_teams[0].team)
                         made_changes = True
 
                 if made_changes:
@@ -1112,17 +1161,16 @@ elif page == "🤝 Alliance Selector":
                         except ValueError as e:
                             st.error(str(e))
                     
-                    # Pick 1 and Pick 2 selection
+                    # Pick 1 selection (DECODE has only 1 pick per alliance)
                     available_teams = selector.get_available_teams(a.captainRank, 'pick1')
                     
                     if st.session_state.tba_manager:
                         team_options = {team.team: f"{team.team} - {team.name}" for team in available_teams}
                         team_options[0] = "None"
                         
-                        # Add current picks if they are not in the available list (e.g. captain of another alliance)
-                        for pick in [a.pick1, a.pick2]:
-                            if pick and pick not in team_options:
-                                team_options[pick] = f"{pick} - {st.session_state.tba_manager.get_team_nickname(pick)}"
+                        # Add current pick if it's not in the available list
+                        if a.pick1 and a.pick1 not in team_options:
+                            team_options[a.pick1] = f"{a.pick1} - {st.session_state.tba_manager.get_team_nickname(a.pick1)}"
                     else:
                         team_options = {team.team: team.team for team in available_teams}
                         team_options[0] = "None"
@@ -1137,20 +1185,6 @@ elif page == "🤝 Alliance Selector":
                     if selected_pick1 != current_pick1_value:
                         try:
                             selector.set_pick(i, 'pick1', selected_pick1 if selected_pick1 != 0 else None)
-                            st.rerun()
-                        except ValueError as e:
-                            st.error(str(e))
-
-                    # Pick 2
-                    pick2_val = a.pick2 if a.pick2 in team_options else 0
-                    selected_pick2 = st.selectbox(f"Pick 2 A{a.allianceNumber}", 
-                                                  options=list(team_options.keys()),
-                                                  format_func=lambda x: team_options.get(x, "None"),
-                                                  key=f"pick2_{i}", index=list(team_options.keys()).index(pick2_val))
-                    current_pick2_value = a.pick2 if a.pick2 is not None else 0
-                    if selected_pick2 != current_pick2_value:
-                        try:
-                            selector.set_pick(i, 'pick2', selected_pick2 if selected_pick2 != 0 else None)
                             st.rerun()
                         except ValueError as e:
                             st.error(str(e))
@@ -1421,7 +1455,7 @@ elif page == "🏆 Honor Roll System":
                 1. Uses min_honor_roll_score from session_state (NOT hardcoded)
                 2. Defense Pick: ANY team with defense_rate > 0, sorted by defense_rate (desc) then died_rate (asc)
                 3. Qualified teams (non-defensive) are sorted by final_points (includes weight adjustments)
-                4. 1st/2nd/3rd Pick: Qualified non-defensive teams split into thirds
+                4. 1st/2nd Pick: Qualified non-defensive teams split into halves (DECODE format)
                 5. "-" Tier: ONLY disqualified teams (those below min_honor_roll_score or lacking competencies)
                 6. Unassigned: Empty (all qualified teams are assigned to top tiers)
                 
@@ -1474,26 +1508,25 @@ elif page == "🏆 Honor Roll System":
                 disqualified_non_defensive = [(team_num, reason) for team_num, reason in disqualified if str(team_num) in remaining_teams_nums]
                 
                 # ===============================================================
-                # STEP 3: Distribute QUALIFIED non-defensive teams into 1st/2nd/3rd Pick
+                # STEP 3: Distribute QUALIFIED non-defensive teams into 1st/2nd Pick
                 # These are already sorted by final_points (descending) from get_honor_roll_ranking
+                # DECODE uses 2-robot alliances, so split in half instead of thirds
                 # ===============================================================
                 total_qualified_non_def = len(qualified_non_defensive)
                 
                 if total_qualified_non_def > 0:
-                    # Split evenly into thirds for 1st, 2nd, 3rd pick
-                    tier_size = max(1, total_qualified_non_def // 3)
-                    remainder = total_qualified_non_def % 3
+                    # Split evenly into halves for 1st, 2nd pick (DECODE format)
+                    tier_size = max(1, total_qualified_non_def // 2)
+                    remainder = total_qualified_non_def % 2
                     
-                    # Distribute remainder to higher tiers first
-                    tier_1_size = tier_size + (1 if remainder >= 1 else 0)
-                    tier_2_size = tier_size + (1 if remainder >= 2 else 0)
-                    tier_3_size = total_qualified_non_def - tier_1_size - tier_2_size
+                    # Distribute remainder to higher tier first
+                    tier_1_size = tier_size + remainder
+                    tier_2_size = total_qualified_non_def - tier_1_size
                     
                     tier_1 = qualified_non_defensive[:tier_1_size]
-                    tier_2 = qualified_non_defensive[tier_1_size:tier_1_size + tier_2_size]
-                    tier_3 = qualified_non_defensive[tier_1_size + tier_2_size:]
+                    tier_2 = qualified_non_defensive[tier_1_size:]
                 else:
-                    tier_1, tier_2, tier_3 = [], [], []
+                    tier_1, tier_2 = [], []
                 
                 # ===============================================================
                 # STEP 4: DISQUALIFIED teams go to "-" tier (did not meet threshold)
@@ -1612,21 +1645,15 @@ elif page == "🏆 Honor Roll System":
                 output_lines.append(f"# Disqualified Teams: {len(disqualified)}")
                 output_lines.append("")
                 
-                # Tier: 1st Pick (top third of qualified non-defensive teams)
+                # Tier: 1st Pick (top half of qualified non-defensive teams)
                 output_lines.append("Tier: 1st Pick")
                 for team_num, result in tier_1:
                     output_lines.append(generate_team_block(team_num, result, is_defensive=False))
                 output_lines.append("")  # Blank line between tiers
                 
-                # Tier: 2nd Pick (middle third of qualified non-defensive teams)
+                # Tier: 2nd Pick (bottom half of qualified non-defensive teams)
                 output_lines.append("Tier: 2nd Pick")
                 for team_num, result in tier_2:
-                    output_lines.append(generate_team_block(team_num, result, is_defensive=False))
-                output_lines.append("")
-                
-                # Tier: 3rd Pick (lower third of qualified non-defensive teams)
-                output_lines.append("Tier: 3rd Pick")
-                for team_num, result in tier_3:
                     output_lines.append(generate_team_block(team_num, result, is_defensive=False))
                 output_lines.append("")
                 

@@ -115,9 +115,9 @@ class AnalizadorRobot:
             # Fallback to legacy behavior
             current_header = self.sheet_data[0] if self.sheet_data else self.default_column_names
             default_overall_columns = [
-                'Coral L1 (Auto)', 'Coral L2 (Auto)', 'Coral L3 (Auto)', 'Coral L4 (Auto)', 
-                'Coral L1 (Teleop)', 'Coral L2 (Teleop)', 'Coral L3 (Teleop)', 'Coral L4 (Teleop)',
-                'Barge Algae (Auto)', 'Barge Algae (Teleop)', 'Processor Algae (Auto)', 'Processor Algae (Teleop)'
+                'Artifacts (Auto)', 'Artifacts in PATTERN (Auto)', 'Overflow Artifacts (Auto)',
+                'Artifacts (Teleop)', 'Artifacts in PATTERN (Teleop)', 'Overflow Artifacts (Teleop)',
+                'Depot Placed (Teleop)'
             ]
             self._selected_numeric_columns_for_overall = [
                 col for col in default_overall_columns if col in current_header
@@ -139,7 +139,7 @@ class AnalizadorRobot:
         
         # Palabras clave para identificar fases del juego
         autonomous_keywords = ['auton', 'auto', 'autonomous', 'did something', 'did foul', 'worked']
-        teleop_keywords = ['coral', 'algae', 'barge', 'processor', 'crossed', 'defense', 'defended', 'teleop']
+        teleop_keywords = ['artifact', 'depot', 'overflow', 'pattern', 'crossed', 'defense', 'defended', 'teleop']
         endgame_keywords = ['climb', 'endgame', 'end game', 'tipped', 'fell over', 'died']
         
         # Limpiar listas actuales si están siendo auto-detectadas
@@ -363,6 +363,43 @@ class AnalizadorRobot:
         self._initialize_selected_columns() # Re-inicializar selecciones con nuevo encabezado
         print(f"Encabezado actualizado a: {self.sheet_data[0]}")
 
+    def _rename_duplicate_columns(self, headers):
+        """
+        Rename duplicate column names by adding (Auto) or (Teleop) suffixes.
+        This handles the DECODE CSV format where columns like ARTIFACTS appear twice.
+        
+        Args:
+            headers (list): List of column header strings
+            
+        Returns:
+            list: Headers with duplicates renamed
+        """
+        # Columns that appear in both Auto and Teleop phases
+        duplicate_columns = {
+            'ARTIFACTS', 'ARTIFACTS IN PATTERN', 'OVERFLOW ARTIFACTS',
+            'FAILED ARTIFACTS', 'DEPOT PLACED'
+        }
+        
+        seen = {}
+        new_headers = []
+        
+        for header in headers:
+            header_upper = header.strip().upper()
+            
+            if header_upper in duplicate_columns:
+                if header_upper not in seen:
+                    # First occurrence is Auto
+                    seen[header_upper] = 1
+                    new_headers.append(f"{header_upper} (Auto)")
+                else:
+                    # Second occurrence is Teleop
+                    seen[header_upper] += 1
+                    new_headers.append(f"{header_upper} (Teleop)")
+            else:
+                new_headers.append(header_upper)
+        
+        return new_headers
+
     def load_csv(self, file_path):
         """
         Carga un archivo CSV, detectando automáticamente el formato y convirtiéndolo si es necesario.
@@ -382,6 +419,10 @@ class AnalizadorRobot:
                 return
 
             csv_headers = csv_rows[0]
+            
+            # Handle duplicate column names (DECODE format has duplicate ARTIFACTS, etc.)
+            csv_headers = self._rename_duplicate_columns(csv_headers)
+            csv_rows[0] = csv_headers
             
             # Detect CSV format
             detected_format = self.config_manager.detect_csv_format(csv_headers)
@@ -419,12 +460,15 @@ class AnalizadorRobot:
                     self.sheet_data.extend(csv_rows[1:]) # Añadir solo datos
                     print(f"Datos CSV añadidos. Total {len(self.sheet_data)} filas.")
                 else:
-                    # Opción 1: Reemplazar todo si los encabezados no coinciden (más simple)
-                    # print("Advertencia: Encabezado del CSV no coincide con el existente. Reemplazando todos los datos.")
-                    # self.sheet_data = csv_rows
-                    # Opción 2: Solo añadir datos, manteniendo el encabezado original (como en el código Dart)
-                    print("Advertencia: Encabezado del CSV no coincide con el existente. Añadiendo solo filas de datos.")
-                    self.sheet_data.extend(csv_rows[1:])
+                    # For DECODE or other new formats, replace everything including headers
+                    # This ensures the column indices are updated correctly
+                    if detected_format in ("decode_format", "new_format"):
+                        print("Nuevo formato detectado. Reemplazando todos los datos con nuevo encabezado.")
+                        self.sheet_data = csv_rows
+                    else:
+                        # Legacy behavior: Only add data rows, keeping original header
+                        print("Advertencia: Encabezado del CSV no coincide con el existente. Añadiendo solo filas de datos.")
+                        self.sheet_data.extend(csv_rows[1:])
             
             self._update_column_indices()
             self._initialize_selected_columns() # Asegurarse que las selecciones se actualizan
@@ -571,13 +615,18 @@ class AnalizadorRobot:
         # Agrupa filas por número de equipo, igual que en Dart
         if len(self.sheet_data) < 2:
             return {}
-        team_number_col_name = "Team Number"
-        if team_number_col_name not in self._column_indices:
-            if "Team" in self._column_indices:
-                team_number_col_name = "Team"
-            else:
-                return {}
-        team_col_idx = self._column_indices[team_number_col_name]
+        
+        # Try multiple possible column names for team number
+        team_col_candidates = ["TEAM NUMBER", "Team Number", "Team", "team_number"]
+        team_col_idx = None
+        for candidate in team_col_candidates:
+            if candidate in self._column_indices:
+                team_col_idx = self._column_indices[candidate]
+                break
+        
+        if team_col_idx is None:
+            return {}
+        
         team_rows_map = defaultdict(list)
         for row in self.sheet_data[1:]:
             if team_col_idx < len(row):
@@ -588,23 +637,42 @@ class AnalizadorRobot:
 
     def _generate_stat_key(self, col_name, stat_type):
         # Lógica idéntica a Dart para las claves
-        if col_name in ['teleop_coral', 'teleop_algae']:
+        if col_name in ['teleop_coral', 'teleop_algae', 'teleop_artifacts', 'auto_artifacts']:
             return f'{col_name}_{stat_type}'
+        
+        # Normalize column name
+        col_upper = col_name.upper()
+        
+        # Handle Auto/Teleop suffixes for proper key generation
+        phase_suffix = ''
+        if '(AUTO)' in col_upper:
+            phase_suffix = '_auto'
+        elif '(TELEOP)' in col_upper:
+            phase_suffix = '_teleop'
+        
         base = col_name.replace('?', '') \
                        .replace('(Disloged NO COUNT)', '') \
                        .replace('(Disloged DOES NOT COUNT)', '') \
-                       .replace('(Auto)', '') \
-                       .replace('(Teleop)', '') \
+                       .replace('(Auto)', '').replace('(AUTO)', '') \
+                       .replace('(Teleop)', '').replace('(TELEOP)', '') \
                        .replace('/', '_') \
                        .replace(' ', '_') \
+                       .strip('_') \
                        .lower()
+        
+        # Add phase suffix if present
+        if phase_suffix and not base.endswith(phase_suffix):
+            base = base + phase_suffix
+        
         specific_renames = {
             'End Position': 'climb',
+            'END POSITION': 'climb',
             'Climbed?': 'climb',
             'Did something?': 'auto_did_something',
             'Did Foul?': 'auto_did_foul',
             'Did auton worked?': 'auto_worked',
             'Moved (Auto)': 'auto_worked',
+            'MOVED?': 'moved',
             'Barge Algae Scored': 'teleop_barge_algae',
             'Barge Algae (Teleop)': 'teleop_barge_algae',
             'Algae Scored in Barge': 'teleop_barge_algae',
@@ -614,7 +682,11 @@ class AnalizadorRobot:
             'Played Algae?(Disloged DOES NOT COUNT)': 'teleop_played_algae',
             'Crossed Feild/Played Defense?': 'teleop_crossed_played_defense',
             'Crossed Field/Defense': 'teleop_crossed_played_defense',
-            'Was the robot Defended by alguien?': 'defended_by_other'
+            'DEFENDED?': 'defended',
+            'Was the robot Defended by alguien?': 'defended_by_other',
+            'DIED?': 'died',
+            'BROKE?': 'broke',
+            'TIPPED/FELL OVER?': 'tipped_fell',
         }
         if col_name in specific_renames:
             base = specific_renames[col_name]
@@ -628,27 +700,30 @@ class AnalizadorRobot:
         if not team_data_grouped:
             return []
         detailed_stats_list = []
-        # Updated coral_algae_groups to support both new and legacy formats
-        coral_algae_groups = {
-            'teleop_coral': [
-                # New format columns
+        # Updated artifact groups for DECODE (uppercase to match renamed headers)
+        artifact_groups = {
+            'teleop_artifacts': [
+                # New DECODE format columns (uppercase)
+                'ARTIFACTS (Teleop)', 'ARTIFACTS IN PATTERN (Teleop)',
+                'OVERFLOW ARTIFACTS (Teleop)', 'DEPOT PLACED (Teleop)',
+                # Legacy format columns for backward compatibility
                 'Coral L1 (Teleop)', 'Coral L2 (Teleop)',
-                'Coral L3 (Teleop)', 'Coral L4 (Teleop)',
-                # Legacy format columns for backward compatibility
-                'Coral L1 Scored', 'Coral L2 Scored',
-                'Coral L3 Scored', 'Coral L4 Scored'
+                'Coral L3 (Teleop)', 'Coral L4 (Teleop)'
             ],
-            'teleop_algae': [
-                # New format columns
-                'Barge Algae (Teleop)', 'Processor Algae (Teleop)',
+            'auto_artifacts': [
+                # New DECODE format columns (uppercase)
+                'ARTIFACTS (Auto)', 'ARTIFACTS IN PATTERN (Auto)',
+                'OVERFLOW ARTIFACTS (Auto)', 'DEPOT PLACED (Auto)',
                 # Legacy format columns for backward compatibility
-                'Algae Scored in Barge'
+                'Coral L1 (Auto)', 'Coral L2 (Auto)',
+                'Coral L3 (Auto)', 'Coral L4 (Auto)',
+                'Barge Algae (Auto)', 'Processor Algae (Auto)'
             ]
         }
         for team_number, rows in team_data_grouped.items():
             team_stats = {'team': team_number}
-            # Coral y algae: avg y std
-            for group_name, columns in coral_algae_groups.items():
+            # Artifacts (DECODE): avg and std
+            for group_name, columns in artifact_groups.items():
                 group_values = []
                 for col_name in columns:
                     col_idx = self._column_indices.get(col_name)
@@ -664,9 +739,9 @@ class AnalizadorRobot:
                 std_key = self._generate_stat_key(group_name, 'std')
                 team_stats[avg_key] = self._average(group_values) if group_values else 0.0
                 team_stats[std_key] = self._standard_deviation(group_values) if group_values else 0.0
-            # Individual coral/algae columns
+            # Individual artifact columns
             individual_numeric_columns = []
-            for columns in coral_algae_groups.values():
+            for columns in artifact_groups.values():
                 individual_numeric_columns.extend(columns)
             individual_numeric_columns = list(set(individual_numeric_columns))
             for col_name in individual_numeric_columns:
@@ -685,8 +760,11 @@ class AnalizadorRobot:
                 team_stats[avg_key] = self._average(values) if values else 0.0
                 team_stats[std_key] = self._standard_deviation(values) if values else 0.0
             # Defensa (rate) - handle both new and legacy column names
-            defense_col = 'Crossed Field/Defense'  # Try new format first
+            defense_col = 'DEFENDED?'  # Try new format first
             defense_idx = self._column_indices.get(defense_col)
+            if defense_idx is None:
+                defense_col = 'Crossed Field/Defense'  # Fall back to intermediate format
+                defense_idx = self._column_indices.get(defense_col)
             if defense_idx is None:
                 defense_col = 'Crossed Feild/Played Defense?'  # Fall back to legacy format
                 defense_idx = self._column_indices.get(defense_col)
@@ -704,87 +782,117 @@ class AnalizadorRobot:
                 team_stats[defense_key] = self._average(defense_values) if defense_values else 0.0
             # Enhanced Overall calculation with proper weighting
             overall_values = []
-            coral_values = []
-            algae_values = []
+            artifact_values = []
             
-            # Calculate per-match performance across all matches for this team
+            # Calculate per-match performance across all matches for this team (DECODE scoring)
             for row in rows:
                 match_score = 0.0
                 
-                # Coral scoring with level-based weights (L1=2, L2=3, L3=4, L4=5 for teleop; double for auto)
-                coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
-                for level, weight in coral_weights.items():
-                    # Auto coral (higher value)
-                    auto_col = f'Coral {level} (Auto)'
-                    auto_idx = self._column_indices.get(auto_col)
-                    if auto_idx is not None and auto_idx < len(row):
-                        try:
-                            auto_val = float(row[auto_idx])
-                            match_score += auto_val * weight * 2  # Double points for auto
-                            coral_values.append(auto_val * weight * 2)
-                        except Exception:
-                            pass
-                    
-                    # Teleop coral
-                    teleop_col = f'Coral {level} (Teleop)'
-                    teleop_idx = self._column_indices.get(teleop_col)
-                    if teleop_idx is not None and teleop_idx < len(row):
-                        try:
-                            teleop_val = float(row[teleop_idx])
-                            match_score += teleop_val * weight
-                            coral_values.append(teleop_val * weight)
-                        except Exception:
-                            pass
-                    
-                    # Legacy format fallback
-                    legacy_col = f'Coral {level} Scored'
-                    legacy_idx = self._column_indices.get(legacy_col)
-                    if legacy_idx is not None and legacy_idx < len(row) and auto_idx is None and teleop_idx is None:
-                        try:
-                            legacy_val = float(row[legacy_idx])
-                            match_score += legacy_val * weight * 1.5  # Moderate weight for combined
-                            coral_values.append(legacy_val * weight * 1.5)
-                        except Exception:
-                            pass
+                # DECODE Artifact scoring
+                # Classified Artifacts: 3 points each
+                # Overflow Artifacts: 1 point each
+                # Depot Placed: 1 point each (Teleop only)
+                # Pattern Bonus: 2 points per artifact in pattern
                 
-                # Algae scoring (Barge=3 points, Processor=6 points)
-                algae_configs = [
-                    ('Barge Algae (Auto)', 3 * 1.5),  # Auto bonus
-                    ('Barge Algae (Teleop)', 3),
-                    ('Processor Algae (Auto)', 6 * 1.5),  # Auto bonus  
-                    ('Processor Algae (Teleop)', 6),
-                    ('Algae Scored in Barge', 3)  # Legacy
-                ]
+                # Auto Artifacts (classified = 3 pts each)
+                auto_art_idx = self._column_indices.get('ARTIFACTS (Auto)')
+                if auto_art_idx is not None and auto_art_idx < len(row):
+                    try:
+                        auto_art_val = float(row[auto_art_idx])
+                        match_score += auto_art_val * 3  # Classified artifacts
+                        artifact_values.append(auto_art_val * 3)
+                    except Exception:
+                        pass
                 
-                for col_name, points in algae_configs:
-                    col_idx = self._column_indices.get(col_name)
-                    if col_idx is not None and col_idx < len(row):
-                        try:
-                            val = float(row[col_idx])
-                            match_score += val * points
-                            algae_values.append(val * points)
-                        except Exception:
-                            pass
+                # Auto Artifacts in Pattern (additional 2 pts per artifact)
+                auto_pattern_idx = self._column_indices.get('ARTIFACTS IN PATTERN (Auto)')
+                if auto_pattern_idx is not None and auto_pattern_idx < len(row):
+                    try:
+                        auto_pattern_val = float(row[auto_pattern_idx])
+                        match_score += auto_pattern_val * 2  # Pattern bonus
+                        artifact_values.append(auto_pattern_val * 2)
+                    except Exception:
+                        pass
                 
-                # Add endgame scoring (climb bonus)
-                end_pos_idx = self._column_indices.get('End Position')
-                climb_idx = self._column_indices.get('Climbed?')  # Legacy
+                # Auto Overflow Artifacts (1 pt each)
+                auto_overflow_idx = self._column_indices.get('OVERFLOW ARTIFACTS (Auto)')
+                if auto_overflow_idx is not None and auto_overflow_idx < len(row):
+                    try:
+                        auto_overflow_val = float(row[auto_overflow_idx])
+                        match_score += auto_overflow_val * 1
+                        artifact_values.append(auto_overflow_val * 1)
+                    except Exception:
+                        pass
+                
+                # Teleop Artifacts (classified = 3 pts each)
+                teleop_art_idx = self._column_indices.get('ARTIFACTS (Teleop)')
+                if teleop_art_idx is not None and teleop_art_idx < len(row):
+                    try:
+                        teleop_art_val = float(row[teleop_art_idx])
+                        match_score += teleop_art_val * 3
+                        artifact_values.append(teleop_art_val * 3)
+                    except Exception:
+                        pass
+                
+                # Teleop Artifacts in Pattern (additional 2 pts)
+                teleop_pattern_idx = self._column_indices.get('ARTIFACTS IN PATTERN (Teleop)')
+                if teleop_pattern_idx is not None and teleop_pattern_idx < len(row):
+                    try:
+                        teleop_pattern_val = float(row[teleop_pattern_idx])
+                        match_score += teleop_pattern_val * 2
+                        artifact_values.append(teleop_pattern_val * 2)
+                    except Exception:
+                        pass
+                
+                # Teleop Overflow Artifacts (1 pt each)
+                teleop_overflow_idx = self._column_indices.get('OVERFLOW ARTIFACTS (Teleop)')
+                if teleop_overflow_idx is not None and teleop_overflow_idx < len(row):
+                    try:
+                        teleop_overflow_val = float(row[teleop_overflow_idx])
+                        match_score += teleop_overflow_val * 1
+                        artifact_values.append(teleop_overflow_val * 1)
+                    except Exception:
+                        pass
+                
+                # Depot Placed (Teleop only, 1 pt each)
+                depot_idx = self._column_indices.get('DEPOT PLACED (Teleop)')
+                if depot_idx is not None and depot_idx < len(row):
+                    try:
+                        depot_val = float(row[depot_idx])
+                        match_score += depot_val * 1
+                        artifact_values.append(depot_val * 1)
+                    except Exception:
+                        pass
+                
+                # Auto Leave/Moved bonus (3 pts) - check both MOVED? and Leave (Auto)
+                leave_idx = self._column_indices.get('MOVED?')
+                if leave_idx is None:
+                    leave_idx = self._column_indices.get('Leave (Auto)')
+                if leave_idx is not None and leave_idx < len(row):
+                    leave_val = str(row[leave_idx]).strip().lower()
+                    if leave_val in ['true', 'yes', 'y', '1']:
+                        match_score += 3
+                
+                # Endgame scoring for DECODE (parking)
+                # Partially Parked: 5 pts, Fully Parked: 10 pts, Double Park: 10 pts
+                end_pos_idx = self._column_indices.get('END POSITION')
+                if end_pos_idx is None:
+                    end_pos_idx = self._column_indices.get('End Position')
                 
                 if end_pos_idx is not None and end_pos_idx < len(row):
                     end_pos = str(row[end_pos_idx]).strip().lower()
-                    if 'deep' in end_pos:
-                        match_score += 12
-                    elif 'shallow' in end_pos:
-                        match_score += 6
-                    elif 'park' in end_pos:
-                        match_score += 2
-                elif climb_idx is not None and climb_idx < len(row):
-                    try:
-                        climb_val = float(row[climb_idx])
-                        if climb_val > 0:
-                            match_score += 8  # Estimated climb points for legacy
-                    except Exception:
-                        pass
+                    if 'fully' in end_pos or 'full' in end_pos:
+                        match_score += 10
+                    elif 'partial' in end_pos or 'partly' in end_pos:
+                        match_score += 5
+                    elif 'none' not in end_pos and 'no' not in end_pos:
+                        # Fallback for legacy format
+                        if 'deep' in end_pos:
+                            match_score += 12
+                        elif 'shallow' in end_pos:
+                            match_score += 6
+                        elif 'park' in end_pos:
+                            match_score += 2
                 
                 if match_score > 0:
                     overall_values.append(match_score)

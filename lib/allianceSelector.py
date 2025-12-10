@@ -75,14 +75,13 @@ class Team:
         }
 
 class Alliance:
+    """Alliance class for DECODE - 2-robot alliances (Captain + Pick1 only)"""
     def __init__(self, number):
         self.allianceNumber = number
         self.captain = None
         self.captainRank = None
         self.pick1 = None
-        self.pick2 = None
         self.pick1Rec = None
-        self.pick2Rec = None
         self.manual_captain = False
 
     def as_dict(self):
@@ -91,26 +90,24 @@ class Alliance:
             "captain": self.captain,
             "captainRank": self.captainRank,
             "pick1": self.pick1,
-            "pick2": self.pick2,
-            "pick1Rec": self.pick1Rec,
-            "pick2Rec": self.pick2Rec
+            "pick1Rec": self.pick1Rec
         }
 
 class AllianceSelector:
+    """Alliance Selector for DECODE - 2-robot alliances"""
     def __init__(self, teams):
         self.teams = sorted(teams, key=lambda t: t.rank)
-        # For testing purposes, create reasonable number of alliances
-        # In real FRC: 8 alliances for events with 24+ teams, fewer for smaller events
-        max_alliances = min(8, max(1, len(teams) // 3))  # At least 3 teams per alliance
+        # DECODE: 2-robot alliances, so we can have more alliances
+        max_alliances = min(8, max(1, len(teams) // 2))  # 2 teams per alliance
         self.alliances = [Alliance(i+1) for i in range(max_alliances)]
         self.update_alliance_captains()
         self.update_recommendations()
 
     def get_selected_picks(self):
+        """Get all selected picks (pick1 only for DECODE)"""
         selected = []
         for a in self.alliances:
             if a.pick1: selected.append(a.pick1)
-            if a.pick2: selected.append(a.pick2)
         return selected
 
     def update_alliance_captains(self):
@@ -147,7 +144,8 @@ class AllianceSelector:
                 alliance.captain = None
                 alliance.captainRank = None
 
-    def get_available_teams(self, drafting_captain_rank, pick_type):
+    def get_available_teams(self, drafting_captain_rank, pick_type='pick1'):
+        """Get available teams for picking - DECODE only has pick1"""
         selected_picks = self.get_selected_picks()
         
         # Find which alliance is making this pick
@@ -186,23 +184,8 @@ class AllianceSelector:
             # Team is available
             available.append(team)
         
-        if pick_type == 'pick2':
-            def pick2_key(team):
-                # Prioritize defensive specialists and algae scorers with reliable performance
-                defense_priority = team.defense_rate if hasattr(team, 'defense_rate') else 0.0
-                algae_priority = team.algae_score if hasattr(team, 'algae_score') else 0.0
-                reliability_penalty = team.death_rate if hasattr(team, 'death_rate') else 0.0
-                return (
-                    -defense_priority,
-                    -algae_priority,
-                    reliability_penalty,
-                    -team.score,
-                    team.rank
-                )
-
-            available.sort(key=pick2_key)
-        else:
-            available.sort(key=lambda t: (-t.score, t.rank))
+        # Sort by score and rank
+        available.sort(key=lambda t: (-t.score, t.rank))
         return available
 
     def get_team_score(self, team_number):
@@ -212,14 +195,13 @@ class AllianceSelector:
         return 0
 
     def update_recommendations(self):
-        # For each alliance, recommend the best available pick for pick1 and pick2
-        # Each recommendation must be unique (no team recommended to multiple alliances for the same pick)
-        # We simulate the draft order: pick1 (1-8), pick2 (8-1)
+        """Update pick recommendations for DECODE (pick1 only)"""
+        # For each alliance, recommend the best available pick for pick1
+        # Each recommendation must be unique
         recommended_pick1 = set()
-        recommended_pick2 = set()
 
         # Pick 1 (1-8)
-        # New logic: Recommend the captain of the next alliance if available.
+        # Recommend the captain of the next alliance if available
         all_captains = [a.captain for a in self.alliances if a.captain]
         
         for idx, a in enumerate(self.alliances):
@@ -255,21 +237,6 @@ class AllianceSelector:
             else:
                 a.pick1Rec = None
 
-        # Pick 2 (8-1)
-        for idx in reversed(range(len(self.alliances))):
-            a = self.alliances[idx]
-            if not a.pick2:
-                available = self.get_available_teams(a.captainRank, 'pick2')
-                # Filter out already recommended teams for both pick types
-                available = [t for t in available if t.team not in recommended_pick2 and t.team not in recommended_pick1]
-                if available:
-                    a.pick2Rec = available[0].team
-                    recommended_pick2.add(available[0].team)
-                else:
-                    a.pick2Rec = None
-            else:
-                a.pick2Rec = None
-
     def set_pick(self, alliance_index, pick_type, team_number):
         # Get the alliance that is making this pick
         picking_alliance = self.alliances[alliance_index]
@@ -302,9 +269,9 @@ class AllianceSelector:
         self.update_recommendations()
 
     def reset_picks(self):
+        """Reset all picks for DECODE"""
         for a in self.alliances:
             a.pick1 = None
-            a.pick2 = None
         self.update_alliance_captains()
         self.update_recommendations()
 
@@ -353,19 +320,17 @@ class AllianceSelector:
         return options
 
     def get_alliance_table(self):
+        """Get alliance table for DECODE (2-robot alliances: Captain + Pick 1)"""
         table = []
         for a in self.alliances:
             alliance_score = 0
             if a.captain: alliance_score += self.get_team_score(a.captain)
             if a.pick1: alliance_score += self.get_team_score(a.pick1)
-            if a.pick2: alliance_score += self.get_team_score(a.pick2)
             table.append({
                 "Alliance #": a.allianceNumber,
                 "Captain": a.captain,
                 "Pick 1": a.pick1,
-                "Recommendation 1": a.pick1Rec,
-                "Pick 2": a.pick2,
-                "Recommendation 2": a.pick2Rec,
+                "Recommendation": a.pick1Rec,
                 "Alliance Score": round(alliance_score, 1),
                 "Captain Mode": "Manual" if a.manual_captain else "Auto"
             })

@@ -38,6 +38,49 @@ class ConfigManager:
     def _load_presets(self) -> Dict:
         """Load configuration presets"""
         return {
+            "decode": {
+                "name": "DECODE Format (FTC)",
+                "description": "DECODE competition format with Artifacts",
+                "column_config": ColumnConfig(
+                    headers=[
+                        "SCOUTER INITIALS", "MATCH NUMBER", "ROBOT", "FUTURE ALLIANCE IN QUALY?", "TEAM NUMBER",
+                        "STARTING POSITION", "NO SHOW", "MOVED?", "ARTIFACTS (Auto)", "ARTIFACTS IN PATTERN (Auto)",
+                        "OVERFLOW ARTIFACTS (Auto)", "FAILED ARTIFACTS (Auto)", "DEPOT PLACED (Auto)", "AUTO FOUL",
+                        "PICKUP LOCATION", "ARTIFACTS (Teleop)", "ARTIFACTS IN PATTERN (Teleop)",
+                        "OVERFLOW ARTIFACTS (Teleop)", "FAILED ARTIFACTS (Teleop)", "DEPOT PLACED (Teleop)",
+                        "FOUL", "DIED?", "END POSITION", "BROKE?", "DEFENDED?", "TIPPED/FELL OVER?",
+                        "HP MISTAKE?", "OPENED GATE?", "YELLOW/RED CARD"
+                    ],
+                    numeric_for_overall=[
+                        "ARTIFACTS (Auto)", "ARTIFACTS IN PATTERN (Auto)", "OVERFLOW ARTIFACTS (Auto)", "DEPOT PLACED (Auto)",
+                        "ARTIFACTS (Teleop)", "ARTIFACTS IN PATTERN (Teleop)", "OVERFLOW ARTIFACTS (Teleop)", "DEPOT PLACED (Teleop)"
+                    ],
+                    stats_columns=[
+                        "NO SHOW", "MOVED?", "ARTIFACTS (Auto)", "ARTIFACTS IN PATTERN (Auto)",
+                        "OVERFLOW ARTIFACTS (Auto)", "FAILED ARTIFACTS (Auto)", "DEPOT PLACED (Auto)", "AUTO FOUL",
+                        "PICKUP LOCATION", "ARTIFACTS (Teleop)", "ARTIFACTS IN PATTERN (Teleop)",
+                        "OVERFLOW ARTIFACTS (Teleop)", "FAILED ARTIFACTS (Teleop)", "DEPOT PLACED (Teleop)",
+                        "FOUL", "DIED?", "END POSITION", "BROKE?", "DEFENDED?", "TIPPED/FELL OVER?",
+                        "HP MISTAKE?", "OPENED GATE?", "YELLOW/RED CARD"
+                    ],
+                    mode_boolean_columns=[
+                        "NO SHOW", "MOVED?", "DIED?", "BROKE?", "DEFENDED?", "TIPPED/FELL OVER?"
+                    ],
+                    autonomous_columns=[
+                        "MOVED?", "ARTIFACTS (Auto)", "ARTIFACTS IN PATTERN (Auto)",
+                        "OVERFLOW ARTIFACTS (Auto)", "FAILED ARTIFACTS (Auto)", "DEPOT PLACED (Auto)", "AUTO FOUL"
+                    ],
+                    teleop_columns=[
+                        "PICKUP LOCATION", "ARTIFACTS (Teleop)", "ARTIFACTS IN PATTERN (Teleop)",
+                        "OVERFLOW ARTIFACTS (Teleop)", "FAILED ARTIFACTS (Teleop)", "DEPOT PLACED (Teleop)",
+                        "FOUL", "DEFENDED?"
+                    ],
+                    endgame_columns=[
+                        "END POSITION", "BROKE?", "TIPPED/FELL OVER?", "DIED?"
+                    ]
+                ),
+                "robot_valuation": RobotValuationConfig()
+            },
             "new_standard": {
                 "name": "New Standard Format (2025)",
                 "description": "Format with separate Auto/Teleop columns",
@@ -117,12 +160,26 @@ class ConfigManager:
     
     def detect_csv_format(self, headers: List[str]) -> str:
         """Detect CSV format based on headers"""
-        headers_set = set(headers)
+        headers_set = set(h.upper() for h in headers)
+        
+        # Check for DECODE format indicators (uppercase after rename)
+        decode_indicators = {
+            "ARTIFACTS (AUTO)", "ARTIFACTS (TELEOP)", "ARTIFACTS IN PATTERN (AUTO)",
+            "END POSITION", "MOVED?", "SCOUTER INITIALS"
+        }
+        
+        if len(decode_indicators.intersection(headers_set)) >= 3:
+            return "decode_format"
+        
+        # Check for raw DECODE format (before renaming duplicate columns)
+        raw_decode_indicators = {"ARTIFACTS", "ARTIFACTS IN PATTERN", "OVERFLOW ARTIFACTS", "DEPOT PLACED"}
+        if len(raw_decode_indicators.intersection(headers_set)) >= 2:
+            return "decode_format"
         
         # Check for new format indicators
         new_format_indicators = {
-            "Scouter Initials", "Coral L1 (Auto)", "Coral L1 (Teleop)", 
-            "End Position", "Starting Position"
+            "SCOUTER INITIALS", "CORAL L1 (AUTO)", "CORAL L1 (TELEOP)", 
+            "END POSITION", "STARTING POSITION"
         }
         
         if len(new_format_indicators.intersection(headers_set)) >= 3:
@@ -130,7 +187,7 @@ class ConfigManager:
         
         # Check for legacy format indicators  
         legacy_indicators = {
-            "Lead Scouter", "Did something?", "Coral L1 Scored", "Climbed?"
+            "LEAD SCOUTER", "DID SOMETHING?", "CORAL L1 SCORED", "CLIMBED?"
         }
         
         if len(legacy_indicators.intersection(headers_set)) >= 2:

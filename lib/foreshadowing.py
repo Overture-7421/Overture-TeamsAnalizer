@@ -30,76 +30,65 @@ from tkinter import ttk, messagebox
 
 @dataclass
 class GameConfig:
-    """Configuración de puntos del juego REEFSCAPE 2025"""
+    """Configuración de puntos del juego DECODE"""
     
-    # Puntos por nivel de coral
-    coral_auto_points = {"L1": 3, "L2": 4, "L3": 6, "L4": 7}
-    coral_teleop_points = {"L1": 2, "L2": 3, "L3": 4, "L4": 5}
+    # Puntos por artifacts (Auto y Teleop)
+    classified_artifact_points = 3  # CLASSIFIED ARTIFACT
+    overflow_artifact_points = 1    # OVERFLOW ARTIFACT
+    depot_artifact_points = 1       # DEPOT ARTIFACT (TeleOp only)
+    pattern_bonus_points = 2        # PATTERN Bonus per ARTIFACT matching MOTIF
     
-    # Puntos por algae
-    processor_points = 6  # Auto y Teleop
-    processor_opponent_bonus = 4  # Puntos extra para el oponente
-    net_points = 4  # Solo Teleop
+    # Puntos de autonomous
+    leave_points = 3                # LEAVE in autonomous
     
     # Puntos de endgame
-    climb_points = {"none": 0, "park": 2, "shallow": 6, "deep": 12}
-    
-    # Requisitos para Ranking Points
-    auto_rp_requirements = {
-        "all_leave_zone": True,
-        "min_coral_auto": 1
+    endgame_points = {
+        "none": 0,
+        "partially_parked": 5,      # Partially returned to BASE
+        "fully_parked": 10,         # Fully returned to BASE
+        "double_park": 10           # Additional bonus (both robots fully returned)
     }
     
-    coral_rp_requirements = {
-        "min_coral_per_level_no_coop": 7,
-        "min_levels_with_coop": 3,
-        "min_coral_per_level_with_coop": 7
-    }
-    
-    cooperation_threshold = 2  # Algae mínimas en cada processor para coop
+    # Alliance size
+    alliance_size = 2  # DECODE uses 2-robot alliances
 
 
 # ============================= MODELOS DE DATOS ============================= #
 
 @dataclass
 class TeamPerformance:
-    """Rendimiento estadístico de un equipo"""
+    """Rendimiento estadístico de un equipo para DECODE"""
     team_number: str
     
-    # Coral por nivel (promedio por match)
-    auto_L1: float = 0.0
-    auto_L2: float = 0.0
-    auto_L3: float = 0.0
-    auto_L4: float = 0.0
-    teleop_L1: float = 0.0
-    teleop_L2: float = 0.0
-    teleop_L3: float = 0.0
-    teleop_L4: float = 0.0
+    # Artifacts por match (promedio)
+    auto_artifacts: float = 0.0
+    auto_artifacts_in_pattern: float = 0.0
+    auto_overflow_artifacts: float = 0.0
+    auto_depot_placed: float = 0.0
     
-    # Algae (promedio por match)
-    auto_processor: float = 0.0
-    teleop_processor: float = 0.0
-    teleop_net: float = 0.0
+    teleop_artifacts: float = 0.0
+    teleop_artifacts_in_pattern: float = 0.0
+    teleop_overflow_artifacts: float = 0.0
+    teleop_depot_placed: float = 0.0
     
     # Probabilidades
     p_leave_auto_zone: float = 0.5
-    p_cooperation: float = 0.3
     
-    # Distribución de climb
-    climb_distribution: Dict[str, float] = field(default_factory=lambda: {
-        "none": 0.4, "park": 0.3, "shallow": 0.2, "deep": 0.1
+    # Distribución de endgame
+    endgame_distribution: Dict[str, float] = field(default_factory=lambda: {
+        "none": 0.3, "partially_parked": 0.3, "fully_parked": 0.3, "double_park": 0.1
     })
     
-    def total_coral_per_match(self) -> float:
-        """Total de corales promedio por match"""
-        return (self.auto_L1 + self.auto_L2 + self.auto_L3 + self.auto_L4 + 
-                self.teleop_L1 + self.teleop_L2 + self.teleop_L3 + self.teleop_L4)
+    def total_artifacts_per_match(self) -> float:
+        """Total de artifacts promedio por match"""
+        return (self.auto_artifacts + self.auto_overflow_artifacts + 
+                self.teleop_artifacts + self.teleop_overflow_artifacts)
     
-    def expected_climb_points(self) -> float:
-        """Puntos esperados de climb"""
+    def expected_endgame_points(self) -> float:
+        """Puntos esperados de endgame"""
         config = GameConfig()
-        return sum(prob * config.climb_points[climb_type] 
-                  for climb_type, prob in self.climb_distribution.items())
+        return sum(prob * config.endgame_points[endgame_type] 
+                  for endgame_type, prob in self.endgame_distribution.items())
 
 
 @dataclass 
@@ -127,69 +116,55 @@ class MatchPrediction:
 # ============================= EXTRACTOR DE ESTADÍSTICAS ============================= #
 
 class TeamStatsExtractor:
-    """Extrae estadísticas de equipos desde el analizador"""
+    """Extrae estadísticas de equipos desde el analizador para DECODE"""
     
     def __init__(self, analizador):
         self.analizador = analizador
         self.config = GameConfig()
     
     def extract_team_performance(self, team_number: str) -> TeamPerformance:
-        """Extrae el rendimiento estadístico de un equipo"""
+        """Extrae el rendimiento estadístico de un equipo para DECODE"""
         team_stats = self._get_team_detailed_stats(team_number)
         
         if not team_stats:
             # Valores por defecto si no hay datos
             return TeamPerformance(
                 team_number=team_number,
-                p_leave_auto_zone=0.5,
-                p_cooperation=0.3
+                p_leave_auto_zone=0.5
             )
         
-        # Extraer estadísticas de coral
+        # Extraer estadísticas de artifacts
         perf = TeamPerformance(team_number=team_number)
         
-        # El analizador no separa auto/teleop en las estadísticas detalladas actualmente
-        # Usamos las estadísticas disponibles y las distribuimos proporcionalmente
+        # Autonomous artifacts (try multiple key formats for compatibility)
+        perf.auto_artifacts = (team_stats.get('artifacts_auto_avg', 0.0) or 
+                               team_stats.get('artifacts__auto__avg', 0.0))
+        perf.auto_artifacts_in_pattern = (team_stats.get('artifacts_in_pattern_auto_avg', 0.0) or 
+                                          team_stats.get('artifacts_in_pattern__auto__avg', 0.0))
+        perf.auto_overflow_artifacts = (team_stats.get('overflow_artifacts_auto_avg', 0.0) or 
+                                        team_stats.get('overflow_artifacts__auto__avg', 0.0))
+        perf.auto_depot_placed = (team_stats.get('depot_placed_auto_avg', 0.0) or 
+                                  team_stats.get('depot_placed__auto__avg', 0.0))
         
-        # Coral totales (combinadas)
-        total_L1 = team_stats.get('coral_l1__avg', 0.0)
-        total_L2 = team_stats.get('coral_l2__avg', 0.0) 
-        total_L3 = team_stats.get('coral_l3__avg', 0.0)
-        total_L4 = team_stats.get('coral_l4__avg', 0.0)
-        
-        # Distribuir 30% auto, 70% teleop basado en observaciones típicas
-        auto_ratio = 0.3
-        teleop_ratio = 0.7
-        
-        perf.auto_L1 = total_L1 * auto_ratio
-        perf.auto_L2 = total_L2 * auto_ratio
-        perf.auto_L3 = total_L3 * auto_ratio
-        perf.auto_L4 = total_L4 * auto_ratio
-        
-        perf.teleop_L1 = total_L1 * teleop_ratio
-        perf.teleop_L2 = total_L2 * teleop_ratio
-        perf.teleop_L3 = total_L3 * teleop_ratio
-        perf.teleop_L4 = total_L4 * teleop_ratio
-        
-        # Algae (usar las estadísticas teleop disponibles como base)
-        perf.auto_processor = team_stats.get('teleop_processor_algae_avg', 0.0) * 0.25  # Menos en auto
-        perf.teleop_processor = team_stats.get('teleop_processor_algae_avg', 0.0)
-        perf.teleop_net = team_stats.get('teleop_barge_algae_avg', 0.0)
+        # Teleop artifacts
+        perf.teleop_artifacts = (team_stats.get('artifacts_teleop_avg', 0.0) or 
+                                 team_stats.get('artifacts__teleop__avg', 0.0))
+        perf.teleop_artifacts_in_pattern = (team_stats.get('artifacts_in_pattern_teleop_avg', 0.0) or 
+                                            team_stats.get('artifacts_in_pattern__teleop__avg', 0.0))
+        perf.teleop_overflow_artifacts = (team_stats.get('overflow_artifacts_teleop_avg', 0.0) or 
+                                          team_stats.get('overflow_artifacts__teleop__avg', 0.0))
+        perf.teleop_depot_placed = (team_stats.get('depot_placed_teleop_avg', 0.0) or 
+                                    team_stats.get('depot_placed__teleop__avg', 0.0))
         
         # Probabilidades basadas en overall performance
         overall_avg = team_stats.get('overall_avg', 0.0)
-        if overall_avg > 60:
-            perf.p_leave_auto_zone = 0.85
-        elif overall_avg > 30:
-            perf.p_leave_auto_zone = 0.65
-        else:
-            perf.p_leave_auto_zone = 0.35
+        # Try multiple key formats for moved rate
+        moved_rate = (team_stats.get('moved_rate', 0.0) or 
+                      team_stats.get('moved__auto__rate', 0.0) or 0.5)
+        perf.p_leave_auto_zone = moved_rate if moved_rate > 0 else (0.85 if overall_avg > 60 else 0.65 if overall_avg > 30 else 0.35)
         
-        # Cooperation basada en processor performance
-        perf.p_cooperation = min(0.8, max(0.1, perf.teleop_processor / 3.0))
-        
-        # Distribución de climb
-        perf.climb_distribution = self._extract_climb_distribution(team_stats)
+        # Distribución de endgame
+        perf.endgame_distribution = self._extract_endgame_distribution(team_stats)
         
         return perf
     
@@ -205,23 +180,23 @@ class TeamStatsExtractor:
             print(f"Error obteniendo estadísticas para equipo {team_number}: {e}")
             return None
     
-    def _extract_climb_distribution(self, team_stats: Dict) -> Dict[str, float]:
-        """Extrae la distribución de climb del equipo"""
+    def _extract_endgame_distribution(self, team_stats: Dict) -> Dict[str, float]:
+        """Extrae la distribución de endgame del equipo para DECODE"""
         # Por defecto basado en rendimiento general
         overall_avg = team_stats.get('overall_avg', 0.0)
         
         if overall_avg > 50:  # Equipo fuerte
-            return {"none": 0.1, "park": 0.2, "shallow": 0.4, "deep": 0.3}
+            return {"none": 0.1, "partially_parked": 0.2, "fully_parked": 0.5, "double_park": 0.2}
         elif overall_avg > 30:  # Equipo medio
-            return {"none": 0.2, "park": 0.3, "shallow": 0.4, "deep": 0.1}
+            return {"none": 0.2, "partially_parked": 0.3, "fully_parked": 0.4, "double_park": 0.1}
         else:  # Equipo débil
-            return {"none": 0.5, "park": 0.3, "shallow": 0.15, "deep": 0.05}
+            return {"none": 0.4, "partially_parked": 0.3, "fully_parked": 0.25, "double_park": 0.05}
 
 
 # ============================= SIMULADOR DE MATCHES ============================= #
 
 class MatchSimulator:
-    """Simula matches usando distribuciones estadísticas"""
+    """Simula matches usando distribuciones estadísticas para DECODE"""
     
     def __init__(self):
         self.config = GameConfig()
@@ -229,7 +204,7 @@ class MatchSimulator:
     def simulate_match(self, red_teams: List[TeamPerformance], 
                       blue_teams: List[TeamPerformance], 
                       num_simulations: int = 1000) -> MatchPrediction:
-        """Simula un match completo usando Monte Carlo"""
+        """Simula un match completo usando Monte Carlo para DECODE (2-robot alliances)"""
         
         red_scores = []
         blue_scores = []
@@ -281,148 +256,117 @@ class MatchSimulator:
         )
     
     def _simulate_alliance(self, teams: List[TeamPerformance]) -> Dict:
-        """Simula el rendimiento de una alianza"""
+        """Simula el rendimiento de una alianza para DECODE (2 robots)"""
         result = {
-            'coral_scores': {'L1': 0, 'L2': 0, 'L3': 0, 'L4': 0},
-            'auto_coral': {'L1': 0, 'L2': 0, 'L3': 0, 'L4': 0},
-            'teleop_coral': {'L1': 0, 'L2': 0, 'L3': 0, 'L4': 0},
-            'processor_algae': {'auto': 0, 'teleop': 0},
-            'net_algae': 0,
-            'climb_scores': [],
-            'coral_points': 0,
-            'algae_points': 0,
-            'climb_points': 0,
+            'auto_artifacts': 0,
+            'auto_artifacts_in_pattern': 0,
+            'auto_overflow_artifacts': 0,
+            'auto_depot_placed': 0,
+            'teleop_artifacts': 0,
+            'teleop_artifacts_in_pattern': 0,
+            'teleop_overflow_artifacts': 0,
+            'teleop_depot_placed': 0,
+            'endgame_scores': [],
+            'artifact_points': 0,
+            'endgame_points': 0,
+            'auto_points': 0,
             'total_score': 0,
             'teams_left_auto_zone': 0,
-            'cooperation_achieved': False
+            'both_fully_parked': False
         }
         
-        # Simular cada equipo
+        fully_parked_count = 0
+        
+        # Simular cada equipo (2 robots per alliance)
         for team in teams:
-            # Coral Auto (distribución Poisson)
-            auto_coral = {
-                'L1': self._poisson_sample(team.auto_L1),
-                'L2': self._poisson_sample(team.auto_L2),
-                'L3': self._poisson_sample(team.auto_L3),
-                'L4': self._poisson_sample(team.auto_L4)
-            }
+            # Auto artifacts (distribución Poisson)
+            auto_art = self._poisson_sample(team.auto_artifacts)
+            auto_art_pattern = min(auto_art, self._poisson_sample(team.auto_artifacts_in_pattern))
+            auto_overflow = self._poisson_sample(team.auto_overflow_artifacts)
+            auto_depot = self._poisson_sample(team.auto_depot_placed)
             
-            # Coral Teleop
-            teleop_coral = {
-                'L1': self._poisson_sample(team.teleop_L1),
-                'L2': self._poisson_sample(team.teleop_L2),
-                'L3': self._poisson_sample(team.teleop_L3),
-                'L4': self._poisson_sample(team.teleop_L4)
-            }
+            result['auto_artifacts'] += auto_art
+            result['auto_artifacts_in_pattern'] += auto_art_pattern
+            result['auto_overflow_artifacts'] += auto_overflow
+            result['auto_depot_placed'] += auto_depot
             
-            # Acumular coral
-            for level in ['L1', 'L2', 'L3', 'L4']:
-                result['auto_coral'][level] += auto_coral[level]
-                result['teleop_coral'][level] += teleop_coral[level]
-                result['coral_scores'][level] += auto_coral[level] + teleop_coral[level]
+            # Teleop artifacts
+            teleop_art = self._poisson_sample(team.teleop_artifacts)
+            teleop_art_pattern = min(teleop_art, self._poisson_sample(team.teleop_artifacts_in_pattern))
+            teleop_overflow = self._poisson_sample(team.teleop_overflow_artifacts)
+            teleop_depot = self._poisson_sample(team.teleop_depot_placed)
             
-            # Algae
-            result['processor_algae']['auto'] += self._poisson_sample(team.auto_processor)
-            result['processor_algae']['teleop'] += self._poisson_sample(team.teleop_processor)
-            result['net_algae'] += self._poisson_sample(team.teleop_net)
+            result['teleop_artifacts'] += teleop_art
+            result['teleop_artifacts_in_pattern'] += teleop_art_pattern
+            result['teleop_overflow_artifacts'] += teleop_overflow
+            result['teleop_depot_placed'] += teleop_depot
             
-            # Climb
-            climb_type = self._sample_climb(team.climb_distribution)
-            climb_points = self.config.climb_points[climb_type]
-            result['climb_scores'].append((team.team_number, climb_type, climb_points))
-            result['climb_points'] += climb_points
+            # Endgame
+            endgame_type = self._sample_endgame(team.endgame_distribution)
+            endgame_points = self.config.endgame_points[endgame_type]
+            result['endgame_scores'].append((team.team_number, endgame_type, endgame_points))
+            result['endgame_points'] += endgame_points
+            
+            if endgame_type in ['fully_parked', 'double_park']:
+                fully_parked_count += 1
             
             # Autonomous zone
             if random.random() < team.p_leave_auto_zone:
                 result['teams_left_auto_zone'] += 1
+                result['auto_points'] += self.config.leave_points
         
-        # Calcular puntos
-        result['coral_points'] = self._calculate_coral_points(result)
-        result['algae_points'] = self._calculate_algae_points(result)
+        # Check if both robots are fully parked for bonus
+        if fully_parked_count >= 2:
+            result['both_fully_parked'] = True
+            result['endgame_points'] += 10  # Additional bonus
         
-        # Cooperation
-        total_processor = result['processor_algae']['auto'] + result['processor_algae']['teleop']
-        result['cooperation_achieved'] = total_processor >= self.config.cooperation_threshold * 2  # 2 processors
+        # Calcular puntos de artifacts
+        result['artifact_points'] = self._calculate_artifact_points(result)
         
-        result['total_score'] = result['coral_points'] + result['algae_points'] + result['climb_points']
+        result['total_score'] = result['artifact_points'] + result['endgame_points'] + result['auto_points']
         
         return result
     
-    def _calculate_coral_points(self, alliance_result: Dict) -> int:
-        """Calcula puntos de coral"""
+    def _calculate_artifact_points(self, alliance_result: Dict) -> int:
+        """Calcula puntos de artifacts para DECODE"""
         points = 0
         
-        # Auto coral
-        for level, count in alliance_result['auto_coral'].items():
-            points += count * self.config.coral_auto_points[level]
+        # Classified artifacts (Auto + Teleop)
+        total_classified = alliance_result['auto_artifacts'] + alliance_result['teleop_artifacts']
+        points += total_classified * self.config.classified_artifact_points
         
-        # Teleop coral
-        for level, count in alliance_result['teleop_coral'].items():
-            points += count * self.config.coral_teleop_points[level]
+        # Overflow artifacts
+        total_overflow = alliance_result['auto_overflow_artifacts'] + alliance_result['teleop_overflow_artifacts']
+        points += total_overflow * self.config.overflow_artifact_points
         
-        return points
-    
-    def _calculate_algae_points(self, alliance_result: Dict) -> int:
-        """Calcula puntos de algae"""
-        points = 0
+        # Depot artifacts (Teleop only)
+        points += alliance_result['teleop_depot_placed'] * self.config.depot_artifact_points
         
-        # Processor algae
-        total_processor = alliance_result['processor_algae']['auto'] + alliance_result['processor_algae']['teleop']
-        points += total_processor * self.config.processor_points
-        
-        # Net algae
-        points += alliance_result['net_algae'] * self.config.net_points
+        # Pattern bonus
+        total_pattern = alliance_result['auto_artifacts_in_pattern'] + alliance_result['teleop_artifacts_in_pattern']
+        points += total_pattern * self.config.pattern_bonus_points
         
         return points
     
     def _calculate_ranking_points(self, red_result: Dict, blue_result: Dict,
                                 red_teams: List[TeamPerformance], 
                                 blue_teams: List[TeamPerformance]) -> Tuple[int, int]:
-        """Calcula Ranking Points para ambas alianzas"""
+        """Calcula Ranking Points para ambas alianzas en DECODE"""
         red_rp = 0
         blue_rp = 0
         
         # Win/Tie/Loss RP
         if red_result['total_score'] > blue_result['total_score']:
-            red_rp += 3  # Win
+            red_rp += 2  # Win
             blue_rp += 0  # Loss
         elif blue_result['total_score'] > red_result['total_score']:
-            blue_rp += 3  # Win
+            blue_rp += 2  # Win
             red_rp += 0  # Loss
         else:
             red_rp += 1  # Tie
             blue_rp += 1  # Tie
         
-        # Auto RP
-        if (red_result['teams_left_auto_zone'] >= 3 and 
-            sum(red_result['auto_coral'].values()) >= 1):
-            red_rp += 1
-        
-        if (blue_result['teams_left_auto_zone'] >= 3 and 
-            sum(blue_result['auto_coral'].values()) >= 1):
-            blue_rp += 1
-        
-        # Coral RP
-        if self._check_coral_rp(red_result):
-            red_rp += 1
-        
-        if self._check_coral_rp(blue_result):
-            blue_rp += 1
-        
         return red_rp, blue_rp
-    
-    def _check_coral_rp(self, alliance_result: Dict) -> bool:
-        """Verifica si se cumple el requisito de Coral RP"""
-        coral_counts = alliance_result['coral_scores']
-        cooperation = alliance_result['cooperation_achieved']
-        
-        if cooperation:
-            # Con cooperación: al menos 7 corales en 3 niveles
-            levels_with_7_plus = sum(1 for count in coral_counts.values() if count >= 7)
-            return levels_with_7_plus >= 3
-        else:
-            # Sin cooperación: al menos 7 corales en cada nivel
-            return all(count >= 7 for count in coral_counts.values())
     
     def _poisson_sample(self, mean: float) -> int:
         """Muestra de distribución Poisson"""
@@ -430,15 +374,15 @@ class MatchSimulator:
             return 0
         return max(0, int(random.gammavariate(mean, 1) + 0.5))
     
-    def _sample_climb(self, distribution: Dict[str, float]) -> str:
-        """Muestra tipo de climb según distribución"""
+    def _sample_endgame(self, distribution: Dict[str, float]) -> str:
+        """Muestra tipo de endgame según distribución"""
         rand = random.random()
         cumulative = 0
         
-        for climb_type, prob in distribution.items():
+        for endgame_type, prob in distribution.items():
             cumulative += prob
             if rand <= cumulative:
-                return climb_type
+                return endgame_type
         
         return "none"  # Fallback
 
@@ -508,7 +452,7 @@ class ForeshadowingGUI:
         red_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=5)
         
         self.red_team_vars = []
-        for i in range(3):
+        for i in range(2):  # DECODE uses 2-robot alliances
             var = tk.StringVar()
             ttk.Label(red_frame, text=f"Equipo {i+1}:").pack(anchor=tk.W)
             combo = ttk.Combobox(red_frame, textvariable=var, values=available_teams, width=15)
@@ -520,7 +464,7 @@ class ForeshadowingGUI:
         blue_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5)
         
         self.blue_team_vars = []
-        for i in range(3):
+        for i in range(2):  # DECODE uses 2-robot alliances
             var = tk.StringVar()
             ttk.Label(blue_frame, text=f"Equipo {i+1}:").pack(anchor=tk.W)
             combo = ttk.Combobox(blue_frame, textvariable=var, values=available_teams, width=15)
@@ -569,8 +513,8 @@ class ForeshadowingGUI:
             red_team_numbers = [var.get().strip() for var in self.red_team_vars if var.get().strip()]
             blue_team_numbers = [var.get().strip() for var in self.blue_team_vars if var.get().strip()]
             
-            if len(red_team_numbers) != 3 or len(blue_team_numbers) != 3:
-                messagebox.showerror("Error", "Debes seleccionar exactamente 3 equipos por alianza")
+            if len(red_team_numbers) != 2 or len(blue_team_numbers) != 2:
+                messagebox.showerror("Error", "Debes seleccionar exactamente 2 equipos por alianza (DECODE)")
                 return
             
             # Extraer estadísticas
@@ -592,7 +536,7 @@ class ForeshadowingGUI:
         
         output = []
         output.append("=" * 80)
-        output.append("🔮 PREDICCIÓN DE MATCH - REEFSCAPE 2025")
+        output.append("🔮 PREDICCIÓN DE MATCH - DECODE 2025")
         output.append("=" * 80)
         output.append("")
         
@@ -637,31 +581,32 @@ class ForeshadowingGUI:
         self.result_text.see(1.0)
     
     def _add_alliance_breakdown(self, output: List[str], title: str, breakdown: Dict):
-        """Agrega breakdown detallado de una alianza"""
+        """Agrega breakdown detallado de una alianza para DECODE"""
         output.append(f"{title}:")
-        output.append(f"  Coral Auto:   L1:{breakdown['auto_coral']['L1']} L2:{breakdown['auto_coral']['L2']} L3:{breakdown['auto_coral']['L3']} L4:{breakdown['auto_coral']['L4']}")
-        output.append(f"  Coral Teleop: L1:{breakdown['teleop_coral']['L1']} L2:{breakdown['teleop_coral']['L2']} L3:{breakdown['teleop_coral']['L3']} L4:{breakdown['teleop_coral']['L4']}")
-        output.append(f"  Processor:    Auto:{breakdown['processor_algae']['auto']} Teleop:{breakdown['processor_algae']['teleop']}")
-        output.append(f"  Net Algae:    {breakdown['net_algae']}")
+        output.append(f"  Auto Artifacts:   {breakdown.get('auto_artifacts', 0)} (In Pattern: {breakdown.get('auto_artifacts_in_pattern', 0)})")
+        output.append(f"  Auto Overflow:    {breakdown.get('auto_overflow_artifacts', 0)}")
+        output.append(f"  Teleop Artifacts: {breakdown.get('teleop_artifacts', 0)} (In Pattern: {breakdown.get('teleop_artifacts_in_pattern', 0)})")
+        output.append(f"  Teleop Overflow:  {breakdown.get('teleop_overflow_artifacts', 0)}")
+        output.append(f"  Depot Placed:     {breakdown.get('teleop_depot_placed', 0)}")
         
-        # Climb breakdown
-        climb_info = []
-        for team, climb_type, points in breakdown['climb_scores']:
-            climb_info.append(f"{team}:{climb_type}({points}pts)")
-        output.append(f"  Climb:        {', '.join(climb_info)}")
+        # Endgame breakdown
+        endgame_info = []
+        for team, endgame_type, points in breakdown.get('endgame_scores', []):
+            endgame_info.append(f"{team}:{endgame_type}({points}pts)")
+        output.append(f"  Endgame:          {', '.join(endgame_info)}")
         
-        output.append(f"  Puntos Coral: {breakdown['coral_points']}")
-        output.append(f"  Puntos Algae: {breakdown['algae_points']}")
-        output.append(f"  Puntos Climb: {breakdown['climb_points']}")
-        output.append(f"  TOTAL:        {breakdown['total_score']}")
+        output.append(f"  Puntos Artifacts: {breakdown.get('artifact_points', 0)}")
+        output.append(f"  Puntos Auto:      {breakdown.get('auto_points', 0)}")
+        output.append(f"  Puntos Endgame:   {breakdown.get('endgame_points', 0)}")
+        output.append(f"  TOTAL:            {breakdown.get('total_score', 0)}")
         
         # Flags especiales
-        output.append(f"  Auto Zone:    {breakdown['teams_left_auto_zone']}/3 equipos salieron")
-        output.append(f"  Cooperation:  {'✅ Sí' if breakdown['cooperation_achieved'] else '❌ No'}")
+        output.append(f"  Auto Zone:        {breakdown.get('teams_left_auto_zone', 0)}/2 equipos salieron")
+        output.append(f"  Both Parked:      {'✅ Sí (+10 bonus)' if breakdown.get('both_fully_parked', False) else '❌ No'}")
         output.append("")
     
     def _show_individual_stats(self):
-        """Muestra estadísticas individuales de equipos"""
+        """Muestra estadísticas individuales de equipos para DECODE"""
         # Obtener equipos seleccionados
         all_teams = []
         for var in self.red_team_vars + self.blue_team_vars:
@@ -674,19 +619,19 @@ class ForeshadowingGUI:
         
         # Crear ventana de estadísticas
         stats_window = tk.Toplevel(self.window)
-        stats_window.title("Estadísticas Individuales")
+        stats_window.title("Estadísticas Individuales - DECODE")
         stats_window.geometry("900x600")
         
-        # Crear tabla
-        columns = ['Equipo', 'Auto L1', 'Auto L2', 'Auto L3', 'Auto L4',
-                  'Tele L1', 'Tele L2', 'Tele L3', 'Tele L4',
-                  'Proc Auto', 'Proc Tele', 'Net', 'P_Auto', 'Climb Exp']
+        # Crear tabla con columnas DECODE
+        columns = ['Equipo', 'Auto Art', 'Auto Pattern', 'Auto Overflow',
+                  'Tele Art', 'Tele Pattern', 'Tele Overflow', 'Depot',
+                  'P_Auto', 'Endgame Exp']
         
         tree = ttk.Treeview(stats_window, columns=columns, show='headings', height=15)
         
         for col in columns:
             tree.heading(col, text=col)
-            tree.column(col, width=70, anchor='center')
+            tree.column(col, width=85, anchor='center')
         
         # Llenar datos
         for team_number in all_teams:
@@ -694,19 +639,15 @@ class ForeshadowingGUI:
             
             row = [
                 team_number,
-                f"{perf.auto_L1:.2f}",
-                f"{perf.auto_L2:.2f}",
-                f"{perf.auto_L3:.2f}",
-                f"{perf.auto_L4:.2f}",
-                f"{perf.teleop_L1:.2f}",
-                f"{perf.teleop_L2:.2f}",
-                f"{perf.teleop_L3:.2f}",
-                f"{perf.teleop_L4:.2f}",
-                f"{perf.auto_processor:.2f}",
-                f"{perf.teleop_processor:.2f}",
-                f"{perf.teleop_net:.2f}",
+                f"{perf.auto_artifacts:.2f}",
+                f"{perf.auto_artifacts_in_pattern:.2f}",
+                f"{perf.auto_overflow_artifacts:.2f}",
+                f"{perf.teleop_artifacts:.2f}",
+                f"{perf.teleop_artifacts_in_pattern:.2f}",
+                f"{perf.teleop_overflow_artifacts:.2f}",
+                f"{perf.teleop_depot_placed:.2f}",
                 f"{perf.p_leave_auto_zone:.2f}",
-                f"{perf.expected_climb_points():.2f}"
+                f"{perf.expected_endgame_points():.2f}"
             ]
             
             tree.insert('', 'end', values=row)
@@ -725,8 +666,8 @@ class ForeshadowingGUI:
             red_team_numbers = [var.get().strip() for var in self.red_team_vars if var.get().strip()]
             blue_team_numbers = [var.get().strip() for var in self.blue_team_vars if var.get().strip()]
             
-            if len(red_team_numbers) != 3 or len(blue_team_numbers) != 3:
-                messagebox.showerror("Error", "Debes seleccionar exactamente 3 equipos por alianza")
+            if len(red_team_numbers) != 2 or len(blue_team_numbers) != 2:
+                messagebox.showerror("Error", "Debes seleccionar exactamente 2 equipos por alianza (DECODE)")
                 return
             
             # Ejecutar simulación con más iteraciones
@@ -768,13 +709,15 @@ class ForeshadowingGUI:
             output.append("  🔴 RED debe enfocarse en Ranking Points")
         
         # Factores clave
-        red_coral_total = sum(prediction.red_breakdown['coral_scores'].values())
-        blue_coral_total = sum(prediction.blue_breakdown['coral_scores'].values())
+        red_artifact_total = (prediction.red_breakdown.get('auto_artifacts', 0) + 
+                              prediction.red_breakdown.get('teleop_artifacts', 0))
+        blue_artifact_total = (prediction.blue_breakdown.get('auto_artifacts', 0) + 
+                               prediction.blue_breakdown.get('teleop_artifacts', 0))
         
-        if red_coral_total > blue_coral_total * 1.2:
-            output.append("  🔴 RED tiene ventaja significativa en coral")
-        elif blue_coral_total > red_coral_total * 1.2:
-            output.append("  🔵 BLUE tiene ventaja significativa en coral")
+        if red_artifact_total > blue_artifact_total * 1.2:
+            output.append("  🔴 RED tiene ventaja significativa en artifacts")
+        elif blue_artifact_total > red_artifact_total * 1.2:
+            output.append("  🔵 BLUE tiene ventaja significativa en artifacts")
         
         self.result_text.insert(tk.END, "\n".join(output))
         self.result_text.see(1.0)
@@ -797,4 +740,4 @@ def launch_foreshadowing(parent, analizador):
 
 if __name__ == "__main__":
     print("Sistema de Foreshadowing v2.0 - Marco González, Overture 7421")
-    print("Sistema completo de predicción para REEFSCAPE 2025")
+    print("Sistema completo de predicción para DECODE 2025")
