@@ -938,32 +938,159 @@ elif page == "📈 Team Statistics":
 
                     # Match performance line chart
                     st.markdown("### Match Performance Trend")
-                    match_performance = st.session_state.analizador.get_team_match_performance([selected_team_num])
-                    team_performance = match_performance.get(selected_team_num) or match_performance.get(str(selected_team_num))
 
-                    if team_performance:
+                    analyzer = st.session_state.analizador
+                    team_rows = analyzer.get_team_data_grouped().get(str(selected_team_num), [])
+                    match_idx = analyzer._column_indices.get('Match Number')
+
+                    def _parse_numeric(value):
+                        if value is None:
+                            return None
+                        # Avoid accidental scaling: booleans are not valid numeric match metrics here.
+                        # (`bool` is a subclass of `int`, so this must come before the (int, float) check.)
+                        if isinstance(value, bool):
+                            return None
+                        if isinstance(value, (int, float)):
+                            return float(value)
+                        if isinstance(value, str):
+                            v = value.strip().lower()
+                            try:
+                                return float(v)
+                            except ValueError:
+                                return None
+                        try:
+                            return float(value)
+                        except (TypeError, ValueError):
+                            return None
+
+                    def _parse_bool(value):
+                        if value is None:
+                            return False
+                        if isinstance(value, bool):
+                            return value
+                        if isinstance(value, (int, float)):
+                            return float(value) != 0.0
+                        if isinstance(value, str):
+                            v = value.strip().lower()
+                            return v in {"1", "true", "t", "yes", "y", "si", "sí", "x"}
+                        return False
+
+                    if match_idx is None:
+                        st.warning("Match Number column not found; cannot build trend chart.")
+                    elif not team_rows:
+                        st.info("No match performance data available for this team.")
+                    else:
+                        from collections import defaultdict
+
+                        # Compute *real* match points using REEFSCAPE point table (game.json).
+                        # Uses whatever columns exist in the loaded scouting sheet; missing columns simply contribute 0.
+                        from config_manager import get_global_config
+
+                        game_cfg = get_global_config().get_game_config()
+                        coral_auto_points = getattr(game_cfg, "coral_auto_points", {}) or {}
+                        coral_teleop_points = getattr(game_cfg, "coral_teleop_points", {}) or {}
+                        algae_points = getattr(game_cfg, "algae_points", {}) or {}
+                        climb_points = getattr(game_cfg, "climb_points", {}) or {}
+
+                        # Official REEFSCAPE auto leave is commonly 3 points; keep as a local default
+                        # (game.json currently doesn't include it).
+                        AUTO_LEAVE_POINTS = 3
+
+                        def _get_value(row, col_name):
+                            col_idx = analyzer._column_indices.get(col_name)
+                            if col_idx is None or col_idx >= len(row):
+                                return None
+                            return row[col_idx]
+
+                        def _get_num(row, col_name, default=0.0):
+                            parsed = _parse_numeric(_get_value(row, col_name))
+                            return default if parsed is None else float(parsed)
+
+                        def _get_text(row, col_name):
+                            v = _get_value(row, col_name)
+                            if v is None:
+                                return ""
+                            return str(v).strip().lower()
+
+                        def _normalize_climb(value: str) -> str:
+                            v = (value or "").strip().lower()
+                            if not v:
+                                return "none"
+                            if v in {"none", "no", "n/a", "na"}:
+                                return "none"
+                            if "park" in v:
+                                return "park"
+                            if "shallow" in v:
+                                return "shallow"
+                            if "deep" in v:
+                                return "deep"
+                            return "none"
+
+                        def _row_match_points(row) -> float:
+                            points = 0.0
+
+                            # Coral
+                            for level in ("L1", "L2", "L3", "L4"):
+                                auto_count = _get_num(row, f"Coral {level} (Auto)")
+                                teleop_count = _get_num(row, f"Coral {level} (Teleop)")
+                                points += auto_count * float(coral_auto_points.get(level, 0))
+                                points += teleop_count * float(coral_teleop_points.get(level, 0))
+
+                            # Algae (map Barge -> Net)
+                            proc_auto = _get_num(row, "Processor Algae (Auto)")
+                            proc_tele = _get_num(row, "Processor Algae (Teleop)")
+                            barge_auto = _get_num(row, "Barge Algae (Auto)")
+                            barge_tele = _get_num(row, "Barge Algae (Teleop)")
+                            points += (proc_auto + proc_tele) * float(algae_points.get("processor", 0))
+                            points += (barge_auto + barge_tele) * float(algae_points.get("net", 0))
+
+                            # Auto leave / mobility (if present)
+                            moved = False
+                            if "Moved (Auto)" in analyzer._column_indices:
+                                moved = _parse_bool(_get_value(row, "Moved (Auto)"))
+                            if moved:
+                                points += float(AUTO_LEAVE_POINTS)
+
+                            # Endgame climb / end position (if present)
+                            end_pos_col = None
+                            for cname in ("End Position", "Endgame", "Climb", "Climb Position"):
+                                if cname in analyzer._column_indices:
+                                    end_pos_col = cname
+                                    break
+                            if end_pos_col:
+                                climb_key = _normalize_climb(_get_text(row, end_pos_col))
+                                points += float(climb_points.get(climb_key, 0))
+
+                            return points
+
+                        values_by_match = defaultdict(list)
+                        for row in team_rows:
+                            if match_idx >= len(row):
+                                continue
+                            match_value = _parse_numeric(row[match_idx])
+                            if match_value is None:
+                                continue
+                            match_number = int(match_value)
+
+                            points = _row_match_points(row)
+                            values_by_match[match_number].append(points)
+
                         data_points = []
-                        first_entry = team_performance[0]
-                        if isinstance(first_entry, dict):
-                            data_points = [
-                                (item.get('match'), item.get('overall'))
-                                for item in team_performance
-                                if item.get('match') is not None and item.get('overall') is not None
-                            ]
-                        else:
-                            data_points = [
-                                (item[0], item[1])
-                                for item in team_performance
-                                if isinstance(item, (list, tuple)) and len(item) >= 2
-                            ]
+                        for m in sorted(values_by_match.keys()):
+                            vals = values_by_match[m]
+                            if not vals:
+                                continue
+                            data_points.append((m, sum(vals) / len(vals)))
 
-                        if data_points:
-                            matches, overall_scores = zip(*data_points)
+                        if not data_points:
+                            st.info("No match performance data available for this team.")
+                        else:
+                            matches, overall_avgs = zip(*data_points)
                             trend_fig = go.Figure(
                                 data=[
                                     go.Scatter(
                                         x=list(matches),
-                                        y=list(overall_scores),
+                                        y=list(overall_avgs),
                                         mode='lines+markers',
                                         line=dict(color='#a855f7', width=3),
                                         marker=dict(size=8)
@@ -971,20 +1098,21 @@ elif page == "📈 Team Statistics":
                                 ]
                             )
                             trend_fig.update_layout(
-                                title=f'Team {selected_team_num} - Overall Score by Match',
+                                title=f'Team {selected_team_num} - Match Points by Match',
                                 xaxis_title='Match Number',
-                                yaxis_title='Overall Score',
+                                yaxis_title='Match Points',
                                 plot_bgcolor='rgba(0,0,0,0)',
                                 paper_bgcolor='rgba(0,0,0,0)',
                                 font=dict(color='#f8fafc'),
                                 xaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)'),
-                                yaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)')
+                                yaxis=dict(
+                                    color='#d1d5db',
+                                    gridcolor='rgba(255,255,255,0.05)',
+                                    rangemode='tozero',
+                                    tickformat='.2f'
+                                )
                             )
                             st.plotly_chart(trend_fig, use_container_width=True)
-                        else:
-                            st.info("No match performance data available for this team.")
-                    else:
-                        st.info("No match performance data available for this team.")
         
         with tab3:
             st.markdown("### Simplified Ranking")
