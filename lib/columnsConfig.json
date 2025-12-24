@@ -137,5 +137,12 @@
     "metadata": {
         "total_columns": 33,
         "description": "Alliance Simulator Column Configuration"
+    },
+    "system_settings": {
+        "scanner_hardware_id": "",
+        "headless_mode_enabled": false,
+        "default_csv_path": "data/default_scouting.csv",
+        "auto_reload_enabled": true,
+        "reload_interval_seconds": 5
     }
 }

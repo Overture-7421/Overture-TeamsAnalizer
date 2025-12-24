@@ -749,7 +749,7 @@ if page == "📊 Dashboard":
 elif page == "📁 Data Management":
     st.markdown("<div class='main-header'>📁 Data Management</div>", unsafe_allow_html=True)
     
-    tab1, tab2, tab3 = st.tabs(["📤 Upload Data", "📋 View Raw Data", "💾 Export Data"])
+    tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload Data", "📷 QR Scanner", "📋 View Raw Data", "💾 Export Data"])
     
     with tab1:
         st.markdown("### 📁 Upload CSV File (Manual)")
@@ -774,8 +774,82 @@ elif page == "📁 Data Management":
                 st.rerun()
             else:
                 st.warning("Please paste QR data first")
-
+        
+        st.markdown("---")
+        st.markdown("### 📂 Default Scouting CSV")
+        default_csv_path = st.session_state.analizador.get_default_csv_path()
+        
+        if default_csv_path.exists():
+            st.success(f"✅ Default CSV found: `{default_csv_path}`")
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🔄 Reload Default CSV"):
+                    if st.session_state.analizador.reload_csv():
+                        st.success("Default CSV reloaded successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Failed to reload CSV")
+            with col2:
+                # Hot reload toggle
+                if 'hot_reload_enabled' not in st.session_state:
+                    st.session_state.hot_reload_enabled = False
+                
+                if st.button("🔥 Toggle Hot Reload"):
+                    st.session_state.hot_reload_enabled = not st.session_state.hot_reload_enabled
+                    if st.session_state.hot_reload_enabled:
+                        st.session_state.analizador.start_hot_reload(interval_seconds=5.0)
+                        st.info("Hot reload enabled - checking for changes every 5 seconds")
+                    else:
+                        st.session_state.analizador.stop_hot_reload()
+                        st.info("Hot reload disabled")
+        else:
+            st.info(f"ℹ️ Place a CSV file at `{default_csv_path}` for auto-loading on startup")
+    
     with tab2:
+        st.markdown("### 📷 QR Code Scanner")
+        st.markdown("""
+        Use your webcam to scan QR codes containing scouting data.
+        
+        **Requirements:**
+        - `opencv-python` and `pyzbar` must be installed
+        - Webcam access required
+        """)
+        
+        # Check if dependencies are available
+        qr_scanner_available = False
+        try:
+            from qr_utils import test_camera, QRScannerSession
+            qr_scanner_available = True
+        except ImportError:
+            st.warning("⚠️ QR scanner dependencies not installed. Install with: `pip install opencv-python pyzbar`")
+        
+        if qr_scanner_available:
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("🔍 Test Camera"):
+                    with st.spinner("Testing camera..."):
+                        if test_camera():
+                            st.success("✅ Camera test successful!")
+                        else:
+                            st.error("❌ Camera not available. Please check your webcam.")
+            
+            with col2:
+                st.info("💡 For full QR scanning, use the desktop application or run `python lib/qr_utils.py`")
+            
+            st.markdown("---")
+            st.markdown("### 🖥️ Headless Mode (Linux)")
+            st.markdown("""
+            For headless deployments with barcode/QR scanners acting as HID devices:
+            
+            1. Configure scanner hardware ID in `columnsConfig.json`
+            2. Run the HID interceptor: `python lib/headless_interceptor.py`
+            3. Or use systemd services: `sudo scripts/install_services.sh --enable-hid`
+            
+            The interceptor captures scanner input and writes to `data/default_scouting.csv`.
+            """)
+
+    with tab3:
         st.markdown("### 📋 Raw Data View")
         raw_data = st.session_state.analizador.get_raw_data()
         
@@ -787,7 +861,7 @@ elif page == "📁 Data Management":
         else:
             st.info("No data loaded yet. Please upload a CSV file or paste QR data.")
     
-    with tab3:
+    with tab4:
         st.markdown("### 💾 Export Options")
         
         if st.button("Export Raw Data as CSV"):

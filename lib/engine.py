@@ -8,8 +8,11 @@ QR decoding, and statistical calculations.
 import csv
 import json
 import math
+import os
+import threading
+import time
 from collections import Counter, defaultdict
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable
 from datetime import datetime
 from pathlib import Path
 
@@ -18,6 +21,9 @@ from csv_converter import CSVFormatConverter
 
 # Base directory for resolving relative paths
 BASE_DIR = Path(__file__).resolve().parent
+ROOT_DIR = BASE_DIR.parent
+DATA_DIR = ROOT_DIR / "data"
+DEFAULT_CSV_PATH = DATA_DIR / "default_scouting.csv"
 
 
 class AnalizadorRobot:
@@ -29,7 +35,8 @@ class AnalizadorRobot:
     
     def __init__(self, default_column_names: Optional[List[str]] = None, 
                  config_file: str = "columnsConfig.json",
-                 config_manager: Optional[ConfigManager] = None):
+                 config_manager: Optional[ConfigManager] = None,
+                 auto_load_default: bool = True):
         """
         Initialize the analyzer.
 
@@ -37,6 +44,7 @@ class AnalizadorRobot:
             default_column_names: Default column names (optional, loaded from config if not provided)
             config_file: Column configuration file path
             config_manager: Optional pre-configured ConfigManager instance for dependency injection
+            auto_load_default: If True, automatically load data/default_scouting.csv if it exists
         """
         # Initialize configuration manager (support dependency injection)
         if config_manager is not None:
@@ -77,6 +85,17 @@ class AnalizadorRobot:
         # Robot valuation phase weights and names
         self.robot_valuation_phase_weights: List[float] = robot_config.phase_weights.copy()
         self.robot_valuation_phase_names: List[str] = robot_config.phase_names.copy()
+        
+        # Hot-reload configuration
+        self._csv_file_path: Optional[Path] = None
+        self._csv_last_modified: float = 0.0
+        self._reload_thread: Optional[threading.Thread] = None
+        self._reload_stop_event = threading.Event()
+        self._reload_callback: Optional[Callable[[], None]] = None
+        
+        # Auto-load default scouting CSV if it exists
+        if auto_load_default:
+            self._try_load_default_csv()
 
     def _update_column_indices(self) -> None:
         """Update the column name to index mapping."""
@@ -160,6 +179,126 @@ class AnalizadorRobot:
             elif any(keyword in col_lower for keyword in endgame_keywords):
                 if col_name not in self._endgame_columns:
                     self._endgame_columns.append(col_name)
+
+    # Default CSV auto-loading and hot-reload methods
+    def _try_load_default_csv(self) -> bool:
+        """
+        Try to load the default scouting CSV file if it exists.
+        
+        Returns:
+            True if the file was loaded successfully, False otherwise
+        """
+        if DEFAULT_CSV_PATH.exists():
+            try:
+                print(f"Auto-loading default scouting data from: {DEFAULT_CSV_PATH}")
+                self.load_csv(str(DEFAULT_CSV_PATH))
+                self._csv_file_path = DEFAULT_CSV_PATH
+                self._csv_last_modified = DEFAULT_CSV_PATH.stat().st_mtime
+                print(f"Successfully loaded {len(self.sheet_data) - 1} records from default CSV")
+                return True
+            except Exception as e:
+                print(f"Warning: Could not auto-load default CSV: {e}")
+        return False
+
+    def get_default_csv_path(self) -> Path:
+        """Get the path to the default scouting CSV file."""
+        return DEFAULT_CSV_PATH
+
+    def reload_csv(self) -> bool:
+        """
+        Reload the currently loaded CSV file from disk.
+        Useful when the file has been modified externally (e.g., by the HID interceptor).
+        
+        Returns:
+            True if the file was reloaded successfully, False otherwise
+        """
+        if not self._csv_file_path or not self._csv_file_path.exists():
+            return False
+        
+        try:
+            # Clear existing data but keep the header
+            if self.default_column_names:
+                self.sheet_data = [list(self.default_column_names)]
+            else:
+                self.sheet_data = []
+            
+            # Reload the file
+            self.load_csv(str(self._csv_file_path))
+            self._csv_last_modified = self._csv_file_path.stat().st_mtime
+            return True
+        except Exception as e:
+            print(f"Error reloading CSV: {e}")
+            return False
+
+    def check_for_updates(self) -> bool:
+        """
+        Check if the currently loaded CSV file has been modified.
+        
+        Returns:
+            True if the file has been modified since last load, False otherwise
+        """
+        if not self._csv_file_path or not self._csv_file_path.exists():
+            return False
+        
+        current_mtime = self._csv_file_path.stat().st_mtime
+        return current_mtime > self._csv_last_modified
+
+    def start_hot_reload(self, interval_seconds: float = 5.0, 
+                         callback: Optional[Callable[[], None]] = None) -> None:
+        """
+        Start a background thread that monitors the CSV file for changes.
+        When changes are detected, the file is automatically reloaded.
+        
+        Args:
+            interval_seconds: How often to check for changes (default: 5 seconds)
+            callback: Optional function to call after successful reload
+        """
+        if self._reload_thread and self._reload_thread.is_alive():
+            print("Hot reload is already running")
+            return
+        
+        self._reload_callback = callback
+        self._reload_stop_event.clear()
+        
+        def _monitor_loop():
+            while not self._reload_stop_event.is_set():
+                try:
+                    if self.check_for_updates():
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] CSV file changed, reloading...")
+                        if self.reload_csv():
+                            print(f"Reloaded {len(self.sheet_data) - 1} records")
+                            if self._reload_callback:
+                                try:
+                                    self._reload_callback()
+                                except Exception as e:
+                                    print(f"Error in reload callback: {e}")
+                except Exception as e:
+                    print(f"Error in hot-reload monitor: {e}")
+                self._reload_stop_event.wait(interval_seconds)
+        
+        self._reload_thread = threading.Thread(target=_monitor_loop, daemon=True)
+        self._reload_thread.start()
+        print(f"Hot reload started (checking every {interval_seconds} seconds)")
+
+    def stop_hot_reload(self) -> None:
+        """Stop the background hot-reload monitoring thread."""
+        self._reload_stop_event.set()
+        if self._reload_thread:
+            self._reload_thread.join(timeout=2.0)
+            self._reload_thread = None
+        print("Hot reload stopped")
+
+    def set_csv_file_path(self, file_path: str) -> None:
+        """
+        Set the CSV file path for hot-reload monitoring.
+        
+        Args:
+            file_path: Path to the CSV file to monitor
+        """
+        path = Path(file_path)
+        if path.exists():
+            self._csv_file_path = path
+            self._csv_last_modified = path.stat().st_mtime
 
     # Game phase column setters and getters
     def set_autonomous_columns(self, column_names_list: List[str]) -> None:

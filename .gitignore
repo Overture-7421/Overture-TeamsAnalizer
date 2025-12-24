@@ -72,3 +72,7 @@ converted_*.csv
 # Test outputs
 test_converted_streamlit.csv
 test_data_new_format.csv
+
+# Data directory (user scouting data - keep .gitkeep)
+data/*.csv
+!data/.gitkeep
