@@ -14,6 +14,7 @@ Características:
 - Análisis de probabilidades de Autonomous y Cooperation
 - Simulación Monte Carlo para resultados más realistas
 - Cálculo de Ranking Points según reglas de juego
+- JSON-driven configuration for game parameters
 
 Marco Lopez - Overture 7421
 """
@@ -21,42 +22,97 @@ Marco Lopez - Overture 7421
 import math
 import random
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
-import tkinter as tk
-from tkinter import ttk, messagebox
+from typing import Dict, List, Optional, Tuple, Any
+from pathlib import Path
 
 
 # ============================= CONFIGURACIÓN DE JUEGO ============================= #
 
+def _load_game_config_from_json() -> Optional[Dict]:
+    """Load game configuration from JSON file."""
+    config_paths = [
+        Path(__file__).parent / "config" / "game.json",
+        Path(__file__).parent / "game.json"
+    ]
+    
+    for config_path in config_paths:
+        if config_path.exists():
+            try:
+                import json
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception:
+                pass
+    return None
+
+
 @dataclass
 class GameConfig:
-    """Configuración de puntos del juego REEFSCAPE 2025"""
+    """Configuración de puntos del juego REEFSCAPE 2025.
+    
+    Supports JSON-driven configuration for easy updates between game seasons.
+    Falls back to hardcoded defaults if JSON configuration is not available.
+    """
     
     # Puntos por nivel de coral
-    coral_auto_points = {"L1": 3, "L2": 4, "L3": 6, "L4": 7}
-    coral_teleop_points = {"L1": 2, "L2": 3, "L3": 4, "L4": 5}
+    coral_auto_points: Dict[str, int] = field(default_factory=lambda: {"L1": 3, "L2": 4, "L3": 6, "L4": 7})
+    coral_teleop_points: Dict[str, int] = field(default_factory=lambda: {"L1": 2, "L2": 3, "L3": 4, "L4": 5})
     
     # Puntos por algae
-    processor_points = 6  # Auto y Teleop
-    processor_opponent_bonus = 4  # Puntos extra para el oponente
-    net_points = 4  # Solo Teleop
+    processor_points: int = 6  # Auto y Teleop
+    processor_opponent_bonus: int = 4  # Puntos extra para el oponente
+    net_points: int = 4  # Solo Teleop
     
     # Puntos de endgame
-    climb_points = {"none": 0, "park": 2, "shallow": 6, "deep": 12}
+    climb_points: Dict[str, int] = field(default_factory=lambda: {"none": 0, "park": 2, "shallow": 6, "deep": 12})
     
     # Requisitos para Ranking Points
-    auto_rp_requirements = {
+    auto_rp_requirements: Dict[str, Any] = field(default_factory=lambda: {
         "all_leave_zone": True,
         "min_coral_auto": 1
-    }
+    })
     
-    coral_rp_requirements = {
+    coral_rp_requirements: Dict[str, Any] = field(default_factory=lambda: {
         "min_coral_per_level_no_coop": 7,
         "min_levels_with_coop": 3,
         "min_coral_per_level_with_coop": 7
-    }
+    })
     
-    cooperation_threshold = 2  # Algae mínimas en cada processor para coop
+    cooperation_threshold: int = 2  # Algae mínimas en cada processor para coop
+    
+    @classmethod
+    def from_json(cls, config_dict: Optional[Dict] = None) -> 'GameConfig':
+        """Create GameConfig from JSON dictionary or load from file."""
+        if config_dict is None:
+            config_dict = _load_game_config_from_json()
+        
+        if config_dict is None:
+            return cls()
+        
+        points = config_dict.get("points", {})
+        coral = points.get("coral", {})
+        algae = points.get("algae", {})
+        climb = points.get("climb", {})
+        ranking_points = config_dict.get("ranking_points", {})
+        
+        return cls(
+            coral_auto_points=coral.get("auto", {"L1": 3, "L2": 4, "L3": 6, "L4": 7}),
+            coral_teleop_points=coral.get("teleop", {"L1": 2, "L2": 3, "L3": 4, "L4": 5}),
+            processor_points=algae.get("processor", 6),
+            processor_opponent_bonus=algae.get("processor_opponent_bonus", 4),
+            net_points=algae.get("net", 4),
+            climb_points=climb if climb else {"none": 0, "park": 2, "shallow": 6, "deep": 12},
+            auto_rp_requirements=ranking_points.get("auto_rp", {
+                "all_leave_zone": True,
+                "min_coral_auto": 1
+            }),
+            coral_rp_requirements=ranking_points.get("coral_rp", {
+                "min_coral_per_level_no_coop": 7,
+                "min_levels_with_coop": 3,
+                "min_coral_per_level_with_coop": 7
+            }),
+            cooperation_threshold=ranking_points.get("cooperation_threshold", 2)
+        )
 
 
 # ============================= MODELOS DE DATOS ============================= #
@@ -129,9 +185,9 @@ class MatchPrediction:
 class TeamStatsExtractor:
     """Extrae estadísticas de equipos desde el analizador"""
     
-    def __init__(self, analizador):
+    def __init__(self, analizador, config: Optional[GameConfig] = None):
         self.analizador = analizador
-        self.config = GameConfig()
+        self.config = config if config else GameConfig.from_json()
     
     def extract_team_performance(self, team_number: str) -> TeamPerformance:
         """Extrae el rendimiento estadístico de un equipo"""
@@ -223,8 +279,8 @@ class TeamStatsExtractor:
 class MatchSimulator:
     """Simula matches usando distribuciones estadísticas"""
     
-    def __init__(self):
-        self.config = GameConfig()
+    def __init__(self, config: Optional[GameConfig] = None):
+        self.config = config if config else GameConfig.from_json()
     
     def simulate_match(self, red_teams: List[TeamPerformance], 
                       blue_teams: List[TeamPerformance], 
@@ -443,7 +499,17 @@ class MatchSimulator:
         return "none"  # Fallback
 
 
-# ============================= INTERFAZ GRÁFICA ============================= #
+# ============================= INTERFAZ GRÁFICA (DEPRECATED) ============================= #
+# Note: The Tkinter GUI is deprecated in favor of the Streamlit UI.
+# This code is kept for backwards compatibility but should not be used for new development.
+
+try:
+    import tkinter as tk
+    from tkinter import ttk, messagebox
+    _TKINTER_AVAILABLE = True
+except ImportError:
+    _TKINTER_AVAILABLE = False
+
 
 class ForeshadowingGUI:
     """Interfaz gráfica del sistema de Foreshadowing"""
@@ -788,9 +854,17 @@ class ForeshadowingGUI:
 # ============================= FUNCIÓN PRINCIPAL ============================= #
 
 def launch_foreshadowing(parent, analizador):
-    """Lanza el sistema de Foreshadowing"""
+    """
+    Lanza el sistema de Foreshadowing (deprecated).
+    
+    Note: This function is deprecated. Use the Streamlit UI instead.
+    """
+    if not _TKINTER_AVAILABLE:
+        print("Warning: Tkinter is not available. Use the Streamlit UI instead.")
+        return None
     gui = ForeshadowingGUI(parent, analizador)
     gui.show()
+    return gui
 
 
 # ============================= TESTING ============================= #
