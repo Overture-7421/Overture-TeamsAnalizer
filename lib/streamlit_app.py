@@ -29,47 +29,73 @@ ROOT_DIR = APP_DIR.parent
 
 
 def load_app_config():
-    """Load application configuration from JSON file."""
+    """Load application configuration from JSON file.
+    
+    Returns:
+        dict: Configuration dictionary loaded from JSON or default values.
+    """
     config_paths = [
         ROOT_DIR / "config" / "config.json",
         APP_DIR / "config" / "config.json",
     ]
     
+    config = None
     for config_path in config_paths:
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except Exception as e:
-                st.warning(f"Error loading config from {config_path}: {e}")
+                    config = json.load(f)
+                    break
+            except json.JSONDecodeError as e:
+                st.warning(f"Failed to parse config from {config_path}: {e}. Using defaults.")
+            except IOError as e:
+                st.warning(f"Failed to read config from {config_path}: {e}. Using defaults.")
     
-    # Return default config if file not found
-    return {
-        "app": {
-            "title": "Alliance Simulator - Overture 7421",
-            "icon": "🤖",
-            "subtitle": "FRC 2025 REEFSCAPE",
-            "team_name": "Team Overture 7421"
-        },
-        "scoring_weights": {
+    if config is None:
+        # Return default config if file not found or failed to load
+        config = {
+            "app": {
+                "title": "Alliance Simulator - Overture 7421",
+                "icon": "🤖",
+                "subtitle": "FRC 2025 REEFSCAPE",
+                "team_name": "Team Overture 7421"
+            },
+            "scoring_weights": {
+                "match_performance": 50,
+                "pit_scouting": 30,
+                "during_event": 20
+            },
+            "game": {
+                "name": "REEFSCAPE 2025",
+                "coral": {
+                    "auto_points": {"L1": 3, "L2": 4, "L3": 6, "L4": 7},
+                    "teleop_points": {"L1": 2, "L2": 3, "L3": 4, "L4": 5}
+                },
+                "algae": {"processor": 6, "net": 4},
+                "climb": {"none": 0, "park": 2, "shallow": 6, "deep": 12}
+            },
+            "metrics": {
+                "coral_levels": ["L1", "L2", "L3", "L4"],
+                "game_phases": ["autonomous", "teleop", "endgame"]
+            }
+        }
+    
+    # Validate scoring weights sum to 100
+    scoring_weights = config.get("scoring_weights", {})
+    weights_sum = sum([
+        scoring_weights.get("match_performance", 50),
+        scoring_weights.get("pit_scouting", 30),
+        scoring_weights.get("during_event", 20)
+    ])
+    if weights_sum != 100:
+        st.warning(f"Scoring weights in config sum to {weights_sum}, not 100. Using defaults.")
+        config["scoring_weights"] = {
             "match_performance": 50,
             "pit_scouting": 30,
             "during_event": 20
-        },
-        "game": {
-            "name": "REEFSCAPE 2025",
-            "coral": {
-                "auto_points": {"L1": 3, "L2": 4, "L3": 6, "L4": 7},
-                "teleop_points": {"L1": 2, "L2": 3, "L3": 4, "L4": 5}
-            },
-            "algae": {"processor": 6, "net": 4},
-            "climb": {"none": 0, "park": 2, "shallow": 6, "deep": 12}
-        },
-        "metrics": {
-            "coral_levels": ["L1", "L2", "L3", "L4"],
-            "game_phases": ["autonomous", "teleop", "endgame"]
         }
-    }
+    
+    return config
 
 
 # Load configuration
@@ -1005,12 +1031,19 @@ elif page == "📈 Team Statistics":
                     
                     radar_fig = go.Figure()
                     
-                    # Normalize values for radar chart
-                    max_overall = max(s.get('overall_avg', 1) for s in selected_stats) or 1
-                    max_robot_val = max(s.get('RobotValuation', 1) for s in selected_stats) or 1
-                    max_coral = max(s.get('teleop_coral_avg', 1) for s in selected_stats) or 1
-                    max_algae = max(s.get('teleop_algae_avg', 1) for s in selected_stats) or 1
+                    # Normalize values for radar chart - safely handle zero maximum values
+                    max_overall_val = max((s.get('overall_avg', 0) for s in selected_stats), default=0)
+                    max_overall = max_overall_val if max_overall_val > 0 else 1
+                    max_robot_val_raw = max((s.get('RobotValuation', 0) for s in selected_stats), default=0)
+                    max_robot_val = max_robot_val_raw if max_robot_val_raw > 0 else 1
+                    max_coral_val = max((s.get('teleop_coral_avg', 0) for s in selected_stats), default=0)
+                    max_coral = max_coral_val if max_coral_val > 0 else 1
+                    max_algae_val = max((s.get('teleop_algae_avg', 0) for s in selected_stats), default=0)
+                    max_algae = max_algae_val if max_algae_val > 0 else 1
                     
+                    # Use chart colors from config if available
+                    ui_config = APP_CONFIG.get("ui", {})
+                    chart_colors = ui_config.get("chart_colors", {})
                     colors = px.colors.qualitative.Set2
                     
                     for idx, team_stat in enumerate(selected_stats):
