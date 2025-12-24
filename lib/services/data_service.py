@@ -10,6 +10,8 @@ from typing import Dict, List, Any, Optional, Tuple
 from collections import Counter
 import json
 
+from default_robot_image import load_team_image
+
 
 def load_csv_data(uploaded_file: Any, analizador: Any, app_dir: Path) -> Tuple[bool, str]:
     """
@@ -307,8 +309,6 @@ def generate_tierlist_txt(school_system: Any,
     Returns:
         str: TierList formatted text
     """
-    from default_robot_image import load_team_image
-    
     # Get current configuration values
     current_min_score = school_system.min_honor_roll_score
     current_min_comp = school_system.min_competencies_count

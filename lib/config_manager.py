@@ -316,18 +316,26 @@ class GameConfig:
     cooperation_threshold: int = 2
 
 
+import threading
+
+
 class GlobalConfigManager:
     """
     Singleton configuration manager that loads all JSON configuration files.
     Provides a unified API for accessing configuration across the application.
+    Thread-safe implementation using a lock.
     """
     
     _instance: Optional['GlobalConfigManager'] = None
+    _lock: threading.Lock = threading.Lock()
     
     def __new__(cls) -> 'GlobalConfigManager':
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
+            with cls._lock:
+                # Double-check locking pattern for thread safety
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
         return cls._instance
     
     def __init__(self):
