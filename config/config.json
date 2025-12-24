@@ -1,0 +1,95 @@
+{
+    "version": "1.0",
+    "description": "Main configuration file for Alliance Simulator - FRC Scouting Tool",
+    "app": {
+        "title": "Alliance Simulator - Overture 7421",
+        "icon": "🤖",
+        "subtitle": "FRC 2025 REEFSCAPE",
+        "team_name": "Team Overture 7421",
+        "layout": "wide",
+        "initial_sidebar_state": "expanded"
+    },
+    "scoring_weights": {
+        "match_performance": 50,
+        "pit_scouting": 30,
+        "during_event": 20
+    },
+    "game": {
+        "name": "REEFSCAPE 2025",
+        "year": 2025,
+        "coral": {
+            "auto_points": {
+                "L1": 3,
+                "L2": 4,
+                "L3": 6,
+                "L4": 7
+            },
+            "teleop_points": {
+                "L1": 2,
+                "L2": 3,
+                "L3": 4,
+                "L4": 5
+            }
+        },
+        "algae": {
+            "processor": 6,
+            "processor_opponent_bonus": 4,
+            "net": 4
+        },
+        "climb": {
+            "none": 0,
+            "park": 2,
+            "shallow": 6,
+            "deep": 12
+        },
+        "auto_leave_points": 3,
+        "ranking_points": {
+            "win": 3,
+            "tie": 1,
+            "loss": 0
+        },
+        "auto_rp_requirements": {
+            "all_leave_zone": true,
+            "min_coral_auto": 1
+        },
+        "coral_rp_requirements": {
+            "min_coral_per_level_no_coop": 7,
+            "min_levels_with_coop": 3,
+            "min_coral_per_level_with_coop": 7
+        },
+        "cooperation_threshold": 2
+    },
+    "metrics": {
+        "coral_levels": ["L1", "L2", "L3", "L4"],
+        "game_phases": ["autonomous", "teleop", "endgame"],
+        "climb_types": ["none", "park", "shallow", "deep"]
+    },
+    "ui": {
+        "theme": "dark",
+        "primary_color": "#7f7eff",
+        "secondary_color": "#a855f7",
+        "accent_color": "#9f9dfd",
+        "chart_colors": {
+            "red_alliance": "#ef4444",
+            "blue_alliance": "#3b82f6",
+            "coral": "#ef4444",
+            "algae": "#22d3ee",
+            "climb": "#a855f7"
+        }
+    },
+    "alliance": {
+        "max_alliances": 8,
+        "teams_per_alliance": 3,
+        "draft_parameters": {
+            "pick1_round": "standard",
+            "pick2_round": "snake"
+        }
+    },
+    "honor_roll": {
+        "competencies_multiplier": 6,
+        "subcompetencies_multiplier": 3,
+        "min_competencies_count": 2,
+        "min_subcompetencies_count": 1,
+        "min_honor_roll_score": 70.0
+    }
+}
