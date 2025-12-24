@@ -1,0 +1,35 @@
+{
+    "version": "1.0",
+    "description": "Honor Roll scoring configuration for SchoolSystem",
+    "honor_roll_weights": {
+        "match_performance": 0.50,
+        "pit_scouting": 0.30,
+        "during_event": 0.20
+    },
+    "match_performance_weights": {
+        "autonomous": 0.20,
+        "teleop": 0.60,
+        "endgame": 0.20
+    },
+    "pit_scouting_weights": {
+        "electrical": 0.3333,
+        "mechanical": 0.25,
+        "driver_station_layout": 0.1667,
+        "tools": 0.1667,
+        "spare_parts": 0.0833
+    },
+    "during_event_weights": {
+        "team_organization": 0.50,
+        "collaboration": 0.50
+    },
+    "competency_multipliers": {
+        "competencies": 6,
+        "subcompetencies": 3,
+        "behavior_reports": 0
+    },
+    "disqualification_thresholds": {
+        "min_competencies": 2,
+        "min_subcompetencies": 1,
+        "min_honor_roll_score": 70.0
+    }
+}

@@ -10,7 +10,7 @@ import base64
 import tempfile
 from collections import Counter
 from pathlib import Path
-from main import AnalizadorRobot
+from engine import AnalizadorRobot
 from allianceSelector import AllianceSelector, Team, teams_from_dicts
 from school_system import TeamScoring, BehaviorReportType
 import matplotlib.pyplot as plt

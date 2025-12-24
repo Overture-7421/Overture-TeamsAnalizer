@@ -1,12 +1,20 @@
-"""Configuration Manager for handling different CSV formats and column mappings
+"""Configuration Manager for handling different CSV formats and column mappings.
+
+This module provides centralized configuration management for the Alliance Simulator.
+It loads and provides access to all JSON configuration files:
+- columns.json: Column mappings for CSV data
+- scoring.json: Honor Roll scoring weights and thresholds
+- alliance.json: Alliance selector configuration
+- game.json: Game point values for match simulation
 """
 
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 
 BASE_DIR = Path(__file__).resolve().parent
+CONFIG_DIR = BASE_DIR / "config"
 
 @dataclass 
 class ColumnConfig:
@@ -174,3 +182,272 @@ class ConfigManager:
         except Exception as e:
             print(f"Error applying preset: {e}")
             return False
+    
+    def update_column_config(self, **kwargs) -> None:
+        """Update column configuration with provided values."""
+        if "new_standard" in self.presets:
+            config = self.presets["new_standard"]["column_config"]
+            for key, value in kwargs.items():
+                if hasattr(config, key):
+                    setattr(config, key, value)
+    
+    def update_robot_valuation_config(self, **kwargs) -> None:
+        """Update robot valuation configuration with provided values."""
+        if "new_standard" in self.presets:
+            config = self.presets["new_standard"]["robot_valuation"]
+            for key, value in kwargs.items():
+                if hasattr(config, key):
+                    setattr(config, key, value)
+    
+    def save_configuration(self) -> bool:
+        """Save current configuration to file."""
+        try:
+            if "new_standard" in self.presets:
+                config = {
+                    "active_preset": "new_standard",
+                    "column_config": self.presets["new_standard"]["column_config"].__dict__,
+                    "robot_valuation": self.presets["new_standard"]["robot_valuation"].__dict__
+                }
+                with open(self.config_file, 'w') as f:
+                    json.dump(config, f, indent=2)
+                return True
+        except Exception as e:
+            print(f"Error saving configuration: {e}")
+        return False
+
+
+# ==================== Extended Configuration Classes ==================== #
+
+@dataclass
+class ScoringConfig:
+    """Configuration for Honor Roll scoring weights and thresholds."""
+    honor_roll_weights: Dict[str, float] = field(default_factory=lambda: {
+        "match_performance": 0.50,
+        "pit_scouting": 0.30,
+        "during_event": 0.20
+    })
+    match_performance_weights: Dict[str, float] = field(default_factory=lambda: {
+        "autonomous": 0.20,
+        "teleop": 0.60,
+        "endgame": 0.20
+    })
+    pit_scouting_weights: Dict[str, float] = field(default_factory=lambda: {
+        "electrical": 0.3333,
+        "mechanical": 0.25,
+        "driver_station_layout": 0.1667,
+        "tools": 0.1667,
+        "spare_parts": 0.0833
+    })
+    during_event_weights: Dict[str, float] = field(default_factory=lambda: {
+        "team_organization": 0.50,
+        "collaboration": 0.50
+    })
+    competency_multipliers: Dict[str, int] = field(default_factory=lambda: {
+        "competencies": 6,
+        "subcompetencies": 3,
+        "behavior_reports": 0
+    })
+    disqualification_thresholds: Dict[str, Any] = field(default_factory=lambda: {
+        "min_competencies": 2,
+        "min_subcompetencies": 1,
+        "min_honor_roll_score": 70.0
+    })
+
+
+@dataclass
+class AllianceConfig:
+    """Configuration for alliance selection parameters."""
+    draft_parameters: Dict[str, Any] = field(default_factory=lambda: {
+        "max_alliances": 8,
+        "teams_per_alliance": 3,
+        "min_teams_per_alliance_for_calc": 3
+    })
+    scoring_weights: Dict[str, float] = field(default_factory=lambda: {
+        "auto": 1.5,
+        "teleop": 1.0,
+        "endgame": 1.2,
+        "defense": 12,
+        "consistency": 5,
+        "clutch": 8
+    })
+    pick2_priorities: List[str] = field(default_factory=lambda: [
+        "defense_rate",
+        "algae_score",
+        "death_rate"
+    ])
+    recommendation_logic: Dict[str, str] = field(default_factory=lambda: {
+        "pick1": "captain_sniping",
+        "pick2": "best_available_with_priorities"
+    })
+
+
+@dataclass
+class GameConfig:
+    """Configuration for game point values (FRC 2025 REEFSCAPE)."""
+    game_name: str = "REEFSCAPE 2025"
+    coral_auto_points: Dict[str, int] = field(default_factory=lambda: {
+        "L1": 3, "L2": 4, "L3": 6, "L4": 7
+    })
+    coral_teleop_points: Dict[str, int] = field(default_factory=lambda: {
+        "L1": 2, "L2": 3, "L3": 4, "L4": 5
+    })
+    algae_points: Dict[str, int] = field(default_factory=lambda: {
+        "processor": 6,
+        "processor_opponent_bonus": 4,
+        "net": 4
+    })
+    climb_points: Dict[str, int] = field(default_factory=lambda: {
+        "none": 0, "park": 2, "shallow": 6, "deep": 12
+    })
+    ranking_points: Dict[str, Any] = field(default_factory=lambda: {
+        "win": 3,
+        "tie": 1,
+        "loss": 0
+    })
+    auto_rp_requirements: Dict[str, Any] = field(default_factory=lambda: {
+        "all_leave_zone": True,
+        "min_coral_auto": 1
+    })
+    coral_rp_requirements: Dict[str, Any] = field(default_factory=lambda: {
+        "min_coral_per_level_no_coop": 7,
+        "min_levels_with_coop": 3,
+        "min_coral_per_level_with_coop": 7
+    })
+    cooperation_threshold: int = 2
+
+
+class GlobalConfigManager:
+    """
+    Singleton configuration manager that loads all JSON configuration files.
+    Provides a unified API for accessing configuration across the application.
+    """
+    
+    _instance: Optional['GlobalConfigManager'] = None
+    
+    def __new__(cls) -> 'GlobalConfigManager':
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        if self._initialized:
+            return
+        
+        self._initialized = True
+        self._scoring_config: Optional[ScoringConfig] = None
+        self._alliance_config: Optional[AllianceConfig] = None
+        self._game_config: Optional[GameConfig] = None
+        self._columns_config: Optional[Dict] = None
+        
+        self._load_all_configs()
+    
+    def _load_all_configs(self) -> None:
+        """Load all configuration files."""
+        self._scoring_config = self._load_scoring_config()
+        self._alliance_config = self._load_alliance_config()
+        self._game_config = self._load_game_config()
+        self._columns_config = self._load_columns_config()
+    
+    def _load_json_file(self, filename: str) -> Optional[Dict]:
+        """Load a JSON file from the config directory."""
+        config_path = CONFIG_DIR / filename
+        if not config_path.exists():
+            # Fallback to lib directory
+            config_path = BASE_DIR / filename
+        
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error loading {filename}: {e}")
+        return None
+    
+    def _load_scoring_config(self) -> ScoringConfig:
+        """Load scoring configuration."""
+        data = self._load_json_file("scoring.json")
+        if data:
+            return ScoringConfig(
+                honor_roll_weights=data.get("honor_roll_weights", {}),
+                match_performance_weights=data.get("match_performance_weights", {}),
+                pit_scouting_weights=data.get("pit_scouting_weights", {}),
+                during_event_weights=data.get("during_event_weights", {}),
+                competency_multipliers=data.get("competency_multipliers", {}),
+                disqualification_thresholds=data.get("disqualification_thresholds", {})
+            )
+        return ScoringConfig()
+    
+    def _load_alliance_config(self) -> AllianceConfig:
+        """Load alliance configuration."""
+        data = self._load_json_file("alliance.json")
+        if data:
+            return AllianceConfig(
+                draft_parameters=data.get("draft_parameters", {}),
+                scoring_weights=data.get("scoring_weights", {}),
+                pick2_priorities=data.get("pick2_priorities", []),
+                recommendation_logic=data.get("recommendation_logic", {})
+            )
+        return AllianceConfig()
+    
+    def _load_game_config(self) -> GameConfig:
+        """Load game configuration."""
+        data = self._load_json_file("game.json")
+        if data:
+            points = data.get("points", {})
+            coral = points.get("coral", {})
+            algae = points.get("algae", {})
+            climb = points.get("climb", {})
+            ranking_points = data.get("ranking_points", {})
+            
+            return GameConfig(
+                game_name=data.get("game_name", "REEFSCAPE 2025"),
+                coral_auto_points=coral.get("auto", {}),
+                coral_teleop_points=coral.get("teleop", {}),
+                algae_points=algae,
+                climb_points=climb,
+                ranking_points={
+                    "win": ranking_points.get("win", 3),
+                    "tie": ranking_points.get("tie", 1),
+                    "loss": ranking_points.get("loss", 0)
+                },
+                auto_rp_requirements=ranking_points.get("auto_rp", {}),
+                coral_rp_requirements=ranking_points.get("coral_rp", {}),
+                cooperation_threshold=ranking_points.get("cooperation_threshold", 2)
+            )
+        return GameConfig()
+    
+    def _load_columns_config(self) -> Optional[Dict]:
+        """Load columns configuration."""
+        return self._load_json_file("columns.json")
+    
+    # Public API
+    def get_scoring_config(self) -> ScoringConfig:
+        """Get the scoring configuration."""
+        return self._scoring_config or ScoringConfig()
+    
+    def get_alliance_config(self) -> AllianceConfig:
+        """Get the alliance configuration."""
+        return self._alliance_config or AllianceConfig()
+    
+    def get_game_config(self) -> GameConfig:
+        """Get the game configuration."""
+        return self._game_config or GameConfig()
+    
+    def get_columns_config(self) -> Optional[Dict]:
+        """Get the columns configuration dictionary."""
+        return self._columns_config
+    
+    def reload_all(self) -> None:
+        """Reload all configuration files."""
+        self._load_all_configs()
+    
+    @classmethod
+    def reset_instance(cls) -> None:
+        """Reset the singleton instance (useful for testing)."""
+        cls._instance = None
+
+
+def get_global_config() -> GlobalConfigManager:
+    """Get the global configuration manager instance."""
+    return GlobalConfigManager()
