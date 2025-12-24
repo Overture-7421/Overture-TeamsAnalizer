@@ -8,6 +8,7 @@ import pandas as pd
 import io
 import base64
 import tempfile
+import json
 from collections import Counter
 from pathlib import Path
 from engine import AnalizadorRobot
@@ -24,15 +25,65 @@ from exam_integrator import ExamDataIntegrator
 
 
 APP_DIR = Path(__file__).resolve().parent
+ROOT_DIR = APP_DIR.parent
 
-# Page configuration
+
+def load_app_config():
+    """Load application configuration from JSON file."""
+    config_paths = [
+        ROOT_DIR / "config" / "config.json",
+        APP_DIR / "config" / "config.json",
+    ]
+    
+    for config_path in config_paths:
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                st.warning(f"Error loading config from {config_path}: {e}")
+    
+    # Return default config if file not found
+    return {
+        "app": {
+            "title": "Alliance Simulator - Overture 7421",
+            "icon": "🤖",
+            "subtitle": "FRC 2025 REEFSCAPE",
+            "team_name": "Team Overture 7421"
+        },
+        "scoring_weights": {
+            "match_performance": 50,
+            "pit_scouting": 30,
+            "during_event": 20
+        },
+        "game": {
+            "name": "REEFSCAPE 2025",
+            "coral": {
+                "auto_points": {"L1": 3, "L2": 4, "L3": 6, "L4": 7},
+                "teleop_points": {"L1": 2, "L2": 3, "L3": 4, "L4": 5}
+            },
+            "algae": {"processor": 6, "net": 4},
+            "climb": {"none": 0, "park": 2, "shallow": 6, "deep": 12}
+        },
+        "metrics": {
+            "coral_levels": ["L1", "L2", "L3", "L4"],
+            "game_phases": ["autonomous", "teleop", "endgame"]
+        }
+    }
+
+
+# Load configuration
+APP_CONFIG = load_app_config()
+
+# Page configuration - uses values from APP_CONFIG
+app_config = APP_CONFIG.get("app", {})
 st.set_page_config(
-    page_title="Alliance Simulator - Overture 7421",
-    page_icon="🤖",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    page_title=app_config.get("title", "Alliance Simulator - Overture 7421"),
+    page_icon=app_config.get("icon", "🤖"),
+    layout=app_config.get("layout", "wide"),
+    initial_sidebar_state=app_config.get("initial_sidebar_state", "expanded"),
     menu_items={
-        'About': "Alliance Simulator - Team Overture 7421 | FRC 2025 REEFSCAPE"
+        'About': f"{app_config.get('title', 'Alliance Simulator')} | {app_config.get('subtitle', 'FRC 2025')}"
     }
 )
 
@@ -72,9 +123,17 @@ if 'foreshadowing_quick_slider' not in st.session_state:
 if 'exam_integrator' not in st.session_state:
     st.session_state.exam_integrator = None
 if 'scoring_weights' not in st.session_state:
-    st.session_state.scoring_weights = {"match": 50, "pit": 30, "event": 20}
+    # Initialize scoring weights from config
+    config_weights = APP_CONFIG.get("scoring_weights", {})
+    st.session_state.scoring_weights = {
+        "match": config_weights.get("match_performance", 50),
+        "pit": config_weights.get("pit_scouting", 30),
+        "event": config_weights.get("during_event", 20)
+    }
 if 'selected_team_for_details' not in st.session_state:
     st.session_state.selected_team_for_details = None
+if 'app_config' not in st.session_state:
+    st.session_state.app_config = APP_CONFIG
 
 # Enhanced Custom CSS for better UI
 st.markdown("""
@@ -530,13 +589,15 @@ def build_team_performance_df(team_performances):
         })
     return pd.DataFrame(rows)
 
-# Sidebar navigation with enhanced design
-st.sidebar.markdown("""
+# Sidebar navigation with enhanced design - uses config values
+sidebar_config = APP_CONFIG.get("app", {})
+game_config = APP_CONFIG.get("game", {})
+st.sidebar.markdown(f"""
 <div style='text-align: center; padding: 1rem 0;'>
-    <h1 style='color: white; font-size: 2.5rem; margin: 0;'>🤖</h1>
+    <h1 style='color: white; font-size: 2.5rem; margin: 0;'>{sidebar_config.get('icon', '🤖')}</h1>
     <h2 style='color: white; font-weight: 700; margin: 0.5rem 0;'>Alliance Simulator</h2>
-    <p style='color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;'>Team Overture 7421</p>
-    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>FRC 2025 REEFSCAPE</p>
+    <p style='color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;'>{sidebar_config.get('team_name', 'Team Overture 7421')}</p>
+    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>{game_config.get('name', 'FRC 2025 REEFSCAPE')}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -888,123 +949,275 @@ elif page == "📈 Team Statistics":
             st.markdown("### Detailed Team Statistics")
             
             all_teams = [s.get('team', 'N/A') for s in stats]
-            if st.session_state.tba_manager:
-                team_options = {
-                    team: f"{team} - {st.session_state.tba_manager.get_team_nickname(team)}"
-                    for team in all_teams
-                }
-                selected_team_num = st.selectbox(
-                    "Select a Team",
-                    options=list(team_options.keys()),
-                    format_func=lambda x: team_options[x]
-                )
-            else:
-                selected_team_num = st.selectbox("Select a Team", options=all_teams)
-
             
-            if selected_team_num:
-                team_stat = next((s for s in stats if s.get('team') == selected_team_num), None)
+            # Add compare mode toggle
+            compare_mode = st.checkbox("🔀 Compare Multiple Teams", key="compare_mode_toggle")
+            
+            if compare_mode:
+                # Multi-team comparison mode
+                st.markdown("#### Multi-Team Comparison")
                 
-                if team_stat:
-                    col1, col2, col3 = st.columns(3)
+                if st.session_state.tba_manager:
+                    team_options = {
+                        team: f"{team} - {st.session_state.tba_manager.get_team_nickname(team)}"
+                        for team in all_teams
+                    }
+                    selected_teams = st.multiselect(
+                        "Select Teams to Compare (2 or more)",
+                        options=list(team_options.keys()),
+                        format_func=lambda x: team_options[x],
+                        default=list(team_options.keys())[:2] if len(team_options) >= 2 else []
+                    )
+                else:
+                    selected_teams = st.multiselect(
+                        "Select Teams to Compare (2 or more)",
+                        options=all_teams,
+                        default=all_teams[:2] if len(all_teams) >= 2 else []
+                    )
+                
+                if len(selected_teams) >= 2:
+                    # Get stats for selected teams
+                    selected_stats = [s for s in stats if s.get('team') in selected_teams]
                     
-                    with col1:
-                        st.metric("Overall Average", f"{team_stat.get('overall_avg', 0):.2f}")
-                        st.metric("Overall Std Dev", f"{team_stat.get('overall_std', 0):.2f}")
+                    # Side-by-side metrics display using columns
+                    st.markdown("#### Key Metrics Comparison")
+                    cols = st.columns(len(selected_teams))
                     
-                    with col2:
-                        st.metric("Robot Valuation", f"{team_stat.get('RobotValuation', 0):.2f}")
-                        teleop_coral_avg = team_stat.get('teleop_coral_avg', 0)
-                        st.metric("Teleop Coral Avg", f"{teleop_coral_avg:.2f}")
+                    for idx, team_num in enumerate(selected_teams):
+                        team_stat = next((s for s in stats if s.get('team') == team_num), None)
+                        if team_stat:
+                            with cols[idx]:
+                                team_name = team_num
+                                if st.session_state.tba_manager:
+                                    team_name = f"{team_num} - {st.session_state.tba_manager.get_team_nickname(team_num)}"
+                                st.markdown(f"**{team_name}**")
+                                st.metric("Overall Avg", f"{team_stat.get('overall_avg', 0):.2f}")
+                                st.metric("Robot Valuation", f"{team_stat.get('RobotValuation', 0):.2f}")
+                                st.metric("Teleop Coral Avg", f"{team_stat.get('teleop_coral_avg', 0):.2f}")
+                                died_rate = get_rate_from_stat(team_stat, ("Died", "Died?"))
+                                st.metric("Death Rate", f"{died_rate * 100:.1f}%")
                     
-                    with col3:
-                        teleop_algae_avg = team_stat.get('teleop_algae_avg', 0)
-                        st.metric("Teleop Algae Avg", f"{teleop_algae_avg:.2f}")
-                        died_rate = get_rate_from_stat(team_stat, ("Died", "Died?"))
-                        st.metric("Death Rate", f"{died_rate * 100:.1f}%")
+                    # Radar chart comparison
+                    st.markdown("#### Performance Radar Chart")
                     
-                    # Complete metrics table
-                    st.markdown("### Complete Metric Snapshot")
-                    formatted_metrics = {}
-                    for key, value in team_stat.items():
-                        if isinstance(value, (float, int)):
-                            formatted_metrics[key] = round(float(value), 3)
-                        else:
-                            formatted_metrics[key] = value
+                    # Prepare radar data
+                    categories = ['Overall Avg', 'Robot Valuation', 'Teleop Coral', 'Teleop Algae', 'Consistency']
+                    
+                    radar_fig = go.Figure()
+                    
+                    # Normalize values for radar chart
+                    max_overall = max(s.get('overall_avg', 1) for s in selected_stats) or 1
+                    max_robot_val = max(s.get('RobotValuation', 1) for s in selected_stats) or 1
+                    max_coral = max(s.get('teleop_coral_avg', 1) for s in selected_stats) or 1
+                    max_algae = max(s.get('teleop_algae_avg', 1) for s in selected_stats) or 1
+                    
+                    colors = px.colors.qualitative.Set2
+                    
+                    for idx, team_stat in enumerate(selected_stats):
+                        team_num = team_stat.get('team', 'N/A')
+                        
+                        # Calculate consistency (inverse of std dev relative to avg)
+                        overall_avg = team_stat.get('overall_avg', 0)
+                        overall_std = team_stat.get('overall_std', 0)
+                        consistency = (1 - (overall_std / (overall_avg + 0.01))) * 100 if overall_avg > 0 else 50
+                        consistency = max(0, min(100, consistency))
+                        
+                        values = [
+                            (team_stat.get('overall_avg', 0) / max_overall) * 100 if max_overall > 0 else 0,
+                            (team_stat.get('RobotValuation', 0) / max_robot_val) * 100 if max_robot_val > 0 else 0,
+                            (team_stat.get('teleop_coral_avg', 0) / max_coral) * 100 if max_coral > 0 else 0,
+                            (team_stat.get('teleop_algae_avg', 0) / max_algae) * 100 if max_algae > 0 else 0,
+                            consistency
+                        ]
+                        
+                        radar_fig.add_trace(go.Scatterpolar(
+                            r=values + [values[0]],  # Close the polygon
+                            theta=categories + [categories[0]],
+                            fill='toself',
+                            name=f"Team {team_num}",
+                            line=dict(color=colors[idx % len(colors)])
+                        ))
+                    
+                    radar_fig.update_layout(
+                        polar=dict(
+                            radialaxis=dict(visible=True, range=[0, 100]),
+                            bgcolor='rgba(0,0,0,0)'
+                        ),
+                        showlegend=True,
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#f8fafc'),
+                        title="Team Performance Comparison"
+                    )
+                    st.plotly_chart(radar_fig, use_container_width=True)
+                    
+                    # Bar chart comparison
+                    st.markdown("#### Side-by-Side Bar Comparison")
+                    
+                    comparison_metrics = ['overall_avg', 'RobotValuation', 'teleop_coral_avg', 'teleop_algae_avg']
+                    metric_labels = ['Overall Avg', 'Robot Valuation', 'Teleop Coral', 'Teleop Algae']
+                    
+                    bar_data = []
+                    for team_stat in selected_stats:
+                        team_num = team_stat.get('team', 'N/A')
+                        for metric, label in zip(comparison_metrics, metric_labels):
+                            bar_data.append({
+                                'Team': f"Team {team_num}",
+                                'Metric': label,
+                                'Value': team_stat.get(metric, 0)
+                            })
+                    
+                    bar_df = pd.DataFrame(bar_data)
+                    bar_fig = px.bar(
+                        bar_df,
+                        x='Metric',
+                        y='Value',
+                        color='Team',
+                        barmode='group',
+                        title='Metrics Comparison'
+                    )
+                    bar_fig.update_layout(
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#f8fafc'),
+                        xaxis=dict(color='#d1d5db'),
+                        yaxis=dict(color='#d1d5db')
+                    )
+                    st.plotly_chart(bar_fig, use_container_width=True)
+                    
+                    # Comparison table
+                    st.markdown("#### Detailed Comparison Table")
+                    comparison_df = pd.DataFrame(selected_stats)
+                    comparison_df = comparison_df.set_index('team')
+                    key_columns = ['overall_avg', 'overall_std', 'RobotValuation', 'teleop_coral_avg', 'teleop_algae_avg']
+                    available_columns = [col for col in key_columns if col in comparison_df.columns]
+                    if available_columns:
+                        st.dataframe(comparison_df[available_columns].T, use_container_width=True)
+                    
+                elif len(selected_teams) == 1:
+                    st.info("Please select at least 2 teams to compare.")
+                else:
+                    st.info("Select teams to compare from the dropdown above.")
+            
+            else:
+                # Single team selection mode (original behavior)
+                if st.session_state.tba_manager:
+                    team_options = {
+                        team: f"{team} - {st.session_state.tba_manager.get_team_nickname(team)}"
+                        for team in all_teams
+                    }
+                    selected_team_num = st.selectbox(
+                        "Select a Team",
+                        options=list(team_options.keys()),
+                        format_func=lambda x: team_options[x]
+                    )
+                else:
+                    selected_team_num = st.selectbox("Select a Team", options=all_teams)
 
-                    metrics_df = pd.DataFrame.from_dict(formatted_metrics, orient='index', columns=['Value'])
-                    metrics_df.index.name = 'Metric'
-                    st.dataframe(metrics_df, use_container_width=True, height=420)
+                
+                if selected_team_num:
+                    team_stat = next((s for s in stats if s.get('team') == selected_team_num), None)
+                    
+                    if team_stat:
+                        col1, col2, col3 = st.columns(3)
+                        
+                        with col1:
+                            st.metric("Overall Average", f"{team_stat.get('overall_avg', 0):.2f}")
+                            st.metric("Overall Std Dev", f"{team_stat.get('overall_std', 0):.2f}")
+                        
+                        with col2:
+                            st.metric("Robot Valuation", f"{team_stat.get('RobotValuation', 0):.2f}")
+                            teleop_coral_avg = team_stat.get('teleop_coral_avg', 0)
+                            st.metric("Teleop Coral Avg", f"{teleop_coral_avg:.2f}")
+                        
+                        with col3:
+                            teleop_algae_avg = team_stat.get('teleop_algae_avg', 0)
+                            st.metric("Teleop Algae Avg", f"{teleop_algae_avg:.2f}")
+                            died_rate = get_rate_from_stat(team_stat, ("Died", "Died?"))
+                            st.metric("Death Rate", f"{died_rate * 100:.1f}%")
+                        
+                        # Complete metrics table
+                        st.markdown("### Complete Metric Snapshot")
+                        formatted_metrics = {}
+                        for key, value in team_stat.items():
+                            if isinstance(value, (float, int)):
+                                formatted_metrics[key] = round(float(value), 3)
+                            else:
+                                formatted_metrics[key] = value
 
-                    # Match performance line chart
-                    st.markdown("### Match Performance Trend")
+                        metrics_df = pd.DataFrame.from_dict(formatted_metrics, orient='index', columns=['Value'])
+                        metrics_df.index.name = 'Metric'
+                        st.dataframe(metrics_df, use_container_width=True, height=420)
 
-                    analyzer = st.session_state.analizador
-                    team_rows = analyzer.get_team_data_grouped().get(str(selected_team_num), [])
-                    match_idx = analyzer._column_indices.get('Match Number')
+                        # Match performance line chart
+                        st.markdown("### Match Performance Trend")
 
-                    def _parse_numeric(value):
-                        if value is None:
-                            return None
-                        # Avoid accidental scaling: booleans are not valid numeric match metrics here.
-                        # (`bool` is a subclass of `int`, so this must come before the (int, float) check.)
-                        if isinstance(value, bool):
-                            return None
-                        if isinstance(value, (int, float)):
-                            return float(value)
-                        if isinstance(value, str):
-                            v = value.strip().lower()
+                        analyzer = st.session_state.analizador
+                        team_rows = analyzer.get_team_data_grouped().get(str(selected_team_num), [])
+                        match_idx = analyzer._column_indices.get('Match Number')
+
+                        def _parse_numeric(value):
+                            if value is None:
+                                return None
+                            # Avoid accidental scaling: booleans are not valid numeric match metrics here.
+                            # (`bool` is a subclass of `int`, so this must come before the (int, float) check.)
+                            if isinstance(value, bool):
+                                return None
+                            if isinstance(value, (int, float)):
+                                return float(value)
+                            if isinstance(value, str):
+                                v = value.strip().lower()
+                                try:
+                                    return float(v)
+                                except ValueError:
+                                    return None
                             try:
-                                return float(v)
-                            except ValueError:
+                                return float(value)
+                            except (TypeError, ValueError):
                                 return None
-                        try:
-                            return float(value)
-                        except (TypeError, ValueError):
-                            return None
 
-                    def _parse_bool(value):
-                        if value is None:
+                        def _parse_bool(value):
+                            if value is None:
+                                return False
+                            if isinstance(value, bool):
+                                return value
+                            if isinstance(value, (int, float)):
+                                return float(value) != 0.0
+                            if isinstance(value, str):
+                                v = value.strip().lower()
+                                return v in {"1", "true", "t", "yes", "y", "si", "sí", "x"}
                             return False
-                        if isinstance(value, bool):
-                            return value
-                        if isinstance(value, (int, float)):
-                            return float(value) != 0.0
-                        if isinstance(value, str):
-                            v = value.strip().lower()
-                            return v in {"1", "true", "t", "yes", "y", "si", "sí", "x"}
-                        return False
 
-                    if match_idx is None:
-                        st.warning("Match Number column not found; cannot build trend chart.")
-                    elif not team_rows:
-                        st.info("No match performance data available for this team.")
-                    else:
-                        from collections import defaultdict
+                        if match_idx is None:
+                            st.warning("Match Number column not found; cannot build trend chart.")
+                        elif not team_rows:
+                            st.info("No match performance data available for this team.")
+                        else:
+                            from collections import defaultdict
 
-                        # Compute *real* match points using REEFSCAPE point table (game.json).
-                        # Uses whatever columns exist in the loaded scouting sheet; missing columns simply contribute 0.
-                        from config_manager import get_global_config
+                            # Compute *real* match points using REEFSCAPE point table (game.json).
+                            # Uses whatever columns exist in the loaded scouting sheet; missing columns simply contribute 0.
+                            from config_manager import get_global_config
 
-                        game_cfg = get_global_config().get_game_config()
-                        coral_auto_points = getattr(game_cfg, "coral_auto_points", {}) or {}
-                        coral_teleop_points = getattr(game_cfg, "coral_teleop_points", {}) or {}
-                        algae_points = getattr(game_cfg, "algae_points", {}) or {}
-                        climb_points = getattr(game_cfg, "climb_points", {}) or {}
+                            game_cfg = get_global_config().get_game_config()
+                            coral_auto_points = getattr(game_cfg, "coral_auto_points", {}) or {}
+                            coral_teleop_points = getattr(game_cfg, "coral_teleop_points", {}) or {}
+                            algae_points = getattr(game_cfg, "algae_points", {}) or {}
+                            climb_points = getattr(game_cfg, "climb_points", {}) or {}
 
-                        # Official REEFSCAPE auto leave is commonly 3 points; keep as a local default
-                        # (game.json currently doesn't include it).
-                        AUTO_LEAVE_POINTS = 3
+                            # Official REEFSCAPE auto leave is commonly 3 points; keep as a local default
+                            # (game.json currently doesn't include it).
+                            AUTO_LEAVE_POINTS = 3
 
-                        def _get_value(row, col_name):
-                            col_idx = analyzer._column_indices.get(col_name)
-                            if col_idx is None or col_idx >= len(row):
-                                return None
-                            return row[col_idx]
+                            def _get_value(row, col_name):
+                                col_idx = analyzer._column_indices.get(col_name)
+                                if col_idx is None or col_idx >= len(row):
+                                    return None
+                                return row[col_idx]
 
-                        def _get_num(row, col_name, default=0.0):
-                            parsed = _parse_numeric(_get_value(row, col_name))
-                            return default if parsed is None else float(parsed)
+                            def _get_num(row, col_name, default=0.0):
+                                parsed = _parse_numeric(_get_value(row, col_name))
+                                return default if parsed is None else float(parsed)
 
                         def _get_text(row, col_name):
                             v = _get_value(row, col_name)
