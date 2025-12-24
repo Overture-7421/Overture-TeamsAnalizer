@@ -6,5 +6,8 @@ opencv-python>=4.8.0
 pyzbar>=0.1.9
 plotly>=5.15.0
 
+# Optional: Linux HID Interceptor for headless barcode scanner support
+# evdev>=1.6.0  # Linux only - uncomment to enable HID interception
+
 # Requisitos originales del programa
 # (ya incluidos en el entorno virtual)
