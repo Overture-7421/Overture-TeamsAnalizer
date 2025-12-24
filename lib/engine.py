@@ -262,15 +262,18 @@ class AnalizadorRobot:
         
         def _monitor_loop():
             while not self._reload_stop_event.is_set():
-                if self.check_for_updates():
-                    print(f"[{datetime.now().strftime('%H:%M:%S')}] CSV file changed, reloading...")
-                    if self.reload_csv():
-                        print(f"Reloaded {len(self.sheet_data) - 1} records")
-                        if self._reload_callback:
-                            try:
-                                self._reload_callback()
-                            except Exception as e:
-                                print(f"Error in reload callback: {e}")
+                try:
+                    if self.check_for_updates():
+                        print(f"[{datetime.now().strftime('%H:%M:%S')}] CSV file changed, reloading...")
+                        if self.reload_csv():
+                            print(f"Reloaded {len(self.sheet_data) - 1} records")
+                            if self._reload_callback:
+                                try:
+                                    self._reload_callback()
+                                except Exception as e:
+                                    print(f"Error in reload callback: {e}")
+                except Exception as e:
+                    print(f"Error in hot-reload monitor: {e}")
                 self._reload_stop_event.wait(interval_seconds)
         
         self._reload_thread = threading.Thread(target=_monitor_loop, daemon=True)

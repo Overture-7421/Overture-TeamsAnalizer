@@ -861,7 +861,7 @@ elif page == "📁 Data Management":
         else:
             st.info("No data loaded yet. Please upload a CSV file or paste QR data.")
     
-    with tab3:
+    with tab4:
         st.markdown("### 💾 Export Options")
         
         if st.button("Export Raw Data as CSV"):

@@ -6,7 +6,7 @@ This module provides QR code scanning functionality using opencv-python and pyzb
 """
 
 import time
-from typing import Callable, List, Optional, Set
+from typing import Callable, Dict, List, Optional, Set
 
 # Lazy imports for better performance and optional dependency handling
 _cv2 = None
@@ -108,7 +108,7 @@ def scan_qr_codes(
         update_callback: Optional function to call immediately when a QR code is detected.
                         Should accept a single string parameter (the QR data).
         camera_index: The camera device index (default: 0)
-        debounce_seconds: Time in seconds to wait before accepting the same QR code again
+        debounce_seconds: Time in seconds to wait before accepting the same QR code again (per-code)
         show_window: Whether to show the camera preview window (requires display)
     
     Returns:
@@ -130,7 +130,8 @@ def scan_qr_codes(
         print("Real-time updates enabled - data will be processed immediately!")
 
     scanned_codes: Set[str] = set()
-    last_scan_time = 0.0
+    # Per-code debounce: track when each code was last scanned
+    code_last_scan_time: Dict[str, float] = {}
     newly_scanned_data: List[str] = []
 
     try:
@@ -143,15 +144,15 @@ def scan_qr_codes(
 
             # Find and decode QR codes
             decoded_objects = pyzbar.decode(frame)
+            current_time = time.time()
 
             for obj in decoded_objects:
                 data = obj.data.decode('utf-8')
                 
-                # Avoid re-scanning the same code immediately
-                if data not in scanned_codes:
-                    current_time = time.time()
-                    # Debounce to avoid multiple writes for the same QR code
-                    if current_time - last_scan_time > debounce_seconds:
+                # Per-code debounce: check if this specific code was scanned recently
+                last_scan = code_last_scan_time.get(data, 0.0)
+                if current_time - last_scan > debounce_seconds:
+                    if data not in scanned_codes:
                         print(f"New QR Code Detected: {data}")
                         scanned_codes.add(data)
                         newly_scanned_data.append(data)
@@ -167,7 +168,9 @@ def scan_qr_codes(
                                 print(f"Error in real-time update: {e}")
                         
                         play_beep()
-                        last_scan_time = current_time
+                    
+                    # Update the per-code last scan time
+                    code_last_scan_time[data] = current_time
 
                 # Draw a bounding box around the QR code for visual feedback
                 if show_window:

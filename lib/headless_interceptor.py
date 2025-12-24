@@ -225,6 +225,9 @@ def list_all_input_devices() -> List[Dict]:
 class HIDInterceptor:
     """
     Intercepts HID input from a barcode/QR scanner and processes the data.
+    
+    Note: This class only works on Linux systems with the evdev library installed.
+    For non-Linux platforms, use the QR scanner camera-based approach instead.
     """
     
     def __init__(
@@ -235,8 +238,10 @@ class HIDInterceptor:
     ):
         if not EVDEV_AVAILABLE:
             raise RuntimeError(
-                "evdev library not available. This module only works on Linux. "
-                "Install with: pip install evdev"
+                "evdev library not available. This module only works on Linux systems. "
+                "For non-Linux platforms (Windows/macOS), use the camera-based QR scanner "
+                "(lib/qr_utils.py) instead. "
+                "On Linux, install with: pip install evdev"
             )
         
         self.device_path = device_path
