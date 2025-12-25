@@ -18,10 +18,13 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 import os
+import threading
+import queue
 from tba_manager import TBAManager
 from default_robot_image import load_team_image
 from foreshadowing import TeamStatsExtractor, MatchSimulator
 from exam_integrator import ExamDataIntegrator
+from qr_utils import scan_qr_codes, test_camera
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -160,6 +163,24 @@ if 'selected_team_for_details' not in st.session_state:
     st.session_state.selected_team_for_details = None
 if 'app_config' not in st.session_state:
     st.session_state.app_config = APP_CONFIG
+
+# QR Scanner state (used in Data Management -> QR Code Scanner)
+if 'qr_scanner_queue' not in st.session_state:
+    st.session_state.qr_scanner_queue = queue.Queue()
+if 'qr_scanner_thread' not in st.session_state:
+    st.session_state.qr_scanner_thread = None
+if 'qr_scanner_running' not in st.session_state:
+    st.session_state.qr_scanner_running = False
+if 'qr_scanner_selected_camera' not in st.session_state:
+    st.session_state.qr_scanner_selected_camera = 0
+if 'qr_available_cameras' not in st.session_state:
+    st.session_state.qr_available_cameras = []
+if 'qr_scanned_codes' not in st.session_state:
+    st.session_state.qr_scanned_codes = []
+if 'qr_scanner_status' not in st.session_state:
+    st.session_state.qr_scanner_status = ""
+if 'qr_scanner_debounce_seconds' not in st.session_state:
+    st.session_state.qr_scanner_debounce_seconds = 2.0
 
 # Enhanced Custom CSS for better UI
 st.markdown("""
@@ -814,38 +835,201 @@ elif page == "📁 Data Management":
         - `opencv-python` and `pyzbar` must be installed
         - Webcam access required
         """)
-        
-        # Check if dependencies are available
-        qr_scanner_available = False
+
+        # Validate dependencies (opencv-python, pyzbar, numpy)
+        deps_ok = True
+        deps_error = None
         try:
-            from qr_utils import test_camera, QRScannerSession
-            qr_scanner_available = True
-        except ImportError:
-            st.warning("⚠️ QR scanner dependencies not installed. Install with: `pip install opencv-python pyzbar`")
-        
-        if qr_scanner_available:
-            col1, col2 = st.columns(2)
-            
-            with col1:
-                if st.button("🔍 Test Camera"):
+            # This will raise a helpful ImportError if opencv isn't installed.
+            _ = test_camera(0)
+        except ImportError as e:
+            deps_ok = False
+            deps_error = str(e)
+
+        if not deps_ok:
+            st.warning(
+                "⚠️ QR scanner dependencies not installed or not available. "
+                "Install with: `pip install opencv-python pyzbar numpy`"
+            )
+            if deps_error:
+                st.caption(deps_error)
+        else:
+            st.info(
+                "Scanning opens a separate OpenCV window on the same machine running Streamlit. "
+                "To stop scanning, focus that window and press 'q'."
+            )
+
+            # Drain queue items from the scanner thread into session_state.
+            def _drain_qr_queue() -> int:
+                drained = 0
+                q = st.session_state.qr_scanner_queue
+                while True:
+                    try:
+                        kind, payload = q.get_nowait()
+                    except queue.Empty:
+                        break
+
+                    if kind == "SCAN":
+                        if payload and payload not in st.session_state.qr_scanned_codes:
+                            st.session_state.qr_scanned_codes.append(payload)
+                            drained += 1
+                    elif kind == "DONE":
+                        st.session_state.qr_scanner_running = False
+                        st.session_state.qr_scanner_status = "Scanner stopped."
+                    elif kind == "ERROR":
+                        st.session_state.qr_scanner_running = False
+                        st.session_state.qr_scanner_status = f"Scanner error: {payload}"
+
+                t = st.session_state.qr_scanner_thread
+                if st.session_state.qr_scanner_running and t and not t.is_alive():
+                    st.session_state.qr_scanner_running = False
+                    if not st.session_state.qr_scanner_status:
+                        st.session_state.qr_scanner_status = "Scanner stopped."
+
+                return drained
+
+            _drain_qr_queue()
+
+            st.markdown("#### 🎥 Camera Selection")
+            cam_cols = st.columns([1, 1])
+            with cam_cols[0]:
+                max_probe = st.number_input(
+                    "Max camera index to probe",
+                    min_value=0,
+                    max_value=20,
+                    value=4,
+                    step=1,
+                    help="Checks camera indices 0..N and lists the ones that open successfully."
+                )
+                if st.button("Detect available cameras"):
+                    available = []
+                    for idx in range(int(max_probe) + 1):
+                        try:
+                            if test_camera(idx):
+                                available.append(idx)
+                        except Exception:
+                            pass
+                    st.session_state.qr_available_cameras = available
+                    if available:
+                        st.session_state.qr_scanner_selected_camera = int(available[0])
+                        st.session_state.qr_scanner_status = f"Detected cameras: {available}"
+                    else:
+                        st.session_state.qr_scanner_status = (
+                            "No cameras detected. Try a different max index or enter one manually."
+                        )
+
+            with cam_cols[1]:
+                if st.session_state.qr_available_cameras:
+                    selected = st.selectbox(
+                        "Camera index",
+                        options=st.session_state.qr_available_cameras,
+                        index=st.session_state.qr_available_cameras.index(st.session_state.qr_scanner_selected_camera)
+                        if st.session_state.qr_scanner_selected_camera in st.session_state.qr_available_cameras
+                        else 0
+                    )
+                    st.session_state.qr_scanner_selected_camera = int(selected)
+                else:
+                    st.session_state.qr_scanner_selected_camera = int(
+                        st.number_input(
+                            "Camera index",
+                            min_value=0,
+                            max_value=20,
+                            value=int(st.session_state.qr_scanner_selected_camera),
+                            step=1,
+                            help="If detection doesn't find your camera, try 0, 1, 2..."
+                        )
+                    )
+
+            st.session_state.qr_scanner_debounce_seconds = float(
+                st.number_input(
+                    "Debounce seconds",
+                    min_value=0.0,
+                    max_value=10.0,
+                    value=float(st.session_state.qr_scanner_debounce_seconds),
+                    step=0.5,
+                    help="Prevents repeated reads of the same QR code while it stays in view."
+                )
+            )
+
+            action_cols = st.columns(2)
+            with action_cols[0]:
+                if st.button("🔍 Test Selected Camera"):
                     with st.spinner("Testing camera..."):
-                        if test_camera():
+                        if test_camera(int(st.session_state.qr_scanner_selected_camera)):
                             st.success("✅ Camera test successful!")
                         else:
                             st.error("❌ Camera not available. Please check your webcam.")
-            
-            with col2:
-                st.info("💡 For full QR scanning, use the desktop application or run `python lib/qr_utils.py`")
-            
+
+            with action_cols[1]:
+                status = st.session_state.qr_scanner_status or (
+                    "Running" if st.session_state.qr_scanner_running else "Idle"
+                )
+                st.write(f"Status: {status}")
+
+            st.markdown("---")
+            st.markdown("#### 🔍 Scanning")
+            start_disabled = bool(st.session_state.qr_scanner_running)
+            if st.button("Start QR Scanner (opens new window)", disabled=start_disabled):
+                # Clear any old queue messages
+                q = st.session_state.qr_scanner_queue
+                while True:
+                    try:
+                        q.get_nowait()
+                    except queue.Empty:
+                        break
+
+                camera_index = int(st.session_state.qr_scanner_selected_camera)
+                debounce = float(st.session_state.qr_scanner_debounce_seconds)
+
+                def _worker(out_queue: "queue.Queue", cam_idx: int, debounce_seconds: float):
+                    try:
+                        scan_qr_codes(
+                            update_callback=lambda data: out_queue.put(("SCAN", data)),
+                            camera_index=cam_idx,
+                            debounce_seconds=debounce_seconds,
+                            show_window=True,
+                        )
+                        out_queue.put(("DONE", None))
+                    except Exception as e:
+                        out_queue.put(("ERROR", str(e)))
+
+                st.session_state.qr_scanner_running = True
+                st.session_state.qr_scanner_status = f"Starting scanner on camera {camera_index}..."
+                t = threading.Thread(
+                    target=_worker,
+                    args=(st.session_state.qr_scanner_queue, camera_index, debounce),
+                    daemon=True,
+                )
+                st.session_state.qr_scanner_thread = t
+                t.start()
+
+            refresh_cols = st.columns(2)
+            with refresh_cols[0]:
+                if st.button("Update scanned list"):
+                    added = _drain_qr_queue()
+                    st.session_state.qr_scanner_status = f"Updated. Added {added} new code(s)."
+            with refresh_cols[1]:
+                if st.button("Clear scanned list"):
+                    st.session_state.qr_scanned_codes = []
+                    st.session_state.qr_scanner_status = "Cleared scanned list."
+
+            st.markdown("---")
+            st.markdown("#### 📋 Results")
+            st.metric("Scanned QR codes", len(st.session_state.qr_scanned_codes))
+            if st.session_state.qr_scanned_codes:
+                st.dataframe(pd.DataFrame({"QR Data": st.session_state.qr_scanned_codes}))
+            else:
+                st.caption("No QR codes scanned yet.")
+
             st.markdown("---")
             st.markdown("### 🖥️ Headless Mode (Linux)")
             st.markdown("""
             For headless deployments with barcode/QR scanners acting as HID devices:
-            
+
             1. Configure scanner hardware ID in `columnsConfig.json`
             2. Run the HID interceptor: `python lib/headless_interceptor.py`
             3. Or use systemd services: `sudo scripts/install_services.sh --enable-hid`
-            
+
             The interceptor captures scanner input and writes to `data/default_scouting.csv`.
             """)
 
