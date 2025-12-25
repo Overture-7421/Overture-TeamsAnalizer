@@ -1,13 +1,16 @@
 # Requisitos para la versión web del Alliance Simulator
 streamlit>=1.28.0
 pandas>=2.0.0
+numpy>=1.24.0
 matplotlib>=3.7.0
 opencv-python>=4.8.0
 pyzbar>=0.1.9
 plotly>=5.15.0
+Pillow>=10.0.0
+requests>=2.31.0
 
 # Optional: Linux HID Interceptor for headless barcode scanner support
-# evdev>=1.6.0  # Linux only - uncomment to enable HID interception
+evdev>=1.6.0  # Linux only - uncomment to enable HID interception
 
 # Requisitos originales del programa
 # (ya incluidos en el entorno virtual)
