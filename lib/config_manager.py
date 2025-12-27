@@ -259,8 +259,8 @@ class AllianceConfig:
     """Configuration for alliance selection parameters."""
     draft_parameters: Dict[str, Any] = field(default_factory=lambda: {
         "max_alliances": 8,
-        "teams_per_alliance": 3,
-        "min_teams_per_alliance_for_calc": 3
+        "teams_per_alliance": 2,
+        "min_teams_per_alliance_for_calc": 2
     })
     scoring_weights: Dict[str, float] = field(default_factory=lambda: {
         "auto": 1.5,
@@ -277,7 +277,7 @@ class AllianceConfig:
     ])
     recommendation_logic: Dict[str, str] = field(default_factory=lambda: {
         "pick1": "captain_sniping",
-        "pick2": "best_available_with_priorities"
+        "pick2": "disabled"
     })
 
 

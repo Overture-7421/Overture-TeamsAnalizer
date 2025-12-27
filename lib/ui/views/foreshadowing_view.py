@@ -29,7 +29,7 @@ def render_alliance_selectors(team_options: List[Tuple[str, str]],
     
     with select_cols[0]:
         red_labels = st.multiselect(
-            "Select Red Alliance (3 teams)",
+            "Select Red Alliance (2 teams)",
             options=[label for label, _ in team_options],
             default=default_red,
             key="foreshadowing_red_multiselect"
@@ -37,7 +37,7 @@ def render_alliance_selectors(team_options: List[Tuple[str, str]],
     
     with select_cols[1]:
         blue_labels = st.multiselect(
-            "Select Blue Alliance (3 teams)",
+            "Select Blue Alliance (2 teams)",
             options=[label for label, _ in team_options],
             default=default_blue,
             key="foreshadowing_blue_multiselect"

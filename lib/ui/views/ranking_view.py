@@ -12,20 +12,20 @@ from typing import Dict, List, Any, Optional
 
 def render_honor_roll_table(rankings: List[tuple], 
                             school_system: Any,
-                            tba_manager: Optional[Any] = None) -> None:
+                            toa_manager: Optional[Any] = None) -> None:
     """
     Render the Honor Roll rankings table.
     
     Args:
         rankings: List of (team_num, results) tuples from school_system.get_honor_roll_ranking()
         school_system: TeamScoring instance
-        tba_manager: Optional TBA manager for team names
+        toa_manager: Optional TOA manager for team names
     """
     ranking_data = []
     team_numbers_list = []
     
     for rank, (team_num, results) in enumerate(rankings, 1):
-        team_name = tba_manager.get_team_nickname(team_num) if tba_manager else None
+        team_name = toa_manager.get_team_nickname(team_num) if toa_manager else None
         c, sc, rp = school_system.calculate_competencies_score(team_num)
         team_numbers_list.append(team_num)
         
@@ -144,13 +144,13 @@ def render_competencies_status(team_number: str, school_system: Any) -> None:
 
 
 def render_ranking_visualization(stats: List[Dict[str, Any]], 
-                                 tba_manager: Optional[Any] = None) -> None:
+                                 toa_manager: Optional[Any] = None) -> None:
     """
     Render ranking visualization charts.
     
     Args:
         stats: List of team statistics
-        tba_manager: Optional TBA manager for team names
+        toa_manager: Optional TOA manager for team names
     """
     if not stats:
         st.info("No statistics available for visualization.")
@@ -160,7 +160,7 @@ def render_ranking_visualization(stats: List[Dict[str, Any]],
     df_data = []
     for rank, team_stat in enumerate(stats[:20], 1):
         team_num = team_stat.get('team', 'N/A')
-        team_name = tba_manager.get_team_nickname(team_num) if tba_manager else team_num
+        team_name = toa_manager.get_team_nickname(team_num) if toa_manager else team_num
         df_data.append({
             'Rank': rank,
             'Team': f"{team_num} - {team_name}",

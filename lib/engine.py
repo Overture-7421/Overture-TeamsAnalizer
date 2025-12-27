@@ -333,6 +333,26 @@ class AnalizadorRobot:
         team_data = self.get_team_data_grouped().get(str(team_number), [])
         if not team_data:
             return {"autonomous": 0, "teleop": 0, "endgame": 0}
+
+        # FTC DECODE scoring path (only enabled when the sheet contains DECODE-style columns).
+        if self._has_decode_columns():
+            phase_totals = {"autonomous": 0.0, "teleop": 0.0, "endgame": 0.0}
+            # Endgame bonus is alliance-level (+10 if both robots fully returned), so compute
+            # from the entire sheet (not just this team).
+            all_rows = self.sheet_data[1:] if len(self.sheet_data) > 1 else []
+            endgame_bonus_by_row = self._decode_endgame_bonus_by_row_id(all_rows)
+            for row in team_data:
+                score = self._decode_score_row(row, endgame_bonus=endgame_bonus_by_row.get(id(row), 0.0))
+                phase_totals["autonomous"] += score["autonomous"]
+                phase_totals["teleop"] += score["teleop"]
+                phase_totals["endgame"] += score["endgame"] + score["endgame_bonus"]
+
+            match_count = len(team_data)
+            return {
+                "autonomous": phase_totals["autonomous"] / match_count if match_count else 0.0,
+                "teleop": phase_totals["teleop"] / match_count if match_count else 0.0,
+                "endgame": phase_totals["endgame"] / match_count if match_count else 0.0,
+            }
             
         phase_scores = {"autonomous": 0.0, "teleop": 0.0, "endgame": 0.0}
         
@@ -378,6 +398,232 @@ class AnalizadorRobot:
             phase_scores["endgame"] = calculate_phase_score(self._endgame_columns)
             
         return phase_scores
+
+    # --- FTC DECODE scoring helpers ---
+    def _has_decode_columns(self) -> bool:
+        """Return True if the current header looks like FTC DECODE scouting schema.
+
+        This is intentionally heuristic so the engine can support both the legacy FRC
+        REEFSCAPE schema and the FTC DECODE schema without hard coupling to one JSON.
+        """
+        if not self.sheet_data or not self.sheet_data[0]:
+            return False
+
+        header_lower = [str(h).strip().lower() for h in self.sheet_data[0]]
+        # Require at least one of these DECODE-specific concepts.
+        decode_markers = (
+            "artifact",
+            "classified",
+            "overflow",
+            "depot",
+            "pattern",
+            "fully returned",
+            "partially returned",
+        )
+        return any(any(marker in h for marker in decode_markers) for h in header_lower)
+
+    def _decode_find_column(self, *, keywords: List[str]) -> Optional[str]:
+        """Find the first column whose name contains all keywords (case-insensitive)."""
+        if not self.sheet_data or not self.sheet_data[0]:
+            return None
+        keywords_lower = [k.strip().lower() for k in keywords if k and str(k).strip()]
+        if not keywords_lower:
+            return None
+        for col in self.sheet_data[0]:
+            name = str(col).strip()
+            name_lower = name.lower()
+            if all(k in name_lower for k in keywords_lower):
+                return name
+        return None
+
+    def _decode_get_cell(self, row: List[str], col_name: Optional[str]) -> Any:
+        if not col_name:
+            return None
+        idx = self._column_indices.get(col_name)
+        if idx is None or idx >= len(row):
+            return None
+        return row[idx]
+
+    def _decode_parse_float(self, value: Any) -> Optional[float]:
+        if value is None:
+            return None
+        if isinstance(value, (int, float)):
+            return float(value)
+        s = str(value).strip()
+        if not s:
+            return None
+        s_lower = s.lower()
+        if s_lower in {"true", "yes", "y", "1", "si", "sí"}:
+            return 1.0
+        if s_lower in {"false", "no", "n", "0"}:
+            return 0.0
+        try:
+            return float(s)
+        except ValueError:
+            return None
+
+    def _decode_parse_bool(self, value: Any) -> bool:
+        parsed = self._decode_parse_float(value)
+        if parsed is not None:
+            return parsed > 0
+        s = str(value).strip().lower() if value is not None else ""
+        return s in {"true", "yes", "y", "si", "sí", "x"}
+
+    def _decode_get_count(self, row: List[str], *, primary: List[str], fallback: List[List[str]] = []) -> float:
+        """Get a numeric count from the first available column.
+
+        `primary` is an exact name candidate list.
+        `fallback` is a list of keyword lists used for fuzzy matching.
+        """
+        for name in primary:
+            if name in self._column_indices:
+                val = self._decode_parse_float(self._decode_get_cell(row, name))
+                return val or 0.0
+        for kw in fallback:
+            col = self._decode_find_column(keywords=kw)
+            if col and col in self._column_indices:
+                val = self._decode_parse_float(self._decode_get_cell(row, col))
+                return val or 0.0
+        return 0.0
+
+    def _decode_get_endgame_status(self, row: List[str]) -> Dict[str, Any]:
+        """Return endgame points and whether the robot is fully returned."""
+        # Common DECODE field: end position dropdown.
+        end_pos_col = None
+        for exact in ("endPosition", "End Position", "End Position (Endgame)"):
+            if exact in self._column_indices:
+                end_pos_col = exact
+                break
+        if end_pos_col is None:
+            end_pos_col = self._decode_find_column(keywords=["end", "position"]) or self._decode_find_column(keywords=["endgame", "position"])
+
+        end_pos_val = str(self._decode_get_cell(row, end_pos_col) or "").strip().lower()
+
+        partially = "partial" in end_pos_val
+        fully = "full" in end_pos_val
+
+        # Alternate schemas may have explicit booleans.
+        if not (partially or fully):
+            partially = self._decode_parse_bool(self._decode_get_cell(row, self._decode_find_column(keywords=["partial", "returned"]) ))
+            fully = self._decode_parse_bool(self._decode_get_cell(row, self._decode_find_column(keywords=["full", "returned"]) ))
+
+        points = 10.0 if fully else (5.0 if partially else 0.0)
+        return {"points": points, "fully_returned": bool(fully)}
+
+    def _decode_match_group_key(self, row: List[str]) -> Optional[str]:
+        """Build a (match, alliance) grouping key if possible."""
+        match_col = None
+        for exact in ("Match Number", "matchNumber", "match_number"):
+            if exact in self._column_indices:
+                match_col = exact
+                break
+        if match_col is None:
+            match_col = self._decode_find_column(keywords=["match", "number"])
+
+        alliance_col = None
+        for exact in ("Alliance", "Alliance Color", "Future Alliance"):
+            if exact in self._column_indices:
+                alliance_col = exact
+                break
+        if alliance_col is None:
+            alliance_col = self._decode_find_column(keywords=["alliance"])
+
+        if not match_col or not alliance_col:
+            return None
+
+        match_raw = str(self._decode_get_cell(row, match_col) or "").strip()
+        alliance_raw = str(self._decode_get_cell(row, alliance_col) or "").strip().lower()
+        if not match_raw or not alliance_raw:
+            return None
+        return f"{match_raw}|{alliance_raw}"
+
+    def _decode_endgame_bonus_by_row_id(self, rows: List[List[str]]) -> Dict[int, float]:
+        """Compute +10 DECODE bonus when 2 robots are fully returned.
+
+        The bonus is split across the two robots (+5 each) when we can identify
+        (match, alliance) groups.
+        """
+        by_group: Dict[str, List[List[str]]] = defaultdict(list)
+        for row in rows:
+            key = self._decode_match_group_key(row)
+            if key:
+                by_group[key].append(row)
+
+        bonus_by_row_id: Dict[int, float] = {}
+        for group_rows in by_group.values():
+            fully_flags = [self._decode_get_endgame_status(r)["fully_returned"] for r in group_rows]
+            if fully_flags.count(True) >= 2:
+                # Exactly two robots in FTC alliances; if we have more (bad data), still cap at 2.
+                bonus_split = 10.0 / 2.0
+                applied = 0
+                for r, is_full in zip(group_rows, fully_flags):
+                    if is_full and applied < 2:
+                        bonus_by_row_id[id(r)] = bonus_split
+                        applied += 1
+        return bonus_by_row_id
+
+    def _decode_score_row(self, row: List[str], *, endgame_bonus: float = 0.0) -> Dict[str, float]:
+        """Compute DECODE points for a single robot/match row."""
+        # Autonomous
+        auto_leave = 1.0 if self._decode_parse_bool(self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "leave"]) )
+                                                    or self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "moved"]) )) else 0.0
+        auto_artifacts = self._decode_get_count(
+            row,
+            primary=["artifactsAuto", "Artifacts (Auto)", "Classified (Auto)", "Artifacts Auto", "Classified Auto"],
+            fallback=[["auto", "artifact"], ["auto", "classified"]],
+        )
+        auto_overflow = self._decode_get_count(
+            row,
+            primary=["overflowAuto", "Overflow (Auto)", "Overflow Auto"],
+            fallback=[["auto", "overflow"]],
+        )
+        auto_depot = self._decode_get_count(
+            row,
+            primary=["depotAuto", "Depot (Auto)", "Depot Auto"],
+            fallback=[["auto", "depot"]],
+        )
+        auto_pattern = self._decode_get_count(
+            row,
+            primary=["patternAuto", "Pattern (Auto)", "Pattern Match (Auto)", "Pattern Auto"],
+            fallback=[["auto", "pattern"]],
+        )
+        autonomous = 3.0 * auto_leave + 3.0 * auto_artifacts + 1.0 * auto_overflow + 1.0 * auto_depot + 2.0 * auto_pattern
+
+        # TeleOp
+        teleop_artifacts = self._decode_get_count(
+            row,
+            primary=["artifactsTeleop", "Artifacts (Teleop)", "Classified (Teleop)", "Artifacts Teleop", "Classified Teleop"],
+            fallback=[["teleop", "artifact"], ["teleop", "classified"], ["tele", "artifact"], ["tele", "classified"]],
+        )
+        teleop_overflow = self._decode_get_count(
+            row,
+            primary=["overflowTeleop", "Overflow (Teleop)", "Overflow Teleop"],
+            fallback=[["teleop", "overflow"], ["tele", "overflow"]],
+        )
+        teleop_depot = self._decode_get_count(
+            row,
+            primary=["depotTeleop", "Depot (Teleop)", "Depot Teleop"],
+            fallback=[["teleop", "depot"], ["tele", "depot"]],
+        )
+        teleop_pattern = self._decode_get_count(
+            row,
+            primary=["patternTeleop", "Pattern (Teleop)", "Pattern Match (Teleop)", "Pattern Teleop"],
+            fallback=[["teleop", "pattern"], ["tele", "pattern"]],
+        )
+        teleop = 3.0 * teleop_artifacts + 1.0 * teleop_overflow + 1.0 * teleop_depot + 2.0 * teleop_pattern
+
+        # Endgame
+        endgame_status = self._decode_get_endgame_status(row)
+        endgame = float(endgame_status["points"])
+
+        total = autonomous + teleop + endgame + float(endgame_bonus or 0.0)
+        return {
+            "autonomous": autonomous,
+            "teleop": teleop,
+            "endgame": endgame,
+            "endgame_bonus": float(endgame_bonus or 0.0),
+            "total": total,
+        }
 
     def _find_potential_numeric_columns(self, header: List[str], 
                                          sample_data_row: Optional[List[str]] = None) -> List[str]:
@@ -757,9 +1003,22 @@ class AnalizadorRobot:
             overall_values = []
             coral_values = []
             algae_values = []
-            
+
+            decode_bonus_by_row_id: Dict[int, float] = {}
+            if self._has_decode_columns():
+                decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
+
             for row in rows:
                 match_score = 0.0
+
+                if self._has_decode_columns():
+                    match_score = self._decode_score_row(
+                        row,
+                        endgame_bonus=decode_bonus_by_row_id.get(id(row), 0.0),
+                    )["total"]
+                    if match_score > 0:
+                        overall_values.append(match_score)
+                    continue
                 
                 # Coral scoring with level-based weights
                 coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
@@ -990,6 +1249,10 @@ class AnalizadorRobot:
         """Calculate RobotValuation using enhanced weighted scoring across phases."""
         if not rows:
             return 0.0
+
+        decode_bonus_by_row_id: Dict[int, float] = {}
+        if self._has_decode_columns() and len(self.sheet_data) > 1:
+            decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
         
         phases = self._split_rows_into_phases(rows)
         phase_weights = self.robot_valuation_phase_weights
@@ -1005,6 +1268,14 @@ class AnalizadorRobot:
             
             for row in phase_rows:
                 match_score = 0.0
+
+                if self._has_decode_columns():
+                    match_score = self._decode_score_row(
+                        row,
+                        endgame_bonus=decode_bonus_by_row_id.get(id(row), 0.0),
+                    )["total"]
+                    phase_total += match_score
+                    continue
                 
                 # Coral scoring with level-based weights
                 coral_weights = {'L1': 2, 'L2': 3, 'L3': 4, 'L4': 5}
@@ -1117,6 +1388,9 @@ class AnalizadorRobot:
             return {}
         
         perf: Dict[str, List[tuple]] = {}
+        decode_bonus_by_row_id: Dict[int, float] = {}
+        if self._has_decode_columns() and len(self.sheet_data) > 1:
+            decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
         for row in self.sheet_data[1:]:
             if team_col >= len(row) or match_col >= len(row):
                 continue
@@ -1129,15 +1403,21 @@ class AnalizadorRobot:
             except Exception:
                 continue
             
-            vals = []
-            for col_name in self._selected_numeric_columns_for_overall:
-                idx = self._column_indices.get(col_name)
-                if idx is not None and idx < len(row):
-                    try:
-                        vals.append(float(row[idx]))
-                    except Exception:
-                        pass
-            overall = sum(vals) / len(vals) if vals else 0.0
+            if self._has_decode_columns():
+                overall = self._decode_score_row(
+                    row,
+                    endgame_bonus=decode_bonus_by_row_id.get(id(row), 0.0),
+                )["total"]
+            else:
+                vals = []
+                for col_name in self._selected_numeric_columns_for_overall:
+                    idx = self._column_indices.get(col_name)
+                    if idx is not None and idx < len(row):
+                        try:
+                            vals.append(float(row[idx]))
+                        except Exception:
+                            pass
+                overall = sum(vals) / len(vals) if vals else 0.0
             if team_numbers is not None and team not in team_numbers:
                 continue
             perf.setdefault(team, []).append((match_num, overall))

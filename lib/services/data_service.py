@@ -40,13 +40,13 @@ def load_csv_data(uploaded_file: Any, analizador: Any, app_dir: Path) -> Tuple[b
 
 
 def get_team_stats_dataframe(analizador: Any, 
-                              tba_manager: Optional[Any] = None) -> Optional[pd.DataFrame]:
+                              toa_manager: Optional[Any] = None) -> Optional[pd.DataFrame]:
     """
     Get team statistics as a pandas DataFrame.
     
     Args:
         analizador: AnalizadorRobot instance
-        tba_manager: Optional TBA manager for team names
+        toa_manager: Optional TOA manager for team names
         
     Returns:
         Optional[pd.DataFrame]: DataFrame with team stats or None
@@ -60,7 +60,7 @@ def get_team_stats_dataframe(analizador: Any,
     df_data = []
     for team_stat in stats:
         team_num = team_stat.get('team', 'N/A')
-        team_name = tba_manager.get_team_nickname(team_num) if tba_manager else team_num
+        team_name = toa_manager.get_team_nickname(team_num) if toa_manager else team_num
         team_key = str(team_num)
         team_rows = team_data_grouped.get(team_key, [])
 
@@ -185,21 +185,21 @@ def get_mode_from_rows(analizador: Any,
     return top_values[0] if top_values else ""
 
 
-def get_team_display_label(team_number: Any, tba_manager: Optional[Any] = None) -> str:
+def get_team_display_label(team_number: Any, toa_manager: Optional[Any] = None) -> str:
     """
     Return formatted team label with nickname when available.
     
     Args:
         team_number: Team number
-        tba_manager: Optional TBA manager for team names
+        toa_manager: Optional TOA manager for team names
         
     Returns:
         str: Formatted team label
     """
     num_str = str(team_number)
     nickname = None
-    if tba_manager:
-        nickname = tba_manager.get_team_nickname(num_str)
+    if toa_manager:
+        nickname = toa_manager.get_team_nickname(num_str)
     return f"{num_str} - {nickname}" if nickname else num_str
 
 
@@ -214,8 +214,8 @@ def validate_alliance_selection(red: List[str], blue: List[str]) -> Tuple[bool, 
     Returns:
         Tuple[bool, str]: (is_valid, error_message)
     """
-    if len(red) != 3 or len(blue) != 3:
-        return False, "Select exactly 3 teams for each alliance."
+    if len(red) != 2 or len(blue) != 2:
+        return False, "Select exactly 2 teams for each alliance."
 
     combined = red + blue
     if len(set(combined)) != len(combined):
@@ -244,13 +244,13 @@ def export_raw_data_csv(analizador: Any) -> Optional[str]:
 
 
 def export_simplified_ranking(analizador: Any, 
-                               tba_manager: Optional[Any] = None) -> Optional[str]:
+                               toa_manager: Optional[Any] = None) -> Optional[str]:
     """
     Export simplified ranking as CSV string.
     
     Args:
         analizador: AnalizadorRobot instance
-        tba_manager: Optional TBA manager for team names
+        toa_manager: Optional TOA manager for team names
         
     Returns:
         Optional[str]: Base64 encoded CSV or None
@@ -295,7 +295,7 @@ def export_simplified_ranking(analizador: Any,
 
 def generate_tierlist_txt(school_system: Any,
                           analizador: Any,
-                          tba_manager: Optional[Any] = None,
+                          toa_manager: Optional[Any] = None,
                           images_folder: Optional[str] = None) -> str:
     """
     Generate a plain text file in the TierList Maker format.
@@ -303,7 +303,7 @@ def generate_tierlist_txt(school_system: Any,
     Args:
         school_system: TeamScoring instance
         analizador: AnalizadorRobot instance
-        tba_manager: Optional TBA manager for team names
+        toa_manager: Optional TOA manager for team names
         images_folder: Optional folder path for team images
         
     Returns:
@@ -363,17 +363,15 @@ def generate_tierlist_txt(school_system: Any,
     total_qualified_non_def = len(qualified_non_defensive)
     
     if total_qualified_non_def > 0:
-        tier_size = max(1, total_qualified_non_def // 3)
-        remainder = total_qualified_non_def % 3
-        
+        # FTC 2-robot alliances: only one pick, so split into two tiers.
+        tier_size = max(1, total_qualified_non_def // 2)
+        remainder = total_qualified_non_def % 2
+
         tier_1_size = tier_size + (1 if remainder >= 1 else 0)
-        tier_2_size = tier_size + (1 if remainder >= 2 else 0)
-        
         tier_1 = qualified_non_defensive[:tier_1_size]
-        tier_2 = qualified_non_defensive[tier_1_size:tier_1_size + tier_2_size]
-        tier_3 = qualified_non_defensive[tier_1_size + tier_2_size:]
+        tier_2 = qualified_non_defensive[tier_1_size:]
     else:
-        tier_1, tier_2, tier_3 = [], [], []
+        tier_1, tier_2 = [], []
     
     # Disqualified teams
     disqualified_teams_list = []
@@ -411,8 +409,8 @@ def generate_tierlist_txt(school_system: Any,
         driver_skills = "Defensive" if is_defensive else "Offensive"
         
         team_name = ""
-        if tba_manager:
-            team_name = tba_manager.get_team_nickname(str(team_num))
+        if toa_manager:
+            team_name = toa_manager.get_team_nickname(str(team_num))
         
         title_str = f"{team_num} - {team_name}" if team_name else f"Team {team_num}"
         
@@ -443,11 +441,6 @@ def generate_tierlist_txt(school_system: Any,
     
     output_lines.append("Tier: 2nd Pick")
     for team_num, result in tier_2:
-        output_lines.append(generate_team_block(team_num, result, is_defensive=False))
-    output_lines.append("")
-    
-    output_lines.append("Tier: 3rd Pick")
-    for team_num, result in tier_3:
         output_lines.append(generate_team_block(team_num, result, is_defensive=False))
     output_lines.append("")
     

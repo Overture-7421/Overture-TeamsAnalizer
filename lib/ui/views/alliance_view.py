@@ -8,23 +8,23 @@ import pandas as pd
 from typing import Dict, List, Any, Optional
 
 
-def render_alliance_table(selector: Any, tba_manager: Optional[Any] = None) -> None:
+def render_alliance_table(selector: Any, toa_manager: Optional[Any] = None) -> None:
     """
     Render the alliance selections table.
     
     Args:
         selector: AllianceSelector instance
-        tba_manager: Optional TBA manager for team names
+        toa_manager: Optional TOA manager for team names
     """
     alliance_table_data = selector.get_alliance_table()
     
-    # Replace team numbers with names if TBA manager available
-    if tba_manager:
+    # Replace team numbers with names if TOA manager available
+    if toa_manager:
         for row in alliance_table_data:
-            for col in ['Captain', 'Pick 1', 'Pick 2', 'Recommendation 1', 'Recommendation 2']:
+            for col in ['Captain', 'Pick 1', 'Recommendation 1']:
                 if row[col]:
                     num = row[col]
-                    name = tba_manager.get_team_nickname(num)
+                    name = toa_manager.get_team_nickname(num)
                     row[col] = f"{num} - {name}"
     
     df_alliances = pd.DataFrame(alliance_table_data)
@@ -50,13 +50,13 @@ def render_quick_actions(selector: Any) -> tuple:
 
 
 def render_alliance_configuration(selector: Any, 
-                                   tba_manager: Optional[Any] = None) -> bool:
+                                   toa_manager: Optional[Any] = None) -> bool:
     """
     Render manual alliance configuration interface.
     
     Args:
         selector: AllianceSelector instance
-        tba_manager: Optional TBA manager for team names
+        toa_manager: Optional TOA manager for team names
         
     Returns:
         bool: True if any changes were made
@@ -74,12 +74,12 @@ def render_alliance_configuration(selector: Any,
                 # Captain selection
                 available_captains = selector.get_available_captains(i)
                 
-                if tba_manager:
+                if toa_manager:
                     captain_options = {team.team: f"{team.team} - {team.name}" for team in available_captains}
                     captain_options[0] = "Auto"
                     
                     if a.captain and a.captain not in captain_options:
-                        captain_options[a.captain] = f"{a.captain} - {tba_manager.get_team_nickname(a.captain)}"
+                        captain_options[a.captain] = f"{a.captain} - {toa_manager.get_team_nickname(a.captain)}"
                     
                     selected_captain = st.selectbox(
                         f"Captain A{a.allianceNumber}",
@@ -109,13 +109,12 @@ def render_alliance_configuration(selector: Any,
                 # Pick selections
                 available_teams = selector.get_available_teams(a.captainRank, 'pick1')
                 
-                if tba_manager:
+                if toa_manager:
                     team_options = {team.team: f"{team.team} - {team.name}" for team in available_teams}
                     team_options[0] = "None"
-                    
-                    for pick in [a.pick1, a.pick2]:
-                        if pick and pick not in team_options:
-                            team_options[pick] = f"{pick} - {tba_manager.get_team_nickname(pick)}"
+
+                    if a.pick1 and a.pick1 not in team_options:
+                        team_options[a.pick1] = f"{a.pick1} - {toa_manager.get_team_nickname(a.pick1)}"
                 else:
                     team_options = {team.team: team.team for team in available_teams}
                     team_options[0] = "None"
@@ -138,23 +137,7 @@ def render_alliance_configuration(selector: Any,
                     except ValueError as e:
                         st.error(str(e))
                 
-                # Pick 2
-                pick2_val = a.pick2 if a.pick2 in team_options else 0
-                selected_pick2 = st.selectbox(
-                    f"Pick 2 A{a.allianceNumber}",
-                    options=list(team_options.keys()),
-                    format_func=lambda x: team_options.get(x, "None"),
-                    key=f"pick2_{i}",
-                    index=list(team_options.keys()).index(pick2_val)
-                )
-                
-                current_pick2_value = a.pick2 if a.pick2 is not None else 0
-                if selected_pick2 != current_pick2_value:
-                    try:
-                        selector.set_pick(i, 'pick2', selected_pick2 if selected_pick2 != 0 else None)
-                        changes_made = True
-                    except ValueError as e:
-                        st.error(str(e))
+
     
     return changes_made
 
@@ -178,15 +161,6 @@ def auto_optimize_alliances(selector: Any) -> bool:
         available_teams = selector.get_available_teams(alliance.captainRank, 'pick1')
         if available_teams:
             selector.set_pick(alliance.allianceNumber - 1, 'pick1', available_teams[0].team)
-            made_changes = True
-    
-    # Pick 2 round (snake order)
-    for alliance in reversed(selector.alliances):
-        if not alliance.captain or alliance.pick2:
-            continue
-        available_teams = selector.get_available_teams(alliance.captainRank, 'pick2')
-        if available_teams:
-            selector.set_pick(alliance.allianceNumber - 1, 'pick2', available_teams[0].team)
             made_changes = True
     
     return made_changes

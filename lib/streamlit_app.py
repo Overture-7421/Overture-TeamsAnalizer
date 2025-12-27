@@ -20,7 +20,7 @@ import plotly.graph_objects as go
 import os
 import threading
 import queue
-from tba_manager import TBAManager
+from toa_manager import TOAManager
 from default_robot_image import load_team_image
 from foreshadowing import TeamStatsExtractor, MatchSimulator
 from exam_integrator import ExamDataIntegrator
@@ -123,14 +123,16 @@ if 'alliance_selector' not in st.session_state:
     st.session_state.alliance_selector = None
 if 'school_system' not in st.session_state:
     st.session_state.school_system = TeamScoring()
-if 'tba_manager' not in st.session_state:
-    st.session_state.tba_manager = None
-if 'tba_api_key' not in st.session_state:
-    st.session_state.tba_api_key = ""
-if 'tba_use_api' not in st.session_state:
-    st.session_state.tba_use_api = True
-if 'tba_event_key' not in st.session_state:
-    st.session_state.tba_event_key = ""
+if 'toa_manager' not in st.session_state:
+    st.session_state.toa_manager = None
+if 'toa_api_key' not in st.session_state:
+    st.session_state.toa_api_key = ""
+if 'toa_application_origin' not in st.session_state:
+    st.session_state.toa_application_origin = ""
+if 'toa_use_api' not in st.session_state:
+    st.session_state.toa_use_api = True
+if 'toa_event_key' not in st.session_state:
+    st.session_state.toa_event_key = ""
 if 'events_list' not in st.session_state:
     st.session_state.events_list = []
 if 'selected_event_name' not in st.session_state:
@@ -411,14 +413,14 @@ def get_team_stats_dataframe():
     if not stats:
         return None
     
-    tba_manager = st.session_state.tba_manager
+    toa_manager = st.session_state.toa_manager
     team_data_grouped = st.session_state.analizador.get_team_data_grouped()
     
     # Convert to DataFrame with selected columns for simplified view
     df_data = []
     for team_stat in stats:
         team_num = team_stat.get('team', 'N/A')
-        team_name = tba_manager.get_team_nickname(team_num) if tba_manager else team_num
+        team_name = toa_manager.get_team_nickname(team_num) if toa_manager else team_num
         team_key = str(team_num)
         team_rows = team_data_grouped.get(team_key, [])
 
@@ -458,7 +460,7 @@ def create_alliance_selector_teams():
         defense_rate = get_rate_from_stat(stat, ("Crossed Field/Defense", "Crossed Feild/Played Defense?"))
         algae_score = stat.get('teleop_algae_avg', 0.0)
         
-        team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else f"Team {team_num}"
+        team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else f"Team {team_num}"
 
         teams.append(Team(
             num=team_num,
@@ -552,8 +554,8 @@ def get_team_display_label(team_number):
     """Return formatted team label with nickname when available."""
     num_str = str(team_number)
     nickname = None
-    if st.session_state.tba_manager:
-        nickname = st.session_state.tba_manager.get_team_nickname(num_str)
+    if st.session_state.toa_manager:
+        nickname = st.session_state.toa_manager.get_team_nickname(num_str)
     return f"{num_str} - {nickname}" if nickname else num_str
 
 
@@ -574,8 +576,8 @@ def get_foreshadowing_team_options():
 
 def validate_alliance_selection(red, blue):
     """Validate alliance inputs before running simulations."""
-    if len(red) != 3 or len(blue) != 3:
-        return False, "Select exactly 3 teams for each alliance."
+    if len(red) != 2 or len(blue) != 2:
+        return False, "Select exactly 2 teams for each alliance."
 
     combined = red + blue
     if len(set(combined)) != len(combined):
@@ -655,7 +657,7 @@ st.sidebar.markdown("### 📍 Navigation")
 page = st.sidebar.radio(
     "Select Page",
     ["📊 Dashboard", "📁 Data Management", "📈 Team Statistics", 
-     "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing", "⚙️ TBA Settings"],
+     "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing", "⚙️ TOA Settings"],
     label_visibility="collapsed"
 )
 
@@ -715,7 +717,7 @@ if page == "📊 Dashboard":
             overall_avg = team_stat.get('overall_avg', 0.0)
             overall_std = team_stat.get('overall_std', 0.0)
             team_num = team_stat.get('team', 'N/A')
-            team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else team_num
+            team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
             ranking_rows.append({
                 'Rank': rank,
                 'Team': f"{team_num} - {team_name}",
@@ -740,7 +742,7 @@ if page == "📊 Dashboard":
             if stats:
                 top_team = stats[0]
                 team_num = top_team.get('team', 'N/A')
-                team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else team_num
+                team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
                 st.markdown(f"<div class='team-badge'>{team_num} - {team_name}</div>", unsafe_allow_html=True)
                 st.markdown(f"Overall: **{top_team.get('overall_avg', 0.0):.2f}**")
             st.markdown("</div>", unsafe_allow_html=True)
@@ -751,7 +753,7 @@ if page == "📊 Dashboard":
             if stats:
                 consistent_team = min(stats, key=lambda x: x.get('overall_std', 100))
                 team_num = consistent_team.get('team', 'N/A')
-                team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else team_num
+                team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
                 st.markdown(f"<div class='team-badge'>{team_num} - {team_name}</div>", unsafe_allow_html=True)
                 st.markdown(f"Std Dev: **{consistent_team.get('overall_std', 0.0):.2f}**")
             st.markdown("</div>", unsafe_allow_html=True)
@@ -762,7 +764,7 @@ if page == "📊 Dashboard":
             if stats:
                 best_robot = max(stats, key=lambda x: x.get('RobotValuation', 0))
                 team_num = best_robot.get('team', 'N/A')
-                team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else team_num
+                team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
                 st.markdown(f"<div class='team-badge'>{team_num} - {team_name}</div>", unsafe_allow_html=True)
                 st.markdown(f"Valuation: **{best_robot.get('RobotValuation', 0.0):.2f}**")
             st.markdown("</div>", unsafe_allow_html=True)
@@ -1171,7 +1173,7 @@ elif page == "📈 Team Statistics":
             df_rows = []
             for rank, team_stat in enumerate(stats, 1):
                 team_num = team_stat.get('team', 'N/A')
-                team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else team_num
+                team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
                 row = {
                     'Rank': rank,
                     'Team': f"{team_num} - {team_name}",
@@ -1241,9 +1243,9 @@ elif page == "📈 Team Statistics":
                 # Multi-team comparison mode
                 st.markdown("#### Multi-Team Comparison")
                 
-                if st.session_state.tba_manager:
+                if st.session_state.toa_manager:
                     team_options = {
-                        team: f"{team} - {st.session_state.tba_manager.get_team_nickname(team)}"
+                        team: f"{team} - {st.session_state.toa_manager.get_team_nickname(team)}"
                         for team in all_teams
                     }
                     selected_teams = st.multiselect(
@@ -1272,8 +1274,8 @@ elif page == "📈 Team Statistics":
                         if team_stat:
                             with cols[idx]:
                                 team_name = team_num
-                                if st.session_state.tba_manager:
-                                    team_name = f"{team_num} - {st.session_state.tba_manager.get_team_nickname(team_num)}"
+                                if st.session_state.toa_manager:
+                                    team_name = f"{team_num} - {st.session_state.toa_manager.get_team_nickname(team_num)}"
                                 st.markdown(f"**{team_name}**")
                                 st.metric("Overall Avg", f"{team_stat.get('overall_avg', 0):.2f}")
                                 st.metric("Robot Valuation", f"{team_stat.get('RobotValuation', 0):.2f}")
@@ -1392,9 +1394,9 @@ elif page == "📈 Team Statistics":
             
             else:
                 # Single team selection mode (original behavior)
-                if st.session_state.tba_manager:
+                if st.session_state.toa_manager:
                     team_options = {
-                        team: f"{team} - {st.session_state.tba_manager.get_team_nickname(team)}"
+                        team: f"{team} - {st.session_state.toa_manager.get_team_nickname(team)}"
                         for team in all_teams
                     }
                     selected_team_num = st.selectbox(
@@ -1649,12 +1651,12 @@ elif page == "🤝 Alliance Selector":
             alliance_table_data = selector.get_alliance_table()
             
             # Replace team numbers with names
-            if st.session_state.tba_manager:
+            if st.session_state.toa_manager:
                 for row in alliance_table_data:
-                    for col in ['Captain', 'Pick 1', 'Pick 2', 'Recommendation 1', 'Recommendation 2']:
+                    for col in ['Captain', 'Pick 1', 'Recommendation 1']:
                         if row[col]:
                             num = row[col]
-                            name = st.session_state.tba_manager.get_team_nickname(num)
+                            name = st.session_state.toa_manager.get_team_nickname(num)
                             row[col] = f"{num} - {name}"
 
             df_alliances = pd.DataFrame(alliance_table_data)
@@ -1673,15 +1675,6 @@ elif page == "🤝 Alliance Selector":
                     available_teams = selector.get_available_teams(alliance.captainRank, 'pick1')
                     if available_teams:
                         selector.set_pick(alliance.allianceNumber - 1, 'pick1', available_teams[0].team)
-                        made_changes = True
-
-                # Pick 2 round (snake order)
-                for alliance in reversed(selector.alliances):
-                    if not alliance.captain or alliance.pick2:
-                        continue
-                    available_teams = selector.get_available_teams(alliance.captainRank, 'pick2')
-                    if available_teams:
-                        selector.set_pick(alliance.allianceNumber - 1, 'pick2', available_teams[0].team)
                         made_changes = True
 
                 if made_changes:
@@ -1711,13 +1704,13 @@ elif page == "🤝 Alliance Selector":
                     # Captain selection
                     available_captains = selector.get_available_captains(i)
                     
-                    if st.session_state.tba_manager:
+                    if st.session_state.toa_manager:
                         captain_options = {team.team: f"{team.team} - {team.name}" for team in available_captains}
                         captain_options[0] = "Auto"
                         
                         # Ensure current captain is in the list
                         if a.captain and a.captain not in captain_options:
-                            captain_options[a.captain] = f"{a.captain} - {st.session_state.tba_manager.get_team_nickname(a.captain)}"
+                            captain_options[a.captain] = f"{a.captain} - {st.session_state.toa_manager.get_team_nickname(a.captain)}"
 
                         selected_captain = st.selectbox(
                             f"Captain A{a.allianceNumber}",
@@ -1747,14 +1740,13 @@ elif page == "🤝 Alliance Selector":
                     # Pick 1 and Pick 2 selection
                     available_teams = selector.get_available_teams(a.captainRank, 'pick1')
                     
-                    if st.session_state.tba_manager:
+                    if st.session_state.toa_manager:
                         team_options = {team.team: f"{team.team} - {team.name}" for team in available_teams}
                         team_options[0] = "None"
                         
                         # Add current picks if they are not in the available list (e.g. captain of another alliance)
-                        for pick in [a.pick1, a.pick2]:
-                            if pick and pick not in team_options:
-                                team_options[pick] = f"{pick} - {st.session_state.tba_manager.get_team_nickname(pick)}"
+                        if a.pick1 and a.pick1 not in team_options:
+                            team_options[a.pick1] = f"{a.pick1} - {st.session_state.toa_manager.get_team_nickname(a.pick1)}"
                     else:
                         team_options = {team.team: team.team for team in available_teams}
                         team_options[0] = "None"
@@ -1769,20 +1761,6 @@ elif page == "🤝 Alliance Selector":
                     if selected_pick1 != current_pick1_value:
                         try:
                             selector.set_pick(i, 'pick1', selected_pick1 if selected_pick1 != 0 else None)
-                            st.rerun()
-                        except ValueError as e:
-                            st.error(str(e))
-
-                    # Pick 2
-                    pick2_val = a.pick2 if a.pick2 in team_options else 0
-                    selected_pick2 = st.selectbox(f"Pick 2 A{a.allianceNumber}", 
-                                                  options=list(team_options.keys()),
-                                                  format_func=lambda x: team_options.get(x, "None"),
-                                                  key=f"pick2_{i}", index=list(team_options.keys()).index(pick2_val))
-                    current_pick2_value = a.pick2 if a.pick2 is not None else 0
-                    if selected_pick2 != current_pick2_value:
-                        try:
-                            selector.set_pick(i, 'pick2', selected_pick2 if selected_pick2 != 0 else None)
                             st.rerun()
                         except ValueError as e:
                             st.error(str(e))
@@ -2053,7 +2031,7 @@ elif page == "🏆 Honor Roll System":
                 1. Uses min_honor_roll_score from session_state (NOT hardcoded)
                 2. Defense Pick: ANY team with defense_rate > 0, sorted by defense_rate (desc) then died_rate (asc)
                 3. Qualified teams (non-defensive) are sorted by final_points (includes weight adjustments)
-                4. 1st/2nd/3rd Pick: Qualified non-defensive teams split into thirds
+                4. 1st/2nd Pick: Qualified non-defensive teams split into halves
                 5. "-" Tier: ONLY disqualified teams (those below min_honor_roll_score or lacking competencies)
                 6. Unassigned: Empty (all qualified teams are assigned to top tiers)
                 
@@ -2106,26 +2084,21 @@ elif page == "🏆 Honor Roll System":
                 disqualified_non_defensive = [(team_num, reason) for team_num, reason in disqualified if str(team_num) in remaining_teams_nums]
                 
                 # ===============================================================
-                # STEP 3: Distribute QUALIFIED non-defensive teams into 1st/2nd/3rd Pick
+                # STEP 3: Distribute QUALIFIED non-defensive teams into 1st/2nd Pick
                 # These are already sorted by final_points (descending) from get_honor_roll_ranking
                 # ===============================================================
                 total_qualified_non_def = len(qualified_non_defensive)
                 
                 if total_qualified_non_def > 0:
-                    # Split evenly into thirds for 1st, 2nd, 3rd pick
-                    tier_size = max(1, total_qualified_non_def // 3)
-                    remainder = total_qualified_non_def % 3
-                    
-                    # Distribute remainder to higher tiers first
+                    # FTC 2-robot alliances: only one pick, so split into two tiers.
+                    tier_size = max(1, total_qualified_non_def // 2)
+                    remainder = total_qualified_non_def % 2
+
                     tier_1_size = tier_size + (1 if remainder >= 1 else 0)
-                    tier_2_size = tier_size + (1 if remainder >= 2 else 0)
-                    tier_3_size = total_qualified_non_def - tier_1_size - tier_2_size
-                    
                     tier_1 = qualified_non_defensive[:tier_1_size]
-                    tier_2 = qualified_non_defensive[tier_1_size:tier_1_size + tier_2_size]
-                    tier_3 = qualified_non_defensive[tier_1_size + tier_2_size:]
+                    tier_2 = qualified_non_defensive[tier_1_size:]
                 else:
-                    tier_1, tier_2, tier_3 = [], [], []
+                    tier_1, tier_2 = [], []
                 
                 # ===============================================================
                 # STEP 4: DISQUALIFIED teams go to "-" tier (did not meet threshold)
@@ -2215,8 +2188,8 @@ elif page == "🏆 Honor Roll System":
                     
                     # Get team name if available
                     team_name = ""
-                    if st.session_state.tba_manager:
-                        team_name = st.session_state.tba_manager.get_team_nickname(str(team_num))
+                    if st.session_state.toa_manager:
+                        team_name = st.session_state.toa_manager.get_team_nickname(str(team_num))
                     
                     # Format title with number and name
                     if team_name:
@@ -2253,12 +2226,6 @@ elif page == "🏆 Honor Roll System":
                 # Tier: 2nd Pick (middle third of qualified non-defensive teams)
                 output_lines.append("Tier: 2nd Pick")
                 for team_num, result in tier_2:
-                    output_lines.append(generate_team_block(team_num, result, is_defensive=False))
-                output_lines.append("")
-                
-                # Tier: 3rd Pick (lower third of qualified non-defensive teams)
-                output_lines.append("Tier: 3rd Pick")
-                for team_num, result in tier_3:
                     output_lines.append(generate_team_block(team_num, result, is_defensive=False))
                 output_lines.append("")
                 
@@ -2367,7 +2334,7 @@ elif page == "🏆 Honor Roll System":
         ranking_data = []
         team_numbers_list = []
         for rank, (team_num, results) in enumerate(rankings, 1):
-            team_name = st.session_state.tba_manager.get_team_nickname(team_num) if st.session_state.tba_manager else None
+            team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else None
             c, sc, rp = st.session_state.school_system.calculate_competencies_score(team_num)
             team_numbers_list.append(team_num)
             ranking_data.append({
@@ -2494,22 +2461,22 @@ elif page == "🔮 Foreshadowing":
             st.warning("No teams available. Upload data or fetch TBA event teams.")
         else:
             label_to_team = {label: team for label, team in team_options}
-            default_red = [label for label, _ in team_options[:3]]
-            default_blue = [label for label, _ in team_options[3:6]] if len(team_options) >= 6 else [label for label, _ in team_options[:3]]
+            default_red = [label for label, _ in team_options[:2]]
+            default_blue = [label for label, _ in team_options[2:4]] if len(team_options) >= 4 else [label for label, _ in team_options[:2]]
 
             with st.form("foreshadowing_form"):
                 st.markdown("### Configure Alliances")
                 select_cols = st.columns(2)
                 with select_cols[0]:
                     red_labels = st.multiselect(
-                        "Select Red Alliance (3 teams)",
+                        "Select Red Alliance (2 teams)",
                         options=[label for label, _ in team_options],
                         default=default_red,
                         key="foreshadowing_red_multiselect"
                     )
                 with select_cols[1]:
                     blue_labels = st.multiselect(
-                        "Select Blue Alliance (3 teams)",
+                        "Select Blue Alliance (2 teams)",
                         options=[label for label, _ in team_options],
                         default=default_blue,
                         key="foreshadowing_blue_multiselect"
@@ -2730,80 +2697,116 @@ elif page == "🔮 Foreshadowing":
 
                 st.caption("Foreshadowing simulations use historical averages and random sampling for variability.")
 
-elif page == "⚙️ TBA Settings":
-    st.markdown("<div class='main-header'>⚙️ The Blue Alliance Settings</div>", unsafe_allow_html=True)
+elif page == "⚙️ TOA Settings":
+    st.markdown("<div class='main-header'>⚙️ The Orange Alliance Settings</div>", unsafe_allow_html=True)
 
     use_api = st.toggle(
-        "Use The Blue Alliance API (requires internet)",
-        key="tba_use_api"
+        "Use The Orange Alliance API (requires internet)",
+        key="toa_use_api"
     )
 
     if use_api:
         st.markdown("""
         <div class='stats-card'>
-        <p>To fetch the latest team names, provide your <strong>The Blue Alliance (TBA) API Key</strong>:</p>
-        <ol>
-            <li>Visit <a href='https://www.thebluealliance.com/account' target='_blank'>thebluealliance.com/account</a>.</li>
-            <li>Log in or create an account.</li>
-            <li>In <em>Read API Keys</em>, add a description (e.g., "Overture Alliance App") and click <strong>Add New Key</strong>.</li>
-            <li>Copy the generated <code>X-TBA-Auth-Key</code> and paste it below.</li>
-        </ol>
+        <p>To fetch the latest FTC event/team data, provide your <strong>The Orange Alliance (TOA) credentials</strong>:</p>
+        <ul>
+            <li><code>X-TOA-Key</code> (API key)</li>
+            <li><code>X-Application-Origin</code> (any identifier for your app)</li>
+        </ul>
         </div>
         """, unsafe_allow_html=True)
 
-        st.session_state.tba_api_key = st.text_input(
-            "TBA Auth Key (X-TBA-Auth-Key)",
-            value=st.session_state.tba_api_key,
+        st.session_state.toa_api_key = st.text_input(
+            "TOA Key (X-TOA-Key)",
+            value=st.session_state.toa_api_key,
             type="password"
+        )
+        st.session_state.toa_application_origin = st.text_input(
+            "Application Origin (X-Application-Origin)",
+            value=st.session_state.toa_application_origin,
+            placeholder="Overture_Analizador_FTC"
         )
     else:
         st.info(
-            "Offline mode active: the app will only use cached JSON files (e.g., `events_YYYY.json`, "
-            "`teams_<event>.json`) located next to the application."
+            "Offline mode active: the app will only use cached JSON files (e.g., `toa_events_<season_key>.json`, "
+            "`teams_<event_key>.json`) located next to the application."
         )
 
-    if st.button("Initialize TBA Manager"):
-        api_key = st.session_state.tba_api_key.strip() or None
+    if st.button("Initialize TOA Manager"):
+        api_key = st.session_state.toa_api_key.strip() or None
+        application_origin = st.session_state.toa_application_origin.strip() or None
         try:
-            st.session_state.tba_manager = TBAManager(
+            st.session_state.toa_manager = TOAManager(
                 api_key=api_key,
+                application_origin=application_origin,
                 use_api=use_api
             )
-            st.success("TBA Manager initialized successfully!")
+            st.success("TOA Manager initialized successfully!")
         except ValueError as e:
             st.error(str(e))
 
-    if st.session_state.tba_manager:
-        st.session_state.tba_manager.api_key = st.session_state.tba_api_key.strip() or st.session_state.tba_manager.api_key
+    if st.session_state.toa_manager:
+        st.session_state.toa_manager.api_key = st.session_state.toa_api_key.strip() or st.session_state.toa_manager.api_key
+        if st.session_state.toa_application_origin.strip():
+            st.session_state.toa_manager.application_origin = st.session_state.toa_application_origin.strip()
         try:
-            st.session_state.tba_manager.set_api_usage(use_api)
+            st.session_state.toa_manager.set_api_usage(use_api)
         except ValueError:
             st.warning("API access could not be enabled because no key is configured. Staying in offline mode.")
-            st.session_state.tba_use_api = False
+            st.session_state.toa_use_api = False
             use_api = False
 
-    if st.session_state.tba_manager:
+    if st.session_state.toa_manager:
         st.markdown("---")
         st.markdown("### Event Selection")
 
-        year = st.number_input("Select Competition Year", min_value=2000, max_value=2050, value=2024)
+        season_key = st.number_input(
+            "Select TOA Season Key (example: 2425)",
+            min_value=0,
+            max_value=9999,
+            value=2425
+        )
 
-        if st.button("Fetch Events for Year"):
-            events = st.session_state.tba_manager.get_events_for_year(year)
+        if st.button("Fetch Events for Season"):
+            events = st.session_state.toa_manager.get_events_by_season(season_key)
             if events:
                 st.session_state.events_list = sorted(events, key=lambda x: x.get('name', ''))
-                st.success(f"Found {len(events)} events for {year}.")
+                st.success(f"Found {len(events)} events for season {int(season_key)}.")
             else:
                 st.session_state.events_list = []
                 if use_api:
-                    st.error("Could not fetch events. Check your API key and internet connection.")
+                    last_error = getattr(st.session_state.toa_manager, "last_error", None)
+                    if isinstance(last_error, dict):
+                        status = last_error.get("status")
+                        message = last_error.get("message")
+                        err_type = last_error.get("type")
+                        preview = last_error.get("preview")
+
+                        details = []
+                        if status is not None:
+                            details.append(f"HTTP {status}")
+                        if message:
+                            details.append(str(message))
+                        if err_type == "non_json" and preview:
+                            details.append(f"Non-JSON response preview: {preview}")
+
+                        suffix = " - ".join(details)
+                        st.error(
+                            "Could not fetch events. Check your API key/internet."
+                            + (f" ({suffix})" if suffix else "")
+                        )
+                    else:
+                        st.error("Could not fetch events. Check your API key and internet connection.")
                 else:
-                    st.warning(f"No cached events found for {int(year)}. Add an `events_{int(year)}.json` file to the app directory or enable API access.")
+                    st.warning(
+                        f"No cached events found for {int(season_key)}. Add a `toa_events_{int(season_key)}.json` file "
+                        "to the app directory or enable API access."
+                    )
 
         if st.session_state.events_list:
             event_options = {event['key']: event['name'] for event in st.session_state.events_list}
             selected_key = st.selectbox(
-                "Select Event", 
+                "Select Event",
                 options=list(event_options.keys()),
                 format_func=lambda x: event_options[x]
             )
@@ -2811,31 +2814,38 @@ elif page == "⚙️ TBA Settings":
             if st.button("Load Teams for Selected Event"):
                 with st.spinner(f"Loading teams for {event_options[selected_key]}..."):
                     # First, try to load from a local file
-                    if st.session_state.tba_manager.load_teams_from_file(selected_key):
-                        st.session_state.tba_event_key = selected_key
+                    loaded = st.session_state.toa_manager.load_teams_from_file(selected_key)
+                    if loaded:
+                        st.session_state.toa_event_key = selected_key
                         st.session_state.selected_event_name = event_options[selected_key]
-                        st.success(f"Loaded {len(st.session_state.tba_manager.team_names)} teams from local cache for {st.session_state.selected_event_name}.")
+                        st.success(f"Loaded {len(loaded)} teams from local cache for {st.session_state.selected_event_name}.")
                     else:
                         # If not found locally, fetch from API
-                        teams_data = st.session_state.tba_manager.get_teams_for_event(selected_key)
+                        teams_data = st.session_state.toa_manager.get_teams_for_event(selected_key)
                         if teams_data:
-                            st.session_state.tba_manager.save_teams_to_file(selected_key, teams_data)
-                            st.session_state.tba_manager.load_teams_from_file(selected_key) # Load into memory
-                            st.session_state.tba_event_key = selected_key
+                            st.session_state.toa_manager.save_teams_to_file(selected_key, teams_data)
+                            loaded = st.session_state.toa_manager.load_teams_from_file(selected_key)  # Load into memory
+                            st.session_state.toa_event_key = selected_key
                             st.session_state.selected_event_name = event_options[selected_key]
                             st.success(f"Fetched and saved {len(teams_data)} teams for {st.session_state.selected_event_name}.")
                         else:
                             if use_api:
-                                st.error("Failed to fetch team data from TBA API.")
+                                st.error("Failed to fetch team data from TOA API.")
                             else:
-                                st.warning(f"No cached team data available for that event. Place a `teams_{selected_key}.json` file in the app directory or enable API access.")
-    
+                                st.warning(
+                                    f"No cached team data available for that event. Place a `teams_{selected_key}.json` "
+                                    "file in the app directory or enable API access."
+                                )
+
     st.markdown("---")
     st.markdown("### Current Status")
-    if st.session_state.tba_manager and st.session_state.tba_event_key:
-        st.success(f"TBA Manager is active. Loaded data for event: **{st.session_state.selected_event_name}** (`{st.session_state.tba_event_key}`) with **{len(st.session_state.tba_manager.team_names)}** teams.")
+    if st.session_state.toa_manager and st.session_state.toa_event_key:
+        st.success(
+            f"TOA Manager is active. Loaded data for event: **{st.session_state.selected_event_name}** "
+            f"(`{st.session_state.toa_event_key}`)"
+        )
     else:
-        st.warning("TBA Manager is not active or no event data is loaded. Team names will not be displayed.")
+        st.warning("TOA Manager is not active or no event data is loaded. Team names will not be displayed.")
 
 # Footer - appears on all pages
 st.markdown("<hr style='margin-top: 3rem; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)
