@@ -1,6 +1,156 @@
 {
     "version": "1.0",
     "timestamp": "8.6",
+    "PREMATCH": [
+        {
+            "label": "Scouter Name",
+            "key": "scouter_name",
+            "type": "text"
+        },
+        {
+            "label": "Match Number",
+            "key": "match_number",
+            "type": "number"
+        },
+        {
+            "label": "Robot Position",
+            "key": "robot_position",
+            "type": "dropdown",
+            "options": ["Blue 1", "Blue 2", "Red 1", "Red 2"]
+        },
+        {
+            "label": "Team Number",
+            "key": "team_number",
+            "type": "number"
+        },
+        {
+            "label": "Starting Side (Relative)",
+            "key": "starting_side",
+            "type": "dropdown",
+            "options": ["Goal Side", "Obelisk Side", "Center", "Unknown"]
+        },
+        {
+            "label": "No Show",
+            "key": "no_show",
+            "type": "switch"
+        }
+    ],
+    "AUTONOMOUS": [
+        {
+            "label": "Left Launch Line (LEAVE)",
+            "key": "auto_leave",
+            "type": "switch"
+        },
+        {
+            "label": "Artifacts Scored (CLASSIFIED)",
+            "key": "auto_artifact_classified",
+            "type": "counter"
+        },
+        {
+            "label": "Artifacts Scored (OVERFLOW)",
+            "key": "auto_artifact_overflow",
+            "type": "counter"
+        },
+        {
+            "label": "Artifacts Placed in Depot",
+            "key": "auto_depot_placed",
+            "type": "counter"
+        },
+        {
+            "label": "Pattern Matches at End of Auto (0-9)",
+            "key": "auto_pattern_matches",
+            "type": "counter"
+        },
+        {
+            "label": "Auto Strategy",
+            "key": "auto_strategy",
+            "type": "dropdown",
+            "options": ["Score Goal", "Build Pattern", "Depot Focus", "Mixed", "None/Dead"]
+        },
+        {
+            "label": "Died/Stopped Moving in Auto",
+            "key": "auto_died",
+            "type": "switch"
+        }
+    ],
+    "TELEOP": [
+        {
+            "label": "Artifacts Scored (CLASSIFIED)",
+            "key": "teleop_artifact_classified",
+            "type": "counter"
+        },
+        {
+            "label": "Artifacts Scored (OVERFLOW)",
+            "key": "teleop_artifact_overflow",
+            "type": "counter"
+        },
+        {
+            "label": "Artifacts Placed in Depot",
+            "key": "teleop_depot_placed",
+            "type": "counter"
+        },
+        {
+            "label": "How many artifacts failed to score?",
+            "key": "teleop_artifact_failed",
+            "type": "counter"
+        },
+        {
+            "label": "Pattern Matches at End of Match (0-9)",
+            "key": "teleop_pattern_matches",
+            "type": "counter"
+        },
+        {
+            "label": "Cycle Focus",
+            "key": "teleop_cycle_focus",
+            "type": "dropdown",
+            "options": ["Goal Scoring", "Pattern Building", "Depot", "Mixed", "None/Dead"]
+        },
+        {
+            "label": "Played Defense",
+            "key": "teleop_defense",
+            "type": "switch"
+        },
+        {
+            "label": "Was Defended Heavily",
+            "key": "teleop_got_defended",
+            "type": "switch"
+        },
+        {
+            "label": "Died/Stopped Moving in Teleop",
+            "key": "teleop_died",
+            "type": "switch"
+        }
+    ],
+    "ENDGAME": [
+        {
+            "label": "Returned to Base",
+            "key": "endgame_base_return",
+            "type": "dropdown",
+            "options": ["Not Returned", "Partially Returned", "Fully Returned"]
+        },
+        {
+            "label": "Climbed On Top of Another Robot",
+            "key": "endgame_climbed",
+            "type": "dropdown",
+            "options": ["NOT Attempted", "Attempted - Successful", "Attempted - Failed"]
+        },
+        {
+            "label": "Tipped/Fell Over",
+            "key": "endgame_tipped",
+            "type": "switch"
+        },
+        {
+            "label": "Broke / Major Failure",
+            "key": "endgame_broke",
+            "type": "switch"
+        },
+        {
+            "label": "Card",
+            "key": "endgame_card",
+            "type": "dropdown",
+            "options": ["None", "Yellow Card", "Red Card"]
+        }
+    ],
     "headers": [
         "Scouter Name",
         "Match Number",
