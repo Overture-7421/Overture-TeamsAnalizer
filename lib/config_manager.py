@@ -47,44 +47,56 @@ class ConfigManager:
         """Load configuration presets"""
         return {
             "new_standard": {
-                "name": "New Standard Format (2025)",
-                "description": "Format with separate Auto/Teleop columns",
+                "name": "DECODE Standard Format (2026)",
+                "description": "FTC DECODE format with Auto/Teleop columns",
                 "column_config": ColumnConfig(
                     headers=[
-                        "Scouter Initials", "Match Number", "Robot", "Future Alliance", "Team Number",
-                        "Starting Position", "No Show", "Moved (Auto)", "Coral L1 (Auto)", "Coral L2 (Auto)",
-                        "Coral L3 (Auto)", "Coral L4 (Auto)", "Barge Algae (Auto)", "Processor Algae (Auto)",
-                        "Dislodged Algae (Auto)", "Foul (Auto)", "Dislodged Algae (Teleop)", "Pickup Location",
-                        "Coral L1 (Teleop)", "Coral L2 (Teleop)", "Coral L3 (Teleop)", "Coral L4 (Teleop)",
-                        "Barge Algae (Teleop)", "Processor Algae (Teleop)", "Crossed Field/Defense",
-                        "Tipped/Fell", "Touched Opposing Cage", "Died", "End Position", "Broke", "Defended",
-                        "Coral HP Mistake", "Yellow/Red Card"
+                        "Scouter Name", "Match Number", "Robot Position", "Team Number", "Starting Side (Relative)",
+                        "No Show", "Left Launch Line (LEAVE)",
+                        "Artifacts Scored (CLASSIFIED) (Auto)", "Artifacts Scored (OVERFLOW) (Auto)",
+                        "Artifacts Placed in Depot (Auto)", "Pattern Matches at End of Auto (0-9)",
+                        "Auto Strategy", "Died/Stopped Moving in Auto",
+                        "Artifacts Scored (CLASSIFIED) (Teleop)", "Artifacts Scored (OVERFLOW) (Teleop)",
+                        "Artifacts Placed in Depot (Teleop)", "How many artifacts failed to score?",
+                        "Pattern Matches at End of Match (0-9)", "Cycle Focus", "Played Defense",
+                        "Was Defended Heavily", "Died/Stopped Moving in Teleop", "Returned to Base",
+                        "Climbed On Top of Another Robot", "Tipped/Fell Over", "Broke / Major Failure", "Card"
                     ],
                     numeric_for_overall=[
-                        "Coral L1 (Auto)", "Coral L2 (Auto)", "Coral L3 (Auto)", "Coral L4 (Auto)",
-                        "Coral L1 (Teleop)", "Coral L2 (Teleop)", "Coral L3 (Teleop)", "Coral L4 (Teleop)",
-                        "Barge Algae (Auto)", "Barge Algae (Teleop)", "Processor Algae (Auto)", "Processor Algae (Teleop)"
+                        "Artifacts Scored (CLASSIFIED) (Auto)", "Artifacts Scored (OVERFLOW) (Auto)",
+                        "Artifacts Placed in Depot (Auto)", "Pattern Matches at End of Auto (0-9)",
+                        "Artifacts Scored (CLASSIFIED) (Teleop)", "Artifacts Scored (OVERFLOW) (Teleop)",
+                        "Artifacts Placed in Depot (Teleop)", "How many artifacts failed to score?",
+                        "Pattern Matches at End of Match (0-9)"
                     ],
                     stats_columns=[
-                        "Coral L1 (Auto)", "Coral L2 (Auto)", "Coral L3 (Auto)", "Coral L4 (Auto)",
-                        "Coral L1 (Teleop)", "Coral L2 (Teleop)", "Coral L3 (Teleop)", "Coral L4 (Teleop)",
-                        "Barge Algae (Auto)", "Barge Algae (Teleop)", "Processor Algae (Auto)", "Processor Algae (Teleop)",
-                        "End Position", "Crossed Field/Defense", "Died"
+                        "No Show", "Left Launch Line (LEAVE)", "Artifacts Scored (CLASSIFIED) (Auto)",
+                        "Artifacts Scored (OVERFLOW) (Auto)", "Artifacts Placed in Depot (Auto)",
+                        "Pattern Matches at End of Auto (0-9)", "Auto Strategy", "Died/Stopped Moving in Auto",
+                        "Artifacts Scored (CLASSIFIED) (Teleop)", "Artifacts Scored (OVERFLOW) (Teleop)",
+                        "Artifacts Placed in Depot (Teleop)", "How many artifacts failed to score?",
+                        "Pattern Matches at End of Match (0-9)", "Cycle Focus", "Played Defense",
+                        "Was Defended Heavily", "Died/Stopped Moving in Teleop", "Returned to Base",
+                        "Climbed On Top of Another Robot", "Tipped/Fell Over", "Broke / Major Failure", "Card"
                     ],
                     mode_boolean_columns=[
-                        "Moved (Auto)", "Foul (Auto)", "Crossed Field/Defense", "Died", "Broke", "Defended"
+                        "No Show", "Left Launch Line (LEAVE)", "Died/Stopped Moving in Auto", "Played Defense",
+                        "Was Defended Heavily", "Died/Stopped Moving in Teleop", "Returned to Base",
+                        "Climbed On Top of Another Robot", "Tipped/Fell Over", "Broke / Major Failure"
                     ],
                     autonomous_columns=[
-                        "Moved (Auto)", "Coral L1 (Auto)", "Coral L2 (Auto)", "Coral L3 (Auto)", "Coral L4 (Auto)",
-                        "Barge Algae (Auto)", "Processor Algae (Auto)", "Foul (Auto)"
+                        "Left Launch Line (LEAVE)", "Artifacts Scored (CLASSIFIED) (Auto)",
+                        "Artifacts Scored (OVERFLOW) (Auto)", "Artifacts Placed in Depot (Auto)",
+                        "Pattern Matches at End of Auto (0-9)", "Auto Strategy", "Died/Stopped Moving in Auto"
                     ],
                     teleop_columns=[
-                        "Coral L1 (Teleop)", "Coral L2 (Teleop)", "Coral L3 (Teleop)", "Coral L4 (Teleop)",
-                        "Barge Algae (Teleop)", "Processor Algae (Teleop)", "Crossed Field/Defense",
-                        "Dislodged Algae (Teleop)", "Defended"
+                        "Artifacts Scored (CLASSIFIED) (Teleop)", "Artifacts Scored (OVERFLOW) (Teleop)",
+                        "Artifacts Placed in Depot (Teleop)", "How many artifacts failed to score?",
+                        "Pattern Matches at End of Match (0-9)", "Cycle Focus", "Played Defense",
+                        "Was Defended Heavily", "Died/Stopped Moving in Teleop"
                     ],
                     endgame_columns=[
-                        "End Position", "Died", "Broke", "Tipped/Fell"
+                        "Returned to Base", "Climbed On Top of Another Robot", "Tipped/Fell Over", "Broke / Major Failure"
                     ]
                 ),
                 "robot_valuation": RobotValuationConfig()
@@ -129,8 +141,9 @@ class ConfigManager:
         
         # Check for new format indicators
         new_format_indicators = {
-            "Scouter Initials", "Coral L1 (Auto)", "Coral L1 (Teleop)", 
-            "End Position", "Starting Position"
+            "Scouter Name", "Left Launch Line (LEAVE)",
+            "Artifacts Scored (CLASSIFIED) (Auto)", "Artifacts Scored (CLASSIFIED) (Teleop)",
+            "Pattern Matches at End of Auto (0-9)", "Cycle Focus"
         }
         
         if len(new_format_indicators.intersection(headers_set)) >= 3:

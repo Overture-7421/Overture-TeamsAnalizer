@@ -1,0 +1,41 @@
+Scouter Name,Match Number,Robot Position,Team Number,Starting Side (Relative),No Show,Left Launch Line (LEAVE),Artifacts Scored (CLASSIFIED) (Auto),Artifacts Scored (OVERFLOW) (Auto),Artifacts Placed in Depot (Auto),Pattern Matches at End of Auto (0-9),Auto Strategy,Died/Stopped Moving in Auto,Artifacts Scored (CLASSIFIED) (Teleop),Artifacts Scored (OVERFLOW) (Teleop),Artifacts Placed in Depot (Teleop),How many artifacts failed to score?,Pattern Matches at End of Match (0-9),Cycle Focus,Played Defense,Was Defended Heavily,Died/Stopped Moving in Teleop,Returned to Base,Climbed On Top of Another Robot,Tipped/Fell Over,Broke / Major Failure,Card
+AM,1,Red-1,23619,LEFT,No,Yes,3,2,1,4,Top-side cycles,No,12,6,4,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,1,Red-2,7421,RIGHT,No,Yes,2,1,2,3,Safe auto,No,10,4,3,0,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,1,Blue-1,9876,LEFT,No,No,1,0,1,2,Defensive auto,Yes,8,3,2,2,5,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
+DS,1,Blue-2,13579,RIGHT,No,Yes,2,2,0,3,Center cycles,No,11,5,3,1,6,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,2,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,13,7,5,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,2,Red-2,7421,LEFT,No,Yes,2,2,1,4,Safe auto,No,9,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,2,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,4,3,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
+DS,2,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,3,Red-1,23619,LEFT,No,Yes,3,3,2,4,Top-side cycles,No,14,6,5,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,3,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,3,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,3,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Red
+DS,3,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,4,Red-1,23619,RIGHT,No,Yes,4,2,2,5,Top-side cycles,No,15,7,6,1,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,4,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,0,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,4,Blue-1,9876,RIGHT,No,No,1,0,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
+DS,4,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,5,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,5,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,5,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
+DS,5,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,6,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,6,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,6,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
+DS,6,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,7,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,7,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,7,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
+DS,7,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,8,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,8,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,8,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
+DS,8,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,9,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,9,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,9,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
+DS,9,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
+AM,10,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
+BN,10,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
+CR,10,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
+DS,10,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None

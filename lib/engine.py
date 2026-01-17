@@ -156,9 +156,17 @@ class AnalizadorRobot:
         header = self.sheet_data[0]
         
         # Keywords for identifying game phases
-        autonomous_keywords = ['auton', 'auto', 'autonomous', 'did something', 'did foul', 'worked']
-        teleop_keywords = ['coral', 'algae', 'barge', 'processor', 'crossed', 'defense', 'defended', 'teleop']
-        endgame_keywords = ['climb', 'endgame', 'end game', 'tipped', 'fell over', 'died']
+        autonomous_keywords = [
+            'auton', 'auto', 'autonomous', 'leave', 'launch line', 'pattern matches at end of auto',
+            'auto strategy', 'died/stopped moving in auto'
+        ]
+        teleop_keywords = [
+            'teleop', 'artifact', 'overflow', 'depot', 'failed to score', 'pattern matches at end of match',
+            'cycle focus', 'played defense', 'defended heavily', 'died/stopped moving in teleop'
+        ]
+        endgame_keywords = [
+            'endgame', 'end game', 'returned to base', 'climbed on top', 'tipped', 'fell over', 'broke'
+        ]
         
         if not self._autonomous_columns:
             self._autonomous_columns = []
@@ -739,8 +747,19 @@ class AnalizadorRobot:
                     self.sheet_data.extend(csv_rows[1:])
                     print(f"CSV data appended. Total {len(self.sheet_data)} rows.")
                 else:
-                    print("Warning: CSV header doesn't match existing data. Appending data rows only.")
-                    self.sheet_data.extend(csv_rows[1:])
+                    expected_header = self.config_manager.get_column_config().headers
+                    if csv_header == expected_header:
+                        self.sheet_data = csv_rows
+                        print("CSV header matches config. Replaced existing data and headers.")
+                    else:
+                        print("Warning: CSV header doesn't match existing data. Appending data rows only.")
+                        target_len = len(current_header)
+                        for row in csv_rows[1:]:
+                            if len(row) < target_len:
+                                row = row + [""] * (target_len - len(row))
+                            elif len(row) > target_len:
+                                row = row[:target_len]
+                            self.sheet_data.append(row)
             
             self._update_column_indices()
             self._initialize_selected_columns()

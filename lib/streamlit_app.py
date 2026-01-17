@@ -119,6 +119,21 @@ st.set_page_config(
 # Initialize session state
 if 'analizador' not in st.session_state:
     st.session_state.analizador = AnalizadorRobot()
+if 'auto_decode_reset_done' not in st.session_state:
+    st.session_state.auto_decode_reset_done = False
+if not st.session_state.auto_decode_reset_done:
+    try:
+        raw_data = st.session_state.analizador.get_raw_data()
+        if raw_data and raw_data[0]:
+            header = raw_data[0]
+            has_frc_columns = any("Coral" in col or "Algae" in col for col in header)
+            decode_header = st.session_state.analizador.config_manager.get_column_config().headers
+            has_decode_columns = any("Artifacts Scored" in col for col in decode_header)
+            if has_frc_columns and has_decode_columns:
+                st.session_state.analizador.set_raw_data([decode_header])
+                st.session_state.auto_decode_reset_done = True
+    except Exception:
+        st.session_state.auto_decode_reset_done = True
 if 'alliance_selector' not in st.session_state:
     st.session_state.alliance_selector = None
 if 'school_system' not in st.session_state:
@@ -424,10 +439,10 @@ def get_team_stats_dataframe():
         team_key = str(team_num)
         team_rows = team_data_grouped.get(team_key, [])
 
-        defense_rate = get_rate_from_stat(team_stat, ("Crossed Field/Defense", "Crossed Feild/Played Defense?")) * 100.0
-        death_rate = get_rate_from_stat(team_stat, ("Died", "Died?")) * 100.0
-        pickup_mode = get_mode_from_rows(team_rows, "Pickup Location")
-        climb_mode = get_mode_from_rows(team_rows, "End Position")
+        defense_rate = get_rate_from_stat(team_stat, ("Played Defense",)) * 100.0
+        death_rate = get_rate_from_stat(team_stat, ("Died/Stopped Moving in Teleop",)) * 100.0
+        cycle_focus_mode = get_mode_from_rows(team_rows, "Cycle Focus")
+        climb_mode = get_mode_from_rows(team_rows, "Climbed On Top of Another Robot")
         df_data.append({
             'Team': f"{team_num} - {team_name}",
             'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
@@ -435,8 +450,8 @@ def get_team_stats_dataframe():
             'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
             'Defense Rate (%)': round(defense_rate, 2),
             'Died Rate (%)': round(death_rate, 2),
-            'Pickup Mode': pickup_mode,
-            'Climb Mode': climb_mode,
+            'Cycle Focus': cycle_focus_mode,
+            'Climb On Top Mode': climb_mode,
         })
     
     return pd.DataFrame(df_data)
@@ -455,10 +470,9 @@ def create_alliance_selector_teams():
         
         # Get phase scores
         phase_scores = st.session_state.analizador.calculate_team_phase_scores(int(team_num))
-        death_rate = get_rate_from_stat(stat, ("Died", "Died?"))
-        defended_rate = get_rate_from_stat(stat, ("Defended", "Was the robot Defended by someone?"))
-        defense_rate = get_rate_from_stat(stat, ("Crossed Field/Defense", "Crossed Feild/Played Defense?"))
-        algae_score = stat.get('teleop_algae_avg', 0.0)
+        death_rate = get_rate_from_stat(stat, ("Died/Stopped Moving in Teleop",))
+        defended_rate = get_rate_from_stat(stat, ("Was Defended Heavily",))
+        defense_rate = get_rate_from_stat(stat, ("Played Defense",))
         
         team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else f"Team {team_num}"
 
@@ -477,7 +491,7 @@ def create_alliance_selector_teams():
             death_rate=death_rate,
             defended_rate=defended_rate,
             defense_rate=defense_rate,
-            algae_score=algae_score
+            algae_score=0.0
         ))
     
     return teams
@@ -1054,7 +1068,16 @@ elif page == "📁 Data Management":
         raw_data = st.session_state.analizador.get_raw_data()
         
         if raw_data and len(raw_data) > 1:
-            df = pd.DataFrame(raw_data[1:], columns=raw_data[0])
+            header = raw_data[0]
+            target_len = len(header)
+            normalized_rows = []
+            for row in raw_data[1:]:
+                if len(row) < target_len:
+                    row = list(row) + [""] * (target_len - len(row))
+                elif len(row) > target_len:
+                    row = list(row)[:target_len]
+                normalized_rows.append(row)
+            df = pd.DataFrame(normalized_rows, columns=header)
             st.dataframe(df, use_container_width=True, height=400)
             
             st.markdown(f"**Total Records:** {len(raw_data) - 1}")
@@ -1154,54 +1177,43 @@ elif page == "📈 Team Statistics":
             
             team_data_grouped = st.session_state.analizador.get_team_data_grouped()
 
-            auto_coral_columns = [
-                ("Coral L1 (Auto)", "Auto Coral L1"),
-                ("Coral L2 (Auto)", "Auto Coral L2"),
-                ("Coral L3 (Auto)", "Auto Coral L3"),
-                ("Coral L4 (Auto)", "Auto Coral L4"),
+            auto_decode_columns = [
+                ("Artifacts Scored (CLASSIFIED) (Auto)", "Auto Classified"),
+                ("Artifacts Scored (OVERFLOW) (Auto)", "Auto Overflow"),
+                ("Artifacts Placed in Depot (Auto)", "Auto Depot"),
+                ("Pattern Matches at End of Auto (0-9)", "Auto Pattern Matches"),
             ]
-            teleop_coral_columns = [
-                ("Coral L1 (Teleop)", "Teleop Coral L1"),
-                ("Coral L2 (Teleop)", "Teleop Coral L2"),
-                ("Coral L3 (Teleop)", "Teleop Coral L3"),
-                ("Coral L4 (Teleop)", "Teleop Coral L4"),
-            ]
-            auto_algae_columns = [
-                ("Barge Algae (Auto)", "Auto Barge Algae"),
-                ("Processor Algae (Auto)", "Auto Processor Algae"),
-                ("Dislodged Algae (Auto)", "Auto Dislodged Algae"),
-            ]
-            teleop_algae_columns = [
-                ("Barge Algae (Teleop)", "Teleop Barge Algae"),
-                ("Processor Algae (Teleop)", "Teleop Processor Algae"),
-                ("Dislodged Algae (Teleop)", "Teleop Dislodged Algae"),
+            teleop_decode_columns = [
+                ("Artifacts Scored (CLASSIFIED) (Teleop)", "Teleop Classified"),
+                ("Artifacts Scored (OVERFLOW) (Teleop)", "Teleop Overflow"),
+                ("Artifacts Placed in Depot (Teleop)", "Teleop Depot"),
+                ("How many artifacts failed to score?", "Teleop Failed"),
+                ("Pattern Matches at End of Match (0-9)", "Teleop Pattern Matches"),
             ]
             rate_columns = [
-                (("Died", "Died?"), "Died Rate (%)"),
                 (("No Show",), "No Show Rate (%)"),
-                (("Moved (Auto)",), "Auto Mobility Rate (%)"),
-                (("Crossed Field/Defense", "Crossed Feild/Played Defense?"), "Defense Rate (%)"),
-                (("Defended", "Was the robot Defended by someone?"), "Defended Rate (%)"),
-                (("Tipped/Fell",), "Tip/Fall Rate (%)"),
-                (("Broke",), "Broke Rate (%)"),
+                (("Left Launch Line (LEAVE)",), "Leave Rate (%)"),
+                (("Played Defense",), "Played Defense Rate (%)"),
+                (("Was Defended Heavily",), "Defended Heavily Rate (%)"),
+                (("Died/Stopped Moving in Auto",), "Auto Died Rate (%)"),
+                (("Died/Stopped Moving in Teleop",), "Teleop Died Rate (%)"),
+                (("Returned to Base",), "Returned to Base Rate (%)"),
+                (("Climbed On Top of Another Robot",), "Climb On Top Rate (%)"),
+                (("Tipped/Fell Over",), "Tip/Fall Rate (%)"),
+                (("Broke / Major Failure",), "Broke Rate (%)"),
             ]
 
             base_columns = [
                 'Rank', 'Team', 'Matches',
-                'Robot Valuation', 'Overall Avg', 'Overall Std',
-                'Teleop Coral Score', 'Teleop Algae Score'
+                'Robot Valuation', 'Overall Avg', 'Overall Std'
             ]
-            auto_labels = [label for _, label in auto_coral_columns]
-            teleop_labels = [label for _, label in teleop_coral_columns]
-            auto_algae_labels = [label for _, label in auto_algae_columns]
-            teleop_algae_labels = [label for _, label in teleop_algae_columns]
+            auto_labels = [label for _, label in auto_decode_columns]
+            teleop_labels = [label for _, label in teleop_decode_columns]
             rate_labels = [label for _, label in rate_columns]
             columns_order = (
                 base_columns
                 + auto_labels
                 + teleop_labels
-                + auto_algae_labels
-                + teleop_algae_labels
                 + rate_labels
             )
 
@@ -1216,11 +1228,9 @@ elif page == "📈 Team Statistics":
                     'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
                     'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
                     'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
-                    'Teleop Coral Score': round(team_stat.get('teleop_coral_avg', 0.0), 2),
-                    'Teleop Algae Score': round(team_stat.get('teleop_algae_avg', 0.0), 2),
                 }
 
-                for source_col, label in auto_coral_columns + teleop_coral_columns + auto_algae_columns + teleop_algae_columns:
+                for source_col, label in auto_decode_columns + teleop_decode_columns:
                     row[label] = compute_numeric_average(team_data_grouped.get(team_num, []), source_col)
 
                 for source_candidates, label in rate_columns:
