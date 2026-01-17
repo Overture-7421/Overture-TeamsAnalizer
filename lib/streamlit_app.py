@@ -211,6 +211,14 @@ if 'qr_scanner_status' not in st.session_state:
     st.session_state.qr_scanner_status = ""
 if 'qr_scanner_debounce_seconds' not in st.session_state:
     st.session_state.qr_scanner_debounce_seconds = 2.0
+if 'qr_last_scan_ts' not in st.session_state:
+    st.session_state.qr_last_scan_ts = 0.0
+if 'qr_idle_seconds' not in st.session_state:
+    st.session_state.qr_idle_seconds = 5.0
+if 'raw_data_last_edit_ts' not in st.session_state:
+    st.session_state.raw_data_last_edit_ts = 0.0
+if 'raw_data_last_saved_hash' not in st.session_state:
+    st.session_state.raw_data_last_saved_hash = ""
 
 # Enhanced Custom CSS for better UI
 st.markdown("""
@@ -913,9 +921,11 @@ elif page == "📁 Data Management":
                             drained += 1
                             st.session_state.analizador.load_qr_data(payload)
                             auto_updated = True
+                            st.session_state.qr_last_scan_ts = time.time()
                     elif kind == "DONE":
                         st.session_state.qr_scanner_running = False
                         st.session_state.qr_scanner_status = "Scanner stopped."
+                        st.session_state.qr_last_scan_ts = 0.0
                     elif kind == "ERROR":
                         st.session_state.qr_scanner_running = False
                         st.session_state.qr_scanner_status = f"Scanner error: {payload}"
@@ -992,6 +1002,16 @@ elif page == "📁 Data Management":
                     help="Prevents repeated reads of the same QR code while it stays in view."
                 )
             )
+            st.session_state.qr_idle_seconds = float(
+                st.number_input(
+                    "Auto-update idle seconds",
+                    min_value=1.0,
+                    max_value=30.0,
+                    value=float(st.session_state.qr_idle_seconds),
+                    step=1.0,
+                    help="Auto-refreshes to apply scans when no new QR codes are detected."
+                )
+            )
 
             action_cols = st.columns(2)
             with action_cols[0]:
@@ -1037,6 +1057,7 @@ elif page == "📁 Data Management":
 
                 st.session_state.qr_scanner_running = True
                 st.session_state.qr_scanner_status = f"Starting scanner on camera {camera_index}..."
+                st.session_state.qr_last_scan_ts = time.time()
                 t = threading.Thread(
                     target=_worker,
                     args=(st.session_state.qr_scanner_queue, camera_index, debounce),
@@ -1065,6 +1086,13 @@ elif page == "📁 Data Management":
                 st.dataframe(pd.DataFrame({"QR Data": st.session_state.qr_scanned_codes}))
             else:
                 st.caption("No QR codes scanned yet.")
+
+            # Auto-refresh while scanning or after idle to apply updates
+            if st.session_state.qr_scanner_running:
+                last_scan = st.session_state.qr_last_scan_ts
+                if last_scan and (time.time() - last_scan) >= st.session_state.qr_idle_seconds:
+                    st.session_state.qr_scanner_status = "No new scans detected. Auto-updating..."
+                st.autorefresh(interval=1000, key="qr_scanner_autorefresh")
 
             st.markdown("---")
             st.markdown("### 🖥️ Headless Mode (Linux)")
@@ -1100,23 +1128,29 @@ elif page == "📁 Data Management":
             st.markdown("---")
             st.markdown("### ✏️ Edit Raw Data")
             st.caption("Modify cells below and click Save Changes to update the dataset.")
-            with st.form("raw_data_edit_form"):
-                edited_df = st.data_editor(
-                    df,
-                    use_container_width=True,
-                    height=420,
-                    num_rows="dynamic",
-                    key="raw_data_editor"
-                )
-                save_changes = st.form_submit_button("Save Changes")
+            edited_df = st.data_editor(
+                df,
+                use_container_width=True,
+                height=420,
+                num_rows="dynamic",
+                key="raw_data_editor"
+            )
 
-            if save_changes:
-                cleaned_df = edited_df.fillna("")
-                rows = cleaned_df.values.tolist()
-                new_sheet = [raw_data[0]] + [[str(cell) for cell in row] for row in rows]
-                st.session_state.analizador.set_raw_data(new_sheet)
-                st.success("Raw data updated. Stats will refresh automatically.")
-                st.rerun()
+            # Auto-save changes after idle
+            cleaned_df = edited_df.fillna("")
+            current_hash = cleaned_df.to_csv(index=False)
+            if current_hash != st.session_state.raw_data_last_saved_hash:
+                st.session_state.raw_data_last_edit_ts = time.time()
+                st.session_state.raw_data_last_saved_hash = current_hash
+
+            if st.session_state.raw_data_last_edit_ts:
+                if time.time() - st.session_state.raw_data_last_edit_ts >= 2.0:
+                    rows = cleaned_df.values.tolist()
+                    new_sheet = [raw_data[0]] + [[str(cell) for cell in row] for row in rows]
+                    st.session_state.analizador.set_raw_data(new_sheet)
+                    st.session_state.raw_data_last_edit_ts = 0.0
+                    st.success("Raw data auto-saved. Stats updated.")
+                    st.rerun()
         else:
             st.info("No data loaded yet. Please upload a CSV file or paste QR data.")
     
@@ -1828,26 +1862,33 @@ elif page == "🤝 Alliance Selector":
                     available_teams = selector.get_available_teams(a.captainRank, 'pick1')
                     
                     if st.session_state.toa_manager:
-                        team_options = {team.team: f"{team.team} - {team.name}" for team in available_teams}
-                        team_options[0] = "None"
-                        
-                        # Add current picks if they are not in the available list (e.g. captain of another alliance)
-                        if a.pick1 and a.pick1 not in team_options:
-                            team_options[a.pick1] = f"{a.pick1} - {st.session_state.toa_manager.get_team_nickname(a.pick1)}"
+                        team_options = {str(team.team): f"{team.team} - {team.name}" for team in available_teams}
+                        # Ensure current pick remains selectable
+                        if a.pick1 and str(a.pick1) not in team_options:
+                            team_options[str(a.pick1)] = f"{a.pick1} - {st.session_state.toa_manager.get_team_nickname(a.pick1)}"
+                        team_options["0"] = "None"
                     else:
-                        team_options = {team.team: team.team for team in available_teams}
-                        team_options[0] = "None"
+                        team_options = {str(team.team): str(team.team) for team in available_teams}
+                        # Ensure current pick remains selectable
+                        if a.pick1 and str(a.pick1) not in team_options:
+                            team_options[str(a.pick1)] = str(a.pick1)
+                        team_options["0"] = "None"
 
                     # Pick 1
-                    pick1_val = a.pick1 if a.pick1 in team_options else 0
-                    selected_pick1 = st.selectbox(f"Pick 1 A{a.allianceNumber}", 
-                                                  options=list(team_options.keys()),
-                                                  format_func=lambda x: team_options.get(x, "None"),
-                                                  key=f"pick1_{i}", index=list(team_options.keys()).index(pick1_val))
-                    current_pick1_value = a.pick1 if a.pick1 is not None else 0
+                    options_list = list(team_options.keys())
+                    pick1_val = str(a.pick1) if a.pick1 is not None and str(a.pick1) in team_options else "0"
+                    selected_pick1 = st.selectbox(
+                        f"Pick 1 A{a.allianceNumber}",
+                        options=options_list,
+                        format_func=lambda x: team_options.get(x, "None"),
+                        key=f"pick1_{i}",
+                        index=options_list.index(pick1_val)
+                    )
+                    current_pick1_value = str(a.pick1) if a.pick1 is not None else "0"
                     if selected_pick1 != current_pick1_value:
                         try:
-                            selector.set_pick(i, 'pick1', selected_pick1 if selected_pick1 != 0 else None)
+                            selected_val = int(selected_pick1) if selected_pick1 != "0" else None
+                            selector.set_pick(i, 'pick1', selected_val)
                             st.rerun()
                         except ValueError as e:
                             st.error(str(e))
