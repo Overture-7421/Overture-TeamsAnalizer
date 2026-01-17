@@ -7,17 +7,33 @@
         "min_teams_per_alliance_for_calc": 3
     },
     "scoring_weights": {
-        "auto": 1.5,
-        "teleop": 1.0,
-        "endgame": 1.2,
-        "defense": 12,
-        "consistency": 5,
-        "clutch": 8
+        "auto_leave": 1.0,
+        "auto_artifact_classified": 2.0,
+        "auto_artifact_overflow": 2.0,
+        "auto_depot_placed": 1.5,
+        "auto_pattern_matches": 2.0,
+        "teleop_artifact_classified": 1.5,
+        "teleop_artifact_overflow": 1.5,
+        "teleop_depot_placed": 1.0,
+        "teleop_artifact_failed": -1.0,
+        "teleop_pattern_matches": 2.0,
+        "teleop_defense": 1.0,
+        "teleop_got_defended": 1.0,
+        "endgame_base_return": 2.0,
+        "endgame_climbed": 2.0,
+        "endgame_tipped": -2.0,
+        "endgame_broke": -2.0,
+        "endgame_card": -3.0
     },
     "pick2_priorities": [
-        "defense_rate",
-        "algae_score",
-        "death_rate"
+        "teleop_defense",
+        "teleop_got_defended",
+        "auto_artifact_classified",
+        "teleop_artifact_classified",
+        "endgame_base_return",
+        "endgame_climbed",
+        "endgame_tipped",
+        "endgame_broke"
     ],
     "recommendation_logic": {
         "pick1": "captain_sniping",

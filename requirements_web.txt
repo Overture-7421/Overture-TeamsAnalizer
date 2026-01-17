@@ -10,7 +10,7 @@ Pillow>=10.0.0
 requests>=2.31.0
 
 # Optional: Linux HID Interceptor for headless barcode scanner support
-evdev>=1.6.0  # Linux only - uncomment to enable HID interception
+# evdev>=1.6.0  # Linux only - uncomment to enable HID interception
 
 # Requisitos originales del programa
 # (ya incluidos en el entorno virtual)

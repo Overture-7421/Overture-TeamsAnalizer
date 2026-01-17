@@ -1,48 +1,43 @@
 {
     "version": "1.0",
-    "description": "Game configuration for FRC 2025 REEFSCAPE",
-    "game_name": "REEFSCAPE 2025",
-    "points": {
-        "coral": {
-            "auto": {
-                "L1": 3,
-                "L2": 4,
-                "L3": 6,
-                "L4": 7
-            },
-            "teleop": {
-                "L1": 2,
-                "L2": 3,
-                "L3": 4,
-                "L4": 5
-            }
-        },
-        "algae": {
-            "processor": 6,
-            "processor_opponent_bonus": 4,
-            "net": 4
-        },
-        "climb": {
-            "none": 0,
-            "park": 2,
-            "shallow": 6,
-            "deep": 12
-        }
-    },
-    "ranking_points": {
-        "win": 3,
-        "tie": 1,
-        "loss": 0,
-        "auto_rp": {
-            "all_leave_zone": true,
-            "min_coral_auto": 1
-        },
-        "coral_rp": {
-            "min_coral_per_level_no_coop": 7,
-            "min_levels_with_coop": 3,
-            "min_coral_per_level_with_coop": 7
-        },
-        "cooperation_threshold": 2
+    "description": "Game configuration for FTC (adapted from configFTC.json)",
+    "game_name": "FTC Custom Game",
+    "scoring": {
+        "PREMATCH": [
+            {"label": "Scouter Name", "key": "scouter_name", "type": "text"},
+            {"label": "Match Number", "key": "match_number", "type": "number"},
+            {"label": "Robot Position", "key": "robot_position", "type": "dropdown", "options": ["Blue 1", "Blue 2", "Red 1", "Red 2"]},
+            {"label": "Team Number", "key": "team_number", "type": "number"},
+            {"label": "Starting Side (Relative)", "key": "starting_side", "type": "dropdown", "options": ["Goal Side", "Obelisk Side", "Center", "Unknown"]},
+            {"label": "No Show", "key": "no_show", "type": "switch"}
+        ],
+        "AUTONOMOUS": [
+            {"label": "Left Launch Line (LEAVE)", "key": "auto_leave", "type": "switch"},
+            {"label": "Artifacts Scored (CLASSIFIED)", "key": "auto_artifact_classified", "type": "counter"},
+            {"label": "Artifacts Scored (OVERFLOW)", "key": "auto_artifact_overflow", "type": "counter"},
+            {"label": "Artifacts Placed in Depot", "key": "auto_depot_placed", "type": "counter"},
+            {"label": "Pattern Matches at End of Auto (0-9)", "key": "auto_pattern_matches", "type": "counter"},
+            {"label": "Auto Strategy", "key": "auto_strategy", "type": "dropdown", "options": ["Score Goal", "Build Pattern", "Depot Focus", "Mixed", "None/Dead"]},
+            {"label": "Died/Stopped Moving in Auto", "key": "auto_died", "type": "switch"}
+        ],
+        "TELEOP": [
+            {"label": "Artifacts Scored (CLASSIFIED)", "key": "teleop_artifact_classified", "type": "counter"},
+            {"label": "Artifacts Scored (OVERFLOW)", "key": "teleop_artifact_overflow", "type": "counter"},
+            {"label": "Artifacts Placed in Depot", "key": "teleop_depot_placed", "type": "counter"},
+            {"label": "How many artifacts failed to score?", "key": "teleop_artifact_failed", "type": "counter"},
+            {"label": "Pattern Matches at End of Match (0-9)", "key": "teleop_pattern_matches", "type": "counter"},
+            {"label": "Cycle Focus", "key": "teleop_cycle_focus", "type": "dropdown", "options": ["Goal Scoring", "Pattern Building", "Depot", "Mixed", "None/Dead"]},
+            {"label": "Played Defense", "key": "teleop_defense", "type": "switch"},
+            {"label": "Was Defended Heavily", "key": "teleop_got_defended", "type": "switch"},
+            {"label": "Died/Stopped Moving in Teleop", "key": "teleop_died", "type": "switch"}
+        ],
+        "ENDGAME": [
+            {"label": "Returned to Base", "key": "endgame_base_return", "type": "dropdown", "options": ["Not Returned", "Partially Returned", "Fully Returned"]},
+            {"label": "Climbed On Top of Another Robot", "key": "endgame_climbed", "type": "dropdown", "options": ["NOT Attempted", "Attempted - Successful", "Attempted - Failed"]},
+            {"label": "Tipped/Fell Over", "key": "endgame_tipped", "type": "switch"},
+            {"label": "Broke / Major Failure", "key": "endgame_broke", "type": "switch"},
+            {"label": "Card", "key": "endgame_card", "type": "dropdown", "options": ["None", "Yellow Card", "Red Card"]}
+        ]
     },
     "robot_valuation": {
         "phase_weights": [0.25, 0.35, 0.40],
