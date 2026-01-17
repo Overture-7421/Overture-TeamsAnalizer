@@ -60,7 +60,7 @@ def load_app_config():
             "app": {
                 "title": "Alliance Simulator - Overture 7421",
                 "icon": "🤖",
-                "subtitle": "FRC 2025 REEFSCAPE",
+                "subtitle": "FTC DECODE 2026",
                 "team_name": "Team Overture 7421"
             },
             "scoring_weights": {
@@ -69,17 +69,30 @@ def load_app_config():
                 "during_event": 20
             },
             "game": {
-                "name": "REEFSCAPE 2025",
-                "coral": {
-                    "auto_points": {"L1": 3, "L2": 4, "L3": 6, "L4": 7},
-                    "teleop_points": {"L1": 2, "L2": 3, "L3": 4, "L4": 5}
+                "name": "DECODE 2026",
+                "autonomous": {
+                    "leave": 3,
+                    "artifact": 3,
+                    "overflow": 1,
+                    "depot": 1,
+                    "pattern_match": 2
                 },
-                "algae": {"processor": 6, "net": 4},
-                "climb": {"none": 0, "park": 2, "shallow": 6, "deep": 12}
+                "teleop": {
+                    "artifact": 3,
+                    "overflow": 1,
+                    "depot": 1,
+                    "pattern_match": 2
+                },
+                "endgame": {
+                    "park_partial": 5,
+                    "park_full": 10,
+                    "double_park_bonus": 10
+                }
             },
             "metrics": {
-                "coral_levels": ["L1", "L2", "L3", "L4"],
-                "game_phases": ["autonomous", "teleop", "endgame"]
+                "game_phases": ["autonomous", "teleop", "endgame"],
+                "endgame_states": ["park_partial", "park_full"],
+                "match_items": ["artifact", "overflow", "depot", "pattern_match"]
             }
         }
     
@@ -601,30 +614,41 @@ def validate_alliance_selection(red, blue):
 
 
 def build_coral_breakdown_df(breakdown):
-    levels = ['L1', 'L2', 'L3', 'L4']
-    data = {
-        'Level': levels,
-        'Auto': [breakdown['auto_coral'][lvl] for lvl in levels],
-        'Teleop': [breakdown['teleop_coral'][lvl] for lvl in levels],
-        'Total': [breakdown['coral_scores'][lvl] for lvl in levels]
-    }
+    data = [
+        {
+            'Phase': 'Auto',
+            'Classified': breakdown['auto_artifacts']['classified'],
+            'Overflow': breakdown['auto_artifacts']['overflow'],
+            'Depot': breakdown['auto_artifacts']['depot'],
+            'Pattern Matches': breakdown['auto_artifacts']['pattern']
+        },
+        {
+            'Phase': 'Teleop',
+            'Classified': breakdown['teleop_artifacts']['classified'],
+            'Overflow': breakdown['teleop_artifacts']['overflow'],
+            'Depot': breakdown['teleop_artifacts']['depot'],
+            'Failed': breakdown['teleop_artifacts']['failed'],
+            'Pattern Matches': breakdown['teleop_artifacts']['pattern']
+        }
+    ]
     return pd.DataFrame(data)
 
 
 def build_algae_summary_df(breakdown):
     return pd.DataFrame([
-        {'Phase': 'Auto Processor', 'Pieces': breakdown['processor_algae']['auto']},
-        {'Phase': 'Teleop Processor', 'Pieces': breakdown['processor_algae']['teleop']},
-        {'Phase': 'Teleop Net', 'Pieces': breakdown['net_algae']}
+        {'Return': 'None', 'Teams': breakdown['endgame_returns']['none']},
+        {'Return': 'Partial', 'Teams': breakdown['endgame_returns']['partial']},
+        {'Return': 'Full', 'Teams': breakdown['endgame_returns']['full']},
+        {'Return': 'Double Park Bonus', 'Teams': 1 if breakdown.get('double_park_bonus', 0) else 0}
     ])
 
 
 def build_climb_breakdown_df(breakdown):
     rows = []
-    for team, climb_type, points in breakdown['climb_scores']:
+    for team, return_type, points in breakdown['endgame_scores']:
         rows.append({
             'Team': get_team_display_label(team),
-            'Action': climb_type.capitalize(),
+            'Return': return_type.capitalize(),
             'Points': points
         })
     return pd.DataFrame(rows)
@@ -635,20 +659,17 @@ def build_team_performance_df(team_performances):
     for perf in team_performances:
         rows.append({
             'Team': get_team_display_label(perf.team_number),
-            'Auto L1': round(perf.auto_L1, 2),
-            'Auto L2': round(perf.auto_L2, 2),
-            'Auto L3': round(perf.auto_L3, 2),
-            'Auto L4': round(perf.auto_L4, 2),
-            'Teleop L1': round(perf.teleop_L1, 2),
-            'Teleop L2': round(perf.teleop_L2, 2),
-            'Teleop L3': round(perf.teleop_L3, 2),
-            'Teleop L4': round(perf.teleop_L4, 2),
-            'Processor Auto': round(perf.auto_processor, 2),
-            'Processor Teleop': round(perf.teleop_processor, 2),
-            'Net Algae': round(perf.teleop_net, 2),
+            'Auto Classified': round(perf.auto_classified, 2),
+            'Auto Overflow': round(perf.auto_overflow, 2),
+            'Auto Depot': round(perf.auto_depot, 2),
+            'Auto Pattern': round(perf.auto_pattern, 2),
+            'Teleop Classified': round(perf.teleop_classified, 2),
+            'Teleop Overflow': round(perf.teleop_overflow, 2),
+            'Teleop Depot': round(perf.teleop_depot, 2),
+            'Teleop Failed': round(perf.teleop_failed, 2),
+            'Teleop Pattern': round(perf.teleop_pattern, 2),
             'Auto Leave %': round(perf.p_leave_auto_zone * 100, 1),
-            'Cooperation %': round(perf.p_cooperation * 100, 1),
-            'Expected Climb': round(perf.expected_climb_points(), 2)
+            'Expected Endgame': round(perf.expected_endgame_points(), 2)
         })
     return pd.DataFrame(rows)
 
@@ -660,7 +681,7 @@ st.sidebar.markdown(f"""
     <h1 style='color: white; font-size: 2.5rem; margin: 0;'>{sidebar_config.get('icon', '🤖')}</h1>
     <h2 style='color: white; font-weight: 700; margin: 0.5rem 0;'>Alliance Simulator</h2>
     <p style='color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;'>{sidebar_config.get('team_name', 'Team Overture 7421')}</p>
-    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>{game_config.get('name', 'FRC 2025 REEFSCAPE')}</p>
+    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>{game_config.get('name', 'FTC DECODE 2026')}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1315,18 +1336,22 @@ elif page == "📈 Team Statistics":
                                 team_name = team_num
                                 if st.session_state.toa_manager:
                                     team_name = f"{team_num} - {st.session_state.toa_manager.get_team_nickname(team_num)}"
+                                team_rows = team_data_grouped.get(team_num, [])
+                                auto_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Auto)")
+                                teleop_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)")
                                 st.markdown(f"**{team_name}**")
                                 st.metric("Overall Avg", f"{team_stat.get('overall_avg', 0):.2f}")
                                 st.metric("Robot Valuation", f"{team_stat.get('RobotValuation', 0):.2f}")
-                                st.metric("Teleop Coral Avg", f"{team_stat.get('teleop_coral_avg', 0):.2f}")
-                                died_rate = get_rate_from_stat(team_stat, ("Died", "Died?"))
-                                st.metric("Death Rate", f"{died_rate * 100:.1f}%")
+                                st.metric("Auto Classified Avg", f"{auto_classified_avg:.2f}")
+                                st.metric("Teleop Classified Avg", f"{teleop_classified_avg:.2f}")
+                                died_rate = get_rate_from_stat(team_stat, ("Died/Stopped Moving in Teleop",))
+                                st.metric("Teleop Died Rate", f"{died_rate * 100:.1f}%")
                     
                     # Radar chart comparison
                     st.markdown("#### Performance Radar Chart")
                     
                     # Prepare radar data
-                    categories = ['Overall Avg', 'Robot Valuation', 'Teleop Coral', 'Teleop Algae', 'Consistency']
+                    categories = ['Overall Avg', 'Robot Valuation', 'Auto Classified', 'Teleop Classified', 'Consistency']
                     
                     radar_fig = go.Figure()
                     
@@ -1335,10 +1360,18 @@ elif page == "📈 Team Statistics":
                     max_overall = max_overall_val if max_overall_val > 0 else 1
                     max_robot_val_raw = max((s.get('RobotValuation', 0) for s in selected_stats), default=0)
                     max_robot_val = max_robot_val_raw if max_robot_val_raw > 0 else 1
-                    max_coral_val = max((s.get('teleop_coral_avg', 0) for s in selected_stats), default=0)
-                    max_coral = max_coral_val if max_coral_val > 0 else 1
-                    max_algae_val = max((s.get('teleop_algae_avg', 0) for s in selected_stats), default=0)
-                    max_algae = max_algae_val if max_algae_val > 0 else 1
+                    auto_classified_vals = [
+                        compute_numeric_average(team_data_grouped.get(s.get('team', ''), []), "Artifacts Scored (CLASSIFIED) (Auto)")
+                        for s in selected_stats
+                    ]
+                    teleop_classified_vals = [
+                        compute_numeric_average(team_data_grouped.get(s.get('team', ''), []), "Artifacts Scored (CLASSIFIED) (Teleop)")
+                        for s in selected_stats
+                    ]
+                    max_auto_classified = max(auto_classified_vals) if auto_classified_vals else 1
+                    max_auto_classified = max_auto_classified if max_auto_classified > 0 else 1
+                    max_teleop_classified = max(teleop_classified_vals) if teleop_classified_vals else 1
+                    max_teleop_classified = max_teleop_classified if max_teleop_classified > 0 else 1
                     
                     # Use chart colors from config if available
                     ui_config = APP_CONFIG.get("ui", {})
@@ -1347,6 +1380,9 @@ elif page == "📈 Team Statistics":
                     
                     for idx, team_stat in enumerate(selected_stats):
                         team_num = team_stat.get('team', 'N/A')
+                        team_rows = team_data_grouped.get(team_num, [])
+                        auto_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Auto)")
+                        teleop_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)")
                         
                         # Calculate consistency (inverse of std dev relative to avg)
                         overall_avg = team_stat.get('overall_avg', 0)
@@ -1357,8 +1393,8 @@ elif page == "📈 Team Statistics":
                         values = [
                             (team_stat.get('overall_avg', 0) / max_overall) * 100 if max_overall > 0 else 0,
                             (team_stat.get('RobotValuation', 0) / max_robot_val) * 100 if max_robot_val > 0 else 0,
-                            (team_stat.get('teleop_coral_avg', 0) / max_coral) * 100 if max_coral > 0 else 0,
-                            (team_stat.get('teleop_algae_avg', 0) / max_algae) * 100 if max_algae > 0 else 0,
+                            (auto_classified_avg / max_auto_classified) * 100 if max_auto_classified > 0 else 0,
+                            (teleop_classified_avg / max_teleop_classified) * 100 if max_teleop_classified > 0 else 0,
                             consistency
                         ]
                         
@@ -1386,17 +1422,26 @@ elif page == "📈 Team Statistics":
                     # Bar chart comparison
                     st.markdown("#### Side-by-Side Bar Comparison")
                     
-                    comparison_metrics = ['overall_avg', 'RobotValuation', 'teleop_coral_avg', 'teleop_algae_avg']
-                    metric_labels = ['Overall Avg', 'Robot Valuation', 'Teleop Coral', 'Teleop Algae']
+                    comparison_metrics = ['overall_avg', 'RobotValuation', 'auto_classified_avg', 'teleop_classified_avg']
+                    metric_labels = ['Overall Avg', 'Robot Valuation', 'Auto Classified', 'Teleop Classified']
                     
                     bar_data = []
                     for team_stat in selected_stats:
                         team_num = team_stat.get('team', 'N/A')
+                        team_rows = team_data_grouped.get(team_num, [])
+                        auto_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Auto)")
+                        teleop_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)")
                         for metric, label in zip(comparison_metrics, metric_labels):
+                            if metric == 'auto_classified_avg':
+                                value = auto_classified_avg
+                            elif metric == 'teleop_classified_avg':
+                                value = teleop_classified_avg
+                            else:
+                                value = team_stat.get(metric, 0)
                             bar_data.append({
                                 'Team': f"Team {team_num}",
                                 'Metric': label,
-                                'Value': team_stat.get(metric, 0)
+                                'Value': value
                             })
                     
                     bar_df = pd.DataFrame(bar_data)
@@ -1421,10 +1466,24 @@ elif page == "📈 Team Statistics":
                     st.markdown("#### Detailed Comparison Table")
                     comparison_df = pd.DataFrame(selected_stats)
                     comparison_df = comparison_df.set_index('team')
-                    key_columns = ['overall_avg', 'overall_std', 'RobotValuation', 'teleop_coral_avg', 'teleop_algae_avg']
+                    key_columns = ['overall_avg', 'overall_std', 'RobotValuation']
                     available_columns = [col for col in key_columns if col in comparison_df.columns]
                     if available_columns:
-                        st.dataframe(comparison_df[available_columns].T, use_container_width=True)
+                        base_table = comparison_df[available_columns].T
+                        extra_rows = {}
+                        for team_num in selected_teams:
+                            team_rows = team_data_grouped.get(team_num, [])
+                            extra_rows.setdefault('auto_classified_avg', {})[team_num] = compute_numeric_average(
+                                team_rows, "Artifacts Scored (CLASSIFIED) (Auto)"
+                            )
+                            extra_rows.setdefault('teleop_classified_avg', {})[team_num] = compute_numeric_average(
+                                team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)"
+                            )
+                        extra_df = pd.DataFrame(extra_rows)
+                        extra_df = extra_df.T
+                        extra_df.index = ['Auto Classified Avg', 'Teleop Classified Avg']
+                        comparison_table = pd.concat([base_table, extra_df], axis=0)
+                        st.dataframe(comparison_table, use_container_width=True)
                     
                 elif len(selected_teams) == 1:
                     st.info("Please select at least 2 teams to compare.")
@@ -1451,6 +1510,7 @@ elif page == "📈 Team Statistics":
                     team_stat = next((s for s in stats if s.get('team') == selected_team_num), None)
                     
                     if team_stat:
+                        team_rows = st.session_state.analizador.get_team_data_grouped().get(str(selected_team_num), [])
                         col1, col2, col3 = st.columns(3)
                         
                         with col1:
@@ -1459,14 +1519,14 @@ elif page == "📈 Team Statistics":
                         
                         with col2:
                             st.metric("Robot Valuation", f"{team_stat.get('RobotValuation', 0):.2f}")
-                            teleop_coral_avg = team_stat.get('teleop_coral_avg', 0)
-                            st.metric("Teleop Coral Avg", f"{teleop_coral_avg:.2f}")
+                            auto_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Auto)")
+                            st.metric("Auto Classified Avg", f"{auto_classified_avg:.2f}")
                         
                         with col3:
-                            teleop_algae_avg = team_stat.get('teleop_algae_avg', 0)
-                            st.metric("Teleop Algae Avg", f"{teleop_algae_avg:.2f}")
-                            died_rate = get_rate_from_stat(team_stat, ("Died", "Died?"))
-                            st.metric("Death Rate", f"{died_rate * 100:.1f}%")
+                            teleop_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)")
+                            st.metric("Teleop Classified Avg", f"{teleop_classified_avg:.2f}")
+                            died_rate = get_rate_from_stat(team_stat, ("Died/Stopped Moving in Teleop",))
+                            st.metric("Teleop Died Rate", f"{died_rate * 100:.1f}%")
                         
                         # Complete metrics table
                         st.markdown("### Complete Metric Snapshot")
@@ -1527,19 +1587,11 @@ elif page == "📈 Team Statistics":
                         else:
                             from collections import defaultdict
 
-                            # Compute *real* match points using REEFSCAPE point table (game.json).
-                            # Uses whatever columns exist in the loaded scouting sheet; missing columns simply contribute 0.
-                            from config_manager import get_global_config
-
-                            game_cfg = get_global_config().get_game_config()
-                            coral_auto_points = getattr(game_cfg, "coral_auto_points", {}) or {}
-                            coral_teleop_points = getattr(game_cfg, "coral_teleop_points", {}) or {}
-                            algae_points = getattr(game_cfg, "algae_points", {}) or {}
-                            climb_points = getattr(game_cfg, "climb_points", {}) or {}
-
-                            # Official REEFSCAPE auto leave is commonly 3 points; keep as a local default
-                            # (game.json currently doesn't include it).
-                            AUTO_LEAVE_POINTS = 3
+                            # Compute DECODE match points based on current config.
+                            game_cfg = APP_CONFIG.get("game", {})
+                            auto_points = game_cfg.get("autonomous", {}) or {}
+                            teleop_points = game_cfg.get("teleop", {}) or {}
+                            endgame_points = game_cfg.get("endgame", {}) or {}
 
                             def _get_value(row, col_name):
                                 col_idx = analyzer._column_indices.get(col_name)
@@ -1557,54 +1609,50 @@ elif page == "📈 Team Statistics":
                                 return ""
                             return str(v).strip().lower()
 
-                        def _normalize_climb(value: str) -> str:
+                        def _normalize_returned(value: str) -> str:
                             v = (value or "").strip().lower()
                             if not v:
                                 return "none"
-                            if v in {"none", "no", "n/a", "na"}:
-                                return "none"
-                            if "park" in v:
-                                return "park"
-                            if "shallow" in v:
-                                return "shallow"
-                            if "deep" in v:
-                                return "deep"
+                            if "fully" in v:
+                                return "full"
+                            if "partial" in v:
+                                return "partial"
                             return "none"
 
                         def _row_match_points(row) -> float:
                             points = 0.0
 
-                            # Coral
-                            for level in ("L1", "L2", "L3", "L4"):
-                                auto_count = _get_num(row, f"Coral {level} (Auto)")
-                                teleop_count = _get_num(row, f"Coral {level} (Teleop)")
-                                points += auto_count * float(coral_auto_points.get(level, 0))
-                                points += teleop_count * float(coral_teleop_points.get(level, 0))
+                            # Autonomous scoring
+                            leave = _parse_bool(_get_value(row, "Left Launch Line (LEAVE)"))
+                            if leave:
+                                points += float(auto_points.get("leave", 0))
 
-                            # Algae (map Barge -> Net)
-                            proc_auto = _get_num(row, "Processor Algae (Auto)")
-                            proc_tele = _get_num(row, "Processor Algae (Teleop)")
-                            barge_auto = _get_num(row, "Barge Algae (Auto)")
-                            barge_tele = _get_num(row, "Barge Algae (Teleop)")
-                            points += (proc_auto + proc_tele) * float(algae_points.get("processor", 0))
-                            points += (barge_auto + barge_tele) * float(algae_points.get("net", 0))
+                            auto_classified = _get_num(row, "Artifacts Scored (CLASSIFIED) (Auto)")
+                            auto_overflow = _get_num(row, "Artifacts Scored (OVERFLOW) (Auto)")
+                            auto_depot = _get_num(row, "Artifacts Placed in Depot (Auto)")
+                            auto_pattern = _get_num(row, "Pattern Matches at End of Auto (0-9)")
+                            points += auto_classified * float(auto_points.get("artifact", 0))
+                            points += auto_overflow * float(auto_points.get("overflow", 0))
+                            points += auto_depot * float(auto_points.get("depot", 0))
+                            points += auto_pattern * float(auto_points.get("pattern_match", 0))
 
-                            # Auto leave / mobility (if present)
-                            moved = False
-                            if "Moved (Auto)" in analyzer._column_indices:
-                                moved = _parse_bool(_get_value(row, "Moved (Auto)"))
-                            if moved:
-                                points += float(AUTO_LEAVE_POINTS)
+                            # Teleop scoring
+                            teleop_classified = _get_num(row, "Artifacts Scored (CLASSIFIED) (Teleop)")
+                            teleop_overflow = _get_num(row, "Artifacts Scored (OVERFLOW) (Teleop)")
+                            teleop_depot = _get_num(row, "Artifacts Placed in Depot (Teleop)")
+                            teleop_pattern = _get_num(row, "Pattern Matches at End of Match (0-9)")
+                            points += teleop_classified * float(teleop_points.get("artifact", 0))
+                            points += teleop_overflow * float(teleop_points.get("overflow", 0))
+                            points += teleop_depot * float(teleop_points.get("depot", 0))
+                            points += teleop_pattern * float(teleop_points.get("pattern_match", 0))
 
-                            # Endgame climb / end position (if present)
-                            end_pos_col = None
-                            for cname in ("End Position", "Endgame", "Climb", "Climb Position"):
-                                if cname in analyzer._column_indices:
-                                    end_pos_col = cname
-                                    break
-                            if end_pos_col:
-                                climb_key = _normalize_climb(_get_text(row, end_pos_col))
-                                points += float(climb_points.get(climb_key, 0))
+                            # Endgame scoring (per-robot)
+                            returned_val = _get_text(row, "Returned to Base")
+                            return_key = _normalize_returned(returned_val)
+                            if return_key == "partial":
+                                points += float(endgame_points.get("park_partial", 0))
+                            elif return_key == "full":
+                                points += float(endgame_points.get("park_full", 0))
 
                             return points
 
@@ -2616,17 +2664,17 @@ elif page == "🔮 Foreshadowing":
                     algae_df = build_algae_summary_df(red_breakdown)
                     climb_df = build_climb_breakdown_df(red_breakdown)
 
-                    st.markdown("#### Coral Contribution")
+                    st.markdown("#### Artifact Contribution")
                     st.dataframe(coral_df, use_container_width=True)
-                    st.markdown("#### Algae Summary")
+                    st.markdown("#### Endgame Summary")
                     st.dataframe(algae_df, use_container_width=True)
-                    st.markdown("#### Climb Performance")
+                    st.markdown("#### Endgame Returns")
                     st.dataframe(climb_df, use_container_width=True)
 
                     st.markdown("#### Additional Metrics")
                     st.write(
-                        f"Auto Zone: {red_breakdown['teams_left_auto_zone']}/3 | "
-                        f"Cooperation: {'✅' if red_breakdown['cooperation_achieved'] else '❌'}"
+                        f"Auto Leave: {red_breakdown['teams_left_auto_zone']}/2 | "
+                        f"Double Park Bonus: {'✅' if red_breakdown.get('double_park_bonus', 0) else '❌'}"
                     )
 
                 with breakdown_tabs[1]:
@@ -2635,17 +2683,17 @@ elif page == "🔮 Foreshadowing":
                     algae_df = build_algae_summary_df(blue_breakdown)
                     climb_df = build_climb_breakdown_df(blue_breakdown)
 
-                    st.markdown("#### Coral Contribution")
+                    st.markdown("#### Artifact Contribution")
                     st.dataframe(coral_df, use_container_width=True)
-                    st.markdown("#### Algae Summary")
+                    st.markdown("#### Endgame Summary")
                     st.dataframe(algae_df, use_container_width=True)
-                    st.markdown("#### Climb Performance")
+                    st.markdown("#### Endgame Returns")
                     st.dataframe(climb_df, use_container_width=True)
 
                     st.markdown("#### Additional Metrics")
                     st.write(
-                        f"Auto Zone: {blue_breakdown['teams_left_auto_zone']}/3 | "
-                        f"Cooperation: {'✅' if blue_breakdown['cooperation_achieved'] else '❌'}"
+                        f"Auto Leave: {blue_breakdown['teams_left_auto_zone']}/2 | "
+                        f"Double Park Bonus: {'✅' if blue_breakdown.get('double_park_bonus', 0) else '❌'}"
                     )
 
                 with breakdown_tabs[2]:
@@ -2658,33 +2706,33 @@ elif page == "🔮 Foreshadowing":
                 score_components = [
                     {
                         'Alliance': 'Red',
-                        'Component': 'Coral',
-                        'Points': prediction.red_breakdown['coral_points']
+                        'Component': 'Auto',
+                        'Points': prediction.red_breakdown['auto_points']
                     },
                     {
                         'Alliance': 'Red',
-                        'Component': 'Algae',
-                        'Points': prediction.red_breakdown['algae_points']
+                        'Component': 'Teleop',
+                        'Points': prediction.red_breakdown['teleop_points']
                     },
                     {
                         'Alliance': 'Red',
-                        'Component': 'Climb',
-                        'Points': prediction.red_breakdown['climb_points']
+                        'Component': 'Endgame',
+                        'Points': prediction.red_breakdown['endgame_points']
                     },
                     {
                         'Alliance': 'Blue',
-                        'Component': 'Coral',
-                        'Points': prediction.blue_breakdown['coral_points']
+                        'Component': 'Auto',
+                        'Points': prediction.blue_breakdown['auto_points']
                     },
                     {
                         'Alliance': 'Blue',
-                        'Component': 'Algae',
-                        'Points': prediction.blue_breakdown['algae_points']
+                        'Component': 'Teleop',
+                        'Points': prediction.blue_breakdown['teleop_points']
                     },
                     {
                         'Alliance': 'Blue',
-                        'Component': 'Climb',
-                        'Points': prediction.blue_breakdown['climb_points']
+                        'Component': 'Endgame',
+                        'Points': prediction.blue_breakdown['endgame_points']
                     }
                 ]
                 score_df = pd.DataFrame(score_components)
@@ -2694,7 +2742,7 @@ elif page == "🔮 Foreshadowing":
                     y='Points',
                     color='Component',
                     barmode='stack',
-                    color_discrete_map={'Coral': '#ef4444', 'Algae': '#22d3ee', 'Climb': '#a855f7'}
+                    color_discrete_map={'Auto': '#60a5fa', 'Teleop': '#34d399', 'Endgame': '#a855f7'}
                 )
                 fig.update_layout(
                     title="Score Breakdown",
@@ -2724,15 +2772,15 @@ elif page == "🔮 Foreshadowing":
                     f"Confidence level: **{confidence}** | Favorite alliance: **{favorite}**"
                 )
 
-                red_coral_total = sum(prediction.red_breakdown['coral_scores'].values())
-                blue_coral_total = sum(prediction.blue_breakdown['coral_scores'].values())
+                red_teleop_total = sum(prediction.red_breakdown['teleop_artifacts'].values())
+                blue_teleop_total = sum(prediction.blue_breakdown['teleop_artifacts'].values())
 
-                if red_coral_total > blue_coral_total * 1.2:
-                    st.write("Red shows a strong coral advantage. Blue should focus on defense or endgame points.")
-                elif blue_coral_total > red_coral_total * 1.2:
-                    st.write("Blue shows a strong coral advantage. Red should prioritize efficiency in grid cycles.")
+                if red_teleop_total > blue_teleop_total * 1.2:
+                    st.write("Red shows a strong teleop artifact advantage. Blue should focus on defense or endgame points.")
+                elif blue_teleop_total > red_teleop_total * 1.2:
+                    st.write("Blue shows a strong teleop artifact advantage. Red should prioritize efficient cycles.")
                 else:
-                    st.write("Coral cycles are balanced. Endgame and algae control will likely decide the match.")
+                    st.write("Teleop artifacts are balanced. Endgame could decide the match.")
 
                 st.caption("Foreshadowing simulations use historical averages and random sampling for variability.")
 

@@ -158,57 +158,67 @@ def render_breakdown_tabs(prediction: Any,
 
 def _render_alliance_breakdown(breakdown: Dict, get_team_display_label: callable) -> None:
     """Render breakdown for a single alliance."""
-    # Coral breakdown
-    coral_df = _build_coral_breakdown_df(breakdown)
-    st.markdown("#### Coral Contribution")
-    st.dataframe(coral_df, use_container_width=True)
+    # Artifact breakdown
+    artifact_df = _build_artifact_breakdown_df(breakdown)
+    st.markdown("#### Artifact Contribution")
+    st.dataframe(artifact_df, use_container_width=True)
     
-    # Algae breakdown
-    algae_df = _build_algae_summary_df(breakdown)
-    st.markdown("#### Algae Summary")
-    st.dataframe(algae_df, use_container_width=True)
+    # Endgame breakdown
+    endgame_df = _build_endgame_summary_df(breakdown)
+    st.markdown("#### Endgame Summary")
+    st.dataframe(endgame_df, use_container_width=True)
     
-    # Climb breakdown
-    climb_df = _build_climb_breakdown_df(breakdown, get_team_display_label)
-    st.markdown("#### Climb Performance")
-    st.dataframe(climb_df, use_container_width=True)
+    # Endgame return per team
+    endgame_team_df = _build_endgame_team_df(breakdown, get_team_display_label)
+    st.markdown("#### Endgame Returns")
+    st.dataframe(endgame_team_df, use_container_width=True)
     
     # Additional metrics
     st.markdown("#### Additional Metrics")
     st.write(
-        f"Auto Zone: {breakdown['teams_left_auto_zone']}/3 | "
-        f"Cooperation: {'✅' if breakdown['cooperation_achieved'] else '❌'}"
+        f"Auto Leave: {breakdown['teams_left_auto_zone']}/2 | "
+        f"Double Park Bonus: {'✅' if breakdown.get('double_park_bonus', 0) else '❌'}"
     )
 
 
-def _build_coral_breakdown_df(breakdown: Dict) -> pd.DataFrame:
-    """Build coral breakdown DataFrame."""
-    levels = ['L1', 'L2', 'L3', 'L4']
-    data = {
-        'Level': levels,
-        'Auto': [breakdown['auto_coral'][lvl] for lvl in levels],
-        'Teleop': [breakdown['teleop_coral'][lvl] for lvl in levels],
-        'Total': [breakdown['coral_scores'][lvl] for lvl in levels]
-    }
-    return pd.DataFrame(data)
-
-
-def _build_algae_summary_df(breakdown: Dict) -> pd.DataFrame:
-    """Build algae summary DataFrame."""
+def _build_artifact_breakdown_df(breakdown: Dict) -> pd.DataFrame:
+    """Build artifact breakdown DataFrame."""
     return pd.DataFrame([
-        {'Phase': 'Auto Processor', 'Pieces': breakdown['processor_algae']['auto']},
-        {'Phase': 'Teleop Processor', 'Pieces': breakdown['processor_algae']['teleop']},
-        {'Phase': 'Teleop Net', 'Pieces': breakdown['net_algae']}
+        {
+            'Phase': 'Auto',
+            'Classified': breakdown['auto_artifacts']['classified'],
+            'Overflow': breakdown['auto_artifacts']['overflow'],
+            'Depot': breakdown['auto_artifacts']['depot'],
+            'Pattern Matches': breakdown['auto_artifacts']['pattern']
+        },
+        {
+            'Phase': 'Teleop',
+            'Classified': breakdown['teleop_artifacts']['classified'],
+            'Overflow': breakdown['teleop_artifacts']['overflow'],
+            'Depot': breakdown['teleop_artifacts']['depot'],
+            'Failed': breakdown['teleop_artifacts']['failed'],
+            'Pattern Matches': breakdown['teleop_artifacts']['pattern']
+        }
     ])
 
 
-def _build_climb_breakdown_df(breakdown: Dict, get_team_display_label: callable) -> pd.DataFrame:
-    """Build climb breakdown DataFrame."""
+def _build_endgame_summary_df(breakdown: Dict) -> pd.DataFrame:
+    """Build endgame summary DataFrame."""
+    return pd.DataFrame([
+        {'Return': 'None', 'Teams': breakdown['endgame_returns']['none']},
+        {'Return': 'Partial', 'Teams': breakdown['endgame_returns']['partial']},
+        {'Return': 'Full', 'Teams': breakdown['endgame_returns']['full']},
+        {'Return': 'Double Park Bonus', 'Teams': 1 if breakdown.get('double_park_bonus', 0) else 0}
+    ])
+
+
+def _build_endgame_team_df(breakdown: Dict, get_team_display_label: callable) -> pd.DataFrame:
+    """Build endgame return per-team DataFrame."""
     rows = []
-    for team, climb_type, points in breakdown['climb_scores']:
+    for team, return_type, points in breakdown['endgame_scores']:
         rows.append({
             'Team': get_team_display_label(team),
-            'Action': climb_type.capitalize(),
+            'Return': return_type.capitalize(),
             'Points': points
         })
     return pd.DataFrame(rows)
@@ -221,20 +231,17 @@ def _render_team_profiles(team_performances: List[Any],
     for perf in team_performances:
         rows.append({
             'Team': get_team_display_label(perf.team_number),
-            'Auto L1': round(perf.auto_L1, 2),
-            'Auto L2': round(perf.auto_L2, 2),
-            'Auto L3': round(perf.auto_L3, 2),
-            'Auto L4': round(perf.auto_L4, 2),
-            'Teleop L1': round(perf.teleop_L1, 2),
-            'Teleop L2': round(perf.teleop_L2, 2),
-            'Teleop L3': round(perf.teleop_L3, 2),
-            'Teleop L4': round(perf.teleop_L4, 2),
-            'Processor Auto': round(perf.auto_processor, 2),
-            'Processor Teleop': round(perf.teleop_processor, 2),
-            'Net Algae': round(perf.teleop_net, 2),
+            'Auto Classified': round(perf.auto_classified, 2),
+            'Auto Overflow': round(perf.auto_overflow, 2),
+            'Auto Depot': round(perf.auto_depot, 2),
+            'Auto Pattern': round(perf.auto_pattern, 2),
+            'Teleop Classified': round(perf.teleop_classified, 2),
+            'Teleop Overflow': round(perf.teleop_overflow, 2),
+            'Teleop Depot': round(perf.teleop_depot, 2),
+            'Teleop Failed': round(perf.teleop_failed, 2),
+            'Teleop Pattern': round(perf.teleop_pattern, 2),
             'Auto Leave %': round(perf.p_leave_auto_zone * 100, 1),
-            'Cooperation %': round(perf.p_cooperation * 100, 1),
-            'Expected Climb': round(perf.expected_climb_points(), 2)
+            'Expected Endgame': round(perf.expected_endgame_points(), 2)
         })
     st.dataframe(pd.DataFrame(rows), use_container_width=True)
 
@@ -242,12 +249,12 @@ def _render_team_profiles(team_performances: List[Any],
 def render_score_comparison_chart(prediction: Any) -> None:
     """Render score comparison bar chart."""
     score_components = [
-        {'Alliance': 'Red', 'Component': 'Coral', 'Points': prediction.red_breakdown['coral_points']},
-        {'Alliance': 'Red', 'Component': 'Algae', 'Points': prediction.red_breakdown['algae_points']},
-        {'Alliance': 'Red', 'Component': 'Climb', 'Points': prediction.red_breakdown['climb_points']},
-        {'Alliance': 'Blue', 'Component': 'Coral', 'Points': prediction.blue_breakdown['coral_points']},
-        {'Alliance': 'Blue', 'Component': 'Algae', 'Points': prediction.blue_breakdown['algae_points']},
-        {'Alliance': 'Blue', 'Component': 'Climb', 'Points': prediction.blue_breakdown['climb_points']}
+        {'Alliance': 'Red', 'Component': 'Auto', 'Points': prediction.red_breakdown['auto_points']},
+        {'Alliance': 'Red', 'Component': 'Teleop', 'Points': prediction.red_breakdown['teleop_points']},
+        {'Alliance': 'Red', 'Component': 'Endgame', 'Points': prediction.red_breakdown['endgame_points']},
+        {'Alliance': 'Blue', 'Component': 'Auto', 'Points': prediction.blue_breakdown['auto_points']},
+        {'Alliance': 'Blue', 'Component': 'Teleop', 'Points': prediction.blue_breakdown['teleop_points']},
+        {'Alliance': 'Blue', 'Component': 'Endgame', 'Points': prediction.blue_breakdown['endgame_points']}
     ]
     
     score_df = pd.DataFrame(score_components)
@@ -257,7 +264,7 @@ def render_score_comparison_chart(prediction: Any) -> None:
         y='Points',
         color='Component',
         barmode='stack',
-        color_discrete_map={'Coral': '#ef4444', 'Algae': '#22d3ee', 'Climb': '#a855f7'}
+        color_discrete_map={'Auto': '#60a5fa', 'Teleop': '#34d399', 'Endgame': '#a855f7'}
     )
     fig.update_layout(
         title="Score Breakdown",
@@ -289,15 +296,15 @@ def render_strategic_notes(prediction: Any) -> None:
     
     st.write(f"Confidence level: **{confidence}** | Favorite alliance: **{favorite}**")
     
-    # Coral comparison
-    red_coral_total = sum(prediction.red_breakdown['coral_scores'].values())
-    blue_coral_total = sum(prediction.blue_breakdown['coral_scores'].values())
+    # Teleop artifact comparison
+    red_teleop_total = sum(prediction.red_breakdown['teleop_artifacts'].values())
+    blue_teleop_total = sum(prediction.blue_breakdown['teleop_artifacts'].values())
     
-    if red_coral_total > blue_coral_total * 1.2:
-        st.write("Red shows a strong coral advantage. Blue should focus on defense or endgame points.")
-    elif blue_coral_total > red_coral_total * 1.2:
-        st.write("Blue shows a strong coral advantage. Red should prioritize efficiency in grid cycles.")
+    if red_teleop_total > blue_teleop_total * 1.2:
+        st.write("Red shows a strong teleop artifact advantage. Blue should focus on defense or endgame points.")
+    elif blue_teleop_total > red_teleop_total * 1.2:
+        st.write("Blue shows a strong teleop artifact advantage. Red should prioritize efficient cycles.")
     else:
-        st.write("Coral cycles are balanced. Endgame and algae control will likely decide the match.")
+        st.write("Teleop artifacts are balanced. Endgame could decide the match.")
     
     st.caption("Foreshadowing simulations use historical averages and random sampling for variability.")
