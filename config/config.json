@@ -1,11 +1,11 @@
 {
     "version": "1.0",
-    "description": "Main configuration file for Alliance Simulator - FRC Scouting Tool",
+    "description": "Main configuration file for Alliance Simulator - FTC Scouting Tool",
     "app": {
-        "title": "Alliance Simulator - Overture 7421",
+        "title": "Alliance Simulator - Overture 23619",
         "icon": "🤖",
-        "subtitle": "FRC 2025 REEFSCAPE",
-        "team_name": "Team Overture 7421",
+        "subtitle": "FTC DECODE 2026",
+        "team_name": "Team Overture 23619",
         "layout": "wide",
         "initial_sidebar_state": "expanded"
     },
@@ -15,54 +15,31 @@
         "during_event": 20
     },
     "game": {
-        "name": "REEFSCAPE 2025",
-        "year": 2025,
-        "coral": {
-            "auto_points": {
-                "L1": 3,
-                "L2": 4,
-                "L3": 6,
-                "L4": 7
-            },
-            "teleop_points": {
-                "L1": 2,
-                "L2": 3,
-                "L3": 4,
-                "L4": 5
-            }
+        "name": "DECODE 2026",
+        "year": 2026,
+        "autonomous": {
+            "leave": 3,
+            "artifact": 3,
+            "overflow": 1,
+            "depot": 1,
+            "pattern_match": 2
         },
-        "algae": {
-            "processor": 6,
-            "processor_opponent_bonus": 4,
-            "net": 4
+        "teleop": {
+            "artifact": 3,
+            "overflow": 1,
+            "depot": 1,
+            "pattern_match": 2
         },
-        "climb": {
-            "none": 0,
-            "park": 2,
-            "shallow": 6,
-            "deep": 12
-        },
-        "auto_leave_points": 3,
-        "ranking_points": {
-            "win": 3,
-            "tie": 1,
-            "loss": 0
-        },
-        "auto_rp_requirements": {
-            "all_leave_zone": true,
-            "min_coral_auto": 1
-        },
-        "coral_rp_requirements": {
-            "min_coral_per_level_no_coop": 7,
-            "min_levels_with_coop": 3,
-            "min_coral_per_level_with_coop": 7
-        },
-        "cooperation_threshold": 2
+        "endgame": {
+            "park_partial": 5,
+            "park_full": 10,
+            "double_park_bonus": 10
+        }
     },
     "metrics": {
-        "coral_levels": ["L1", "L2", "L3", "L4"],
         "game_phases": ["autonomous", "teleop", "endgame"],
-        "climb_types": ["none", "park", "shallow", "deep"]
+        "endgame_states": ["park_partial", "park_full"],
+        "match_items": ["artifact", "overflow", "depot", "pattern_match"]
     },
     "ui": {
         "theme": "dark",
@@ -79,10 +56,9 @@
     },
     "alliance": {
         "max_alliances": 8,
-        "teams_per_alliance": 3,
+        "teams_per_alliance": 2,
         "draft_parameters": {
-            "pick1_round": "standard",
-            "pick2_round": "snake"
+            "pick1_round": "standard"
         }
     },
     "honor_roll": {

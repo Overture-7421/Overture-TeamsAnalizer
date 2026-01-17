@@ -1,51 +1,29 @@
 {
     "version": "1.0",
-    "description": "Game configuration for FRC 2025 REEFSCAPE",
-    "game_name": "REEFSCAPE 2025",
+    "description": "Game configuration for FTC DECODE 2026",
+    "game_name": "DECODE 2026",
     "points": {
-        "coral": {
-            "auto": {
-                "L1": 3,
-                "L2": 4,
-                "L3": 6,
-                "L4": 7
-            },
-            "teleop": {
-                "L1": 2,
-                "L2": 3,
-                "L3": 4,
-                "L4": 5
-            }
+        "autonomous": {
+            "leave": 3,
+            "artifact": 3,
+            "overflow": 1,
+            "depot": 1,
+            "pattern_match": 2
         },
-        "algae": {
-            "processor": 6,
-            "processor_opponent_bonus": 4,
-            "net": 4
+        "teleop": {
+            "artifact": 3,
+            "overflow": 1,
+            "depot": 1,
+            "pattern_match": 2
         },
-        "climb": {
-            "none": 0,
-            "park": 2,
-            "shallow": 6,
-            "deep": 12
+        "endgame": {
+            "park_partial": 5,
+            "park_full": 10,
+            "double_park_bonus": 10
         }
     },
-    "ranking_points": {
-        "win": 3,
-        "tie": 1,
-        "loss": 0,
-        "auto_rp": {
-            "all_leave_zone": true,
-            "min_coral_auto": 1
-        },
-        "coral_rp": {
-            "min_coral_per_level_no_coop": 7,
-            "min_levels_with_coop": 3,
-            "min_coral_per_level_with_coop": 7
-        },
-        "cooperation_threshold": 2
-    },
     "robot_valuation": {
-        "phase_weights": [0.25, 0.35, 0.40],
-        "phase_names": ["Early Season", "Mid Season", "Late Season"]
+        "phase_weights": [0.2, 0.3, 0.5],
+        "phase_names": ["Q1", "Q2", "Q3"]
     }
 }

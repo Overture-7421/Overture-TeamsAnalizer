@@ -862,8 +862,9 @@ elif page == "📁 Data Management":
             )
 
             # Drain queue items from the scanner thread into session_state.
-            def _drain_qr_queue() -> int:
+            def _drain_qr_queue() -> tuple[int, bool]:
                 drained = 0
+                auto_updated = False
                 q = st.session_state.qr_scanner_queue
                 while True:
                     try:
@@ -877,7 +878,15 @@ elif page == "📁 Data Management":
                             drained += 1
                     elif kind == "DONE":
                         st.session_state.qr_scanner_running = False
-                        st.session_state.qr_scanner_status = "Scanner stopped."
+                        new_codes = [code for code in (payload or []) if code and code not in st.session_state.qr_scanned_codes]
+                        if new_codes:
+                            st.session_state.qr_scanned_codes.extend(new_codes)
+                        if payload:
+                            st.session_state.analizador.load_qr_data("\n".join(payload))
+                            auto_updated = True
+                            st.session_state.qr_scanner_status = f"Scanner stopped. Added {len(payload)} QR code(s) to raw data."
+                        else:
+                            st.session_state.qr_scanner_status = "Scanner stopped."
                     elif kind == "ERROR":
                         st.session_state.qr_scanner_running = False
                         st.session_state.qr_scanner_status = f"Scanner error: {payload}"
@@ -888,9 +897,11 @@ elif page == "📁 Data Management":
                     if not st.session_state.qr_scanner_status:
                         st.session_state.qr_scanner_status = "Scanner stopped."
 
-                return drained
+                return drained, auto_updated
 
-            _drain_qr_queue()
+            _, auto_updated = _drain_qr_queue()
+            if auto_updated:
+                st.rerun()
 
             st.markdown("#### 🎥 Camera Selection")
             cam_cols = st.columns([1, 1])
@@ -985,13 +996,13 @@ elif page == "📁 Data Management":
 
                 def _worker(out_queue: "queue.Queue", cam_idx: int, debounce_seconds: float):
                     try:
-                        scan_qr_codes(
+                        scanned = scan_qr_codes(
                             update_callback=lambda data: out_queue.put(("SCAN", data)),
                             camera_index=cam_idx,
                             debounce_seconds=debounce_seconds,
                             show_window=True,
                         )
-                        out_queue.put(("DONE", None))
+                        out_queue.put(("DONE", scanned))
                     except Exception as e:
                         out_queue.put(("ERROR", str(e)))
 
@@ -1008,8 +1019,11 @@ elif page == "📁 Data Management":
             refresh_cols = st.columns(2)
             with refresh_cols[0]:
                 if st.button("Update scanned list"):
-                    added = _drain_qr_queue()
-                    st.session_state.qr_scanner_status = f"Updated. Added {added} new code(s)."
+                    added, auto_updated = _drain_qr_queue()
+                    status = f"Updated. Added {added} new code(s)."
+                    if auto_updated:
+                        status += " QR data loaded into raw data."
+                    st.session_state.qr_scanner_status = status
             with refresh_cols[1]:
                 if st.button("Clear scanned list"):
                     st.session_state.qr_scanned_codes = []
@@ -1044,6 +1058,27 @@ elif page == "📁 Data Management":
             st.dataframe(df, use_container_width=True, height=400)
             
             st.markdown(f"**Total Records:** {len(raw_data) - 1}")
+
+            st.markdown("---")
+            st.markdown("### ✏️ Edit Raw Data")
+            st.caption("Modify cells below and click Save Changes to update the dataset.")
+            with st.form("raw_data_edit_form"):
+                edited_df = st.data_editor(
+                    df,
+                    use_container_width=True,
+                    height=420,
+                    num_rows="dynamic",
+                    key="raw_data_editor"
+                )
+                save_changes = st.form_submit_button("Save Changes")
+
+            if save_changes:
+                cleaned_df = edited_df.fillna("")
+                rows = cleaned_df.values.tolist()
+                new_sheet = [raw_data[0]] + [[str(cell) for cell in row] for row in rows]
+                st.session_state.analizador.set_raw_data(new_sheet)
+                st.success("Raw data updated. Stats will refresh automatically.")
+                st.rerun()
         else:
             st.info("No data loaded yet. Please upload a CSV file or paste QR data.")
     

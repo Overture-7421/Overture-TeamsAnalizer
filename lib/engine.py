@@ -861,6 +861,14 @@ class AnalizadorRobot:
         """Return the raw sheet data."""
         return self.sheet_data
 
+    def set_raw_data(self, sheet_data: List[List[str]]) -> None:
+        """Replace the raw sheet data and refresh column mappings."""
+        if not sheet_data:
+            return
+        self.sheet_data = sheet_data
+        self._update_column_indices()
+        self._initialize_selected_columns()
+
     def get_team_data_grouped(self) -> Dict[str, List[List[str]]]:
         """Group rows by team number."""
         if len(self.sheet_data) < 2:

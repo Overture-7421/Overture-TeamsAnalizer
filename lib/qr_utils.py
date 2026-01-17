@@ -99,7 +99,8 @@ def scan_qr_codes(
     update_callback: Optional[Callable[[str], None]] = None,
     camera_index: int = 0,
     debounce_seconds: float = 2.0,
-    show_window: bool = True
+    show_window: bool = True,
+    stop_on_first_scan: bool = False
 ) -> List[str]:
     """
     Activate the camera to scan QR codes and return the data as a list of strings.
@@ -168,6 +169,10 @@ def scan_qr_codes(
                                 print(f"Error in real-time update: {e}")
                         
                         play_beep()
+
+                        if stop_on_first_scan:
+                            print("Stopping scanner after first scan.")
+                            return newly_scanned_data
                     
                     # Update the per-code last scan time
                     code_last_scan_time[data] = current_time

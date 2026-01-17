@@ -3,8 +3,8 @@
     "description": "Alliance selection configuration for AllianceSelector",
     "draft_parameters": {
         "max_alliances": 8,
-        "teams_per_alliance": 3,
-        "min_teams_per_alliance_for_calc": 3
+        "teams_per_alliance": 2,
+        "min_teams_per_alliance_for_calc": 2
     },
     "scoring_weights": {
         "auto": 1.5,
@@ -14,13 +14,9 @@
         "consistency": 5,
         "clutch": 8
     },
-    "pick2_priorities": [
-        "defense_rate",
-        "algae_score",
-        "death_rate"
-    ],
+    "pick2_priorities": [],
     "recommendation_logic": {
         "pick1": "captain_sniping",
-        "pick2": "best_available_with_priorities"
+        "pick2": "disabled"
     }
 }
