@@ -890,17 +890,11 @@ elif page == "📁 Data Management":
                         if payload and payload not in st.session_state.qr_scanned_codes:
                             st.session_state.qr_scanned_codes.append(payload)
                             drained += 1
+                            st.session_state.analizador.load_qr_data(payload)
+                            auto_updated = True
                     elif kind == "DONE":
                         st.session_state.qr_scanner_running = False
-                        new_codes = [code for code in (payload or []) if code and code not in st.session_state.qr_scanned_codes]
-                        if new_codes:
-                            st.session_state.qr_scanned_codes.extend(new_codes)
-                        if payload:
-                            st.session_state.analizador.load_qr_data("\n".join(payload))
-                            auto_updated = True
-                            st.session_state.qr_scanner_status = f"Scanner stopped. Added {len(payload)} QR code(s) to raw data."
-                        else:
-                            st.session_state.qr_scanner_status = "Scanner stopped."
+                        st.session_state.qr_scanner_status = "Scanner stopped."
                     elif kind == "ERROR":
                         st.session_state.qr_scanner_running = False
                         st.session_state.qr_scanner_status = f"Scanner error: {payload}"

@@ -831,6 +831,7 @@ class AnalizadorRobot:
 
         print(f"QR data processed. {new_rows_added} rows added. Total: {len(self.sheet_data)} rows.")
         self._update_column_indices()
+        self._initialize_selected_columns()
 
     # --- Statistical Calculation Functions ---
     def _average(self, values: List[float]) -> float:
