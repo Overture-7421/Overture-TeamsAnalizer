@@ -28,8 +28,17 @@ from pathlib import Path
 
 # ============================= CONFIGURACIÓN DE JUEGO ============================= #
 
+# Cache for loaded configurations to avoid repeated file reads
+_game_config_cache = None
+_columns_config_cache = None
+
+
 def _load_game_config_from_json() -> Optional[Dict]:
-    """Load game configuration from JSON file."""
+    """Load game configuration from JSON file (cached)."""
+    global _game_config_cache
+    if _game_config_cache is not None:
+        return _game_config_cache
+    
     config_paths = [
         Path(__file__).parent / "config" / "game.json",
         Path(__file__).parent / "game.json"
@@ -40,10 +49,65 @@ def _load_game_config_from_json() -> Optional[Dict]:
             try:
                 import json
                 with open(config_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    _game_config_cache = json.load(f)
+                    return _game_config_cache
             except Exception:
                 pass
     return None
+
+
+def _load_columns_config_from_json() -> Optional[Dict]:
+    """Load columns configuration from JSON file (cached)."""
+    global _columns_config_cache
+    if _columns_config_cache is not None:
+        return _columns_config_cache
+    
+    config_paths = [
+        Path(__file__).parent / "config" / "columns.json",
+        Path(__file__).parent / "columns.json"
+    ]
+
+    for config_path in config_paths:
+        if config_path.exists():
+            try:
+                import json
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    _columns_config_cache = json.load(f)
+                    return _columns_config_cache
+            except Exception:
+                pass
+    return None
+
+
+# Cache for foreshadowing columns
+_foreshadowing_columns_cache = None
+
+
+def _get_foreshadowing_columns() -> Dict[str, str]:
+    """Return column mappings for foreshadowing stats (cached)."""
+    global _foreshadowing_columns_cache
+    if _foreshadowing_columns_cache is not None:
+        return _foreshadowing_columns_cache
+    
+    defaults = {
+        "auto_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
+        "auto_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
+        "auto_depot": "Artifacts Placed in Depot (Auto)",
+        "auto_pattern": "Pattern Matches at End of Auto (0-9)",
+        "teleop_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
+        "teleop_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
+        "teleop_depot": "Artifacts Placed in Depot (Teleop)",
+        "teleop_failed": "How many artifacts failed to score?",
+        "teleop_pattern": "Pattern Matches at End of Match (0-9)",
+        "auto_leave": "Left Launch Line (LEAVE)",
+        "endgame_returned": "Returned to Base"
+    }
+    data = _load_columns_config_from_json() or {}
+    overrides = data.get("foreshadowing_columns", {}) or {}
+    merged = defaults.copy()
+    merged.update({k: v for k, v in overrides.items() if v})
+    _foreshadowing_columns_cache = merged
+    return merged
 
 
 @dataclass
@@ -194,6 +258,7 @@ class TeamStatsExtractor:
     def __init__(self, analizador, config: Optional[GameConfig] = None):
         self.analizador = analizador
         self.config = config if config else GameConfig.from_json()
+        self.columns_map = _get_foreshadowing_columns()
     
     def extract_team_performance(self, team_number: str) -> TeamPerformance:
         """Extrae el rendimiento estadístico de un equipo"""
@@ -258,18 +323,18 @@ class TeamStatsExtractor:
                 values.append(1.0 if _parse_bool(row[col_idx]) else 0.0)
             return sum(values) / len(values) if values else 0.0
 
-        perf.auto_classified = _avg_numeric("Artifacts Scored (CLASSIFIED) (Auto)")
-        perf.auto_overflow = _avg_numeric("Artifacts Scored (OVERFLOW) (Auto)")
-        perf.auto_depot = _avg_numeric("Artifacts Placed in Depot (Auto)")
-        perf.auto_pattern = _avg_numeric("Pattern Matches at End of Auto (0-9)")
+        perf.auto_classified = _avg_numeric(self.columns_map["auto_classified"])
+        perf.auto_overflow = _avg_numeric(self.columns_map["auto_overflow"])
+        perf.auto_depot = _avg_numeric(self.columns_map["auto_depot"])
+        perf.auto_pattern = _avg_numeric(self.columns_map["auto_pattern"])
 
-        perf.teleop_classified = _avg_numeric("Artifacts Scored (CLASSIFIED) (Teleop)")
-        perf.teleop_overflow = _avg_numeric("Artifacts Scored (OVERFLOW) (Teleop)")
-        perf.teleop_depot = _avg_numeric("Artifacts Placed in Depot (Teleop)")
-        perf.teleop_failed = _avg_numeric("How many artifacts failed to score?")
-        perf.teleop_pattern = _avg_numeric("Pattern Matches at End of Match (0-9)")
+        perf.teleop_classified = _avg_numeric(self.columns_map["teleop_classified"])
+        perf.teleop_overflow = _avg_numeric(self.columns_map["teleop_overflow"])
+        perf.teleop_depot = _avg_numeric(self.columns_map["teleop_depot"])
+        perf.teleop_failed = _avg_numeric(self.columns_map["teleop_failed"])
+        perf.teleop_pattern = _avg_numeric(self.columns_map["teleop_pattern"])
 
-        perf.p_leave_auto_zone = _rate_bool("Left Launch Line (LEAVE)") or 0.5
+        perf.p_leave_auto_zone = _rate_bool(self.columns_map["auto_leave"]) or 0.5
         perf.return_distribution = self._extract_return_distribution(team_rows)
 
         return perf
@@ -288,7 +353,7 @@ class TeamStatsExtractor:
     
     def _extract_return_distribution(self, team_rows: List[List[str]]) -> Dict[str, float]:
         """Extrae la distribución de retorno a base del equipo"""
-        col_idx = self.analizador._column_indices.get("Returned to Base")
+        col_idx = self.analizador._column_indices.get(self.columns_map["endgame_returned"])
         if col_idx is None:
             return {"none": 0.4, "partial": 0.3, "full": 0.3}
 

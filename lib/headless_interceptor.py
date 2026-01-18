@@ -33,7 +33,7 @@ BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
 DATA_DIR = ROOT_DIR / "data"
 DEFAULT_CSV_PATH = DATA_DIR / "default_scouting.csv"
-CONFIG_PATH = BASE_DIR / "columnsConfig.json"
+CONFIG_PATH = BASE_DIR / "config" / "columns.json"
 
 # evdev is only available on Linux
 try:
@@ -106,7 +106,7 @@ KEY_RIGHTSHIFT = 54
 
 
 class HIDInterceptorConfig:
-    """Configuration for the HID interceptor loaded from columnsConfig.json."""
+    """Configuration for the HID interceptor loaded from config/columns.json."""
     
     def __init__(self, config_path: Optional[Path] = None):
         self.config_path = config_path or CONFIG_PATH
@@ -418,7 +418,7 @@ def main():
         '--config', '-c',
         type=str,
         default=str(CONFIG_PATH),
-        help="Path to columnsConfig.json"
+        help="Path to config/columns.json"
     )
     parser.add_argument(
         '--output', '-o',

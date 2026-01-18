@@ -34,7 +34,7 @@ class AnalizadorRobot:
     """
     
     def __init__(self, default_column_names: Optional[List[str]] = None, 
-                 config_file: str = "columnsConfig.json",
+                 config_file: str = "config/columns.json",
                  config_manager: Optional[ConfigManager] = None,
                  auto_load_default: bool = True):
         """
@@ -1230,6 +1230,34 @@ class AnalizadorRobot:
             print("Configuration saved successfully.")
         else:
             print("Warning: No configuration manager available.")
+
+    def reload_configuration_from_file(self) -> None:
+        """Reload column configuration from file and re-apply selections."""
+        if not hasattr(self, 'config_manager'):
+            print("Warning: No configuration manager available.")
+            return
+
+        self.config_manager.reload_file_configuration()
+        column_config = self.config_manager.get_column_config()
+        robot_config = self.config_manager.get_robot_valuation_config()
+
+        self.default_column_names = list(column_config.headers)
+
+        self._selected_numeric_columns_for_overall = column_config.numeric_for_overall.copy()
+        self._selected_stats_columns = column_config.stats_columns.copy()
+        self._mode_boolean_columns = column_config.mode_boolean_columns.copy()
+        self._autonomous_columns = column_config.autonomous_columns.copy()
+        self._teleop_columns = column_config.teleop_columns.copy()
+        self._endgame_columns = column_config.endgame_columns.copy()
+        self.robot_valuation_phase_weights = robot_config.phase_weights.copy()
+        self.robot_valuation_phase_names = robot_config.phase_names.copy()
+
+        if not self.sheet_data:
+            self.sheet_data = [list(self.default_column_names)]
+
+        self._update_column_indices()
+        self._initialize_selected_columns()
+        print("Configuration reloaded successfully.")
 
     def get_available_presets(self) -> Dict:
         """Get available configuration presets."""

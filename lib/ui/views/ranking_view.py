@@ -5,9 +5,21 @@ Provides UI components for displaying team rankings and Honor Roll data.
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from typing import Dict, List, Any, Optional
+
+# Lazy Plotly imports for Raspberry Pi optimization
+_px = None
+_go = None
+
+def _ensure_plotly():
+    """Lazy-load Plotly only when needed"""
+    global _px, _go
+    if _px is None:
+        import plotly.express as px_module
+        import plotly.graph_objects as go_module
+        _px = px_module
+        _go = go_module
+    return _px, _go
 
 
 def render_honor_roll_table(rankings: List[tuple], 
@@ -74,6 +86,7 @@ def render_team_score_breakdown(team_number: str,
             breakdown['during_event']['total']
         ]
         
+        px, go = _ensure_plotly()
         fig = go.Figure()
         fig.add_trace(go.Bar(
             x=categories,
@@ -173,6 +186,7 @@ def render_ranking_visualization(stats: List[Dict[str, Any]],
     
     # Scatter plot
     st.markdown("### Performance Visualization")
+    px, go = _ensure_plotly()
     fig = px.scatter(
         df,
         x='Overall Avg',

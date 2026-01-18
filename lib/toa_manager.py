@@ -26,10 +26,48 @@ BASE_URL = "https://theorangealliance.org/api"
 DATA_DIR = Path(__file__).resolve().parent
 DEFAULT_APPLICATION_ORIGIN = "Overture_Analizador_FTC"
 
+# Module-level persistent team names cache for Raspberry Pi optimization
+# This survives TOAManager instance recreation and reduces file I/O
+_persistent_team_names: dict[int, str] = {}
+_team_names_loaded_from_file: bool = False
+
 
 def _ensure_data_dir() -> None:
     """Make sure the cache directory exists."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _load_persistent_team_names() -> None:
+    """Load team names from all cached team files once at module level."""
+    global _persistent_team_names, _team_names_loaded_from_file
+    
+    if _team_names_loaded_from_file:
+        return
+    
+    _team_names_loaded_from_file = True
+    
+    # Scan for all teams_*.json files and preload names
+    try:
+        for team_file in DATA_DIR.glob("teams_*.json"):
+            try:
+                with team_file.open("r", encoding="utf-8") as f:
+                    teams_data = json.load(f)
+                    for team in teams_data or []:
+                        if not isinstance(team, dict):
+                            continue
+                        number = team.get("team_number")
+                        if number is None:
+                            continue
+                        nickname = team.get("team_name_short") or team.get("nickname") or team.get("name")
+                        if nickname:
+                            try:
+                                _persistent_team_names[int(number)] = str(nickname)
+                            except (TypeError, ValueError):
+                                pass
+            except (json.JSONDecodeError, OSError):
+                continue
+    except Exception:
+        pass  # Silently fail - caching is best-effort
 
 
 class TOAManager:
@@ -62,7 +100,11 @@ class TOAManager:
         else:
             self.headers = {}
 
-        self.team_names: dict[Any, str] = {}
+        # Load persistent cache on first access
+        _load_persistent_team_names()
+        
+        # Instance-level cache inherits from persistent cache
+        self.team_names: dict[Any, str] = dict(_persistent_team_names)
         self.events_cache: dict[int, list[dict[str, Any]]] = {}
         self.team_events_cache: dict[tuple[int, int], list[dict[str, Any]]] = {}
         self.team_cache: dict[str, list[dict[str, Any]]] = {}
@@ -493,6 +535,7 @@ class TOAManager:
 
     def get_team_name(self, team_number):
         """Get a team's short name from cache (or fetch it if API is enabled)."""
+        global _persistent_team_names
         # FTC team numbers can be 1-5 digits; keep as int for stable cache keys.
         try:
             team_key = int(str(team_number).strip())
@@ -513,7 +556,10 @@ class TOAManager:
                 nickname = short_name or fetched.get("nickname") or fetched.get("name") or fetched.get("team_name")
                 if nickname:
                     try:
-                        self.team_names[int(team_number)] = str(nickname)
+                        team_int = int(team_number)
+                        self.team_names[team_int] = str(nickname)
+                        # Also update persistent cache
+                        _persistent_team_names[team_int] = str(nickname)
                     except (TypeError, ValueError):
                         self.team_names[str(team_number)] = str(nickname)
                     return str(nickname)
@@ -526,6 +572,7 @@ class TOAManager:
 
     def _update_team_names(self, teams_data) -> None:
         """Populate the team nickname cache from raw team entries."""
+        global _persistent_team_names
         for team in teams_data or []:
             if not isinstance(team, dict):
                 continue
@@ -534,6 +581,9 @@ class TOAManager:
                 continue
             nickname = team.get("team_name_short") or team.get("nickname") or team.get("name") or f"Team {number}"
             try:
-                self.team_names[int(number)] = str(nickname)
+                team_int = int(number)
+                self.team_names[team_int] = str(nickname)
+                # Also update persistent cache for future TOAManager instances
+                _persistent_team_names[team_int] = str(nickname)
             except (TypeError, ValueError):
                 self.team_names[str(number)] = str(nickname)

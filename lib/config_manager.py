@@ -16,6 +16,37 @@ from typing import Dict, List, Optional, Union, Any
 BASE_DIR = Path(__file__).resolve().parent
 CONFIG_DIR = BASE_DIR / "config"
 
+# Module-level JSON file cache for Raspberry Pi optimization
+_json_file_cache: Dict[str, Any] = {}
+_json_file_mtimes: Dict[str, float] = {}
+
+
+def _load_json_cached(filepath: Path) -> Optional[Dict]:
+    """Load JSON file with caching. Returns cached version if file hasn't changed."""
+    global _json_file_cache, _json_file_mtimes
+    
+    if not filepath.exists():
+        return None
+    
+    path_str = str(filepath)
+    try:
+        current_mtime = filepath.stat().st_mtime
+        
+        # Return cached if file hasn't changed
+        if path_str in _json_file_cache and _json_file_mtimes.get(path_str) == current_mtime:
+            return _json_file_cache[path_str]
+        
+        # Load and cache
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        _json_file_cache[path_str] = data
+        _json_file_mtimes[path_str] = current_mtime
+        return data
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Error loading {filepath}: {e}")
+        return None
+
 @dataclass 
 class ColumnConfig:
     """Configuration for column mappings"""
@@ -37,11 +68,53 @@ class ConfigManager:
     """Manages configuration presets and format detection"""
 
     def __init__(self, config_file: Optional[Union[str, Path]] = None):
-        resolved_path = Path(config_file) if config_file is not None else BASE_DIR / "columnsConfig.json"
+        resolved_path = Path(config_file) if config_file is not None else CONFIG_DIR / "columns.json"
         if not resolved_path.is_absolute():
             resolved_path = BASE_DIR / resolved_path
         self.config_file = resolved_path
         self.presets = self._load_presets()
+        self._file_column_config: Optional[ColumnConfig] = None
+        self._file_robot_valuation: Optional[RobotValuationConfig] = None
+        self._streamlit_config: Dict[str, Any] = {}
+        self._load_file_configuration()
+
+    def _load_file_configuration(self) -> None:
+        """Load column configuration from JSON file if available (uses module-level cache)."""
+        if not self.config_file.exists():
+            return
+
+        data = _load_json_cached(self.config_file)
+        if data is None:
+            return
+
+        # Determine fallback preset
+        fallback_config = self.presets.get("new_standard", {}).get("column_config")
+        fallback_robot = self.presets.get("new_standard", {}).get("robot_valuation")
+
+        headers = data.get("headers") or (fallback_config.headers if fallback_config else [])
+        column_config_data = data.get("column_configuration", {}) or {}
+
+        self._file_column_config = ColumnConfig(
+            headers=headers,
+            numeric_for_overall=column_config_data.get("numeric_for_overall", fallback_config.numeric_for_overall if fallback_config else []),
+            stats_columns=column_config_data.get("stats_columns", fallback_config.stats_columns if fallback_config else []),
+            mode_boolean_columns=column_config_data.get("mode_boolean_columns", fallback_config.mode_boolean_columns if fallback_config else []),
+            autonomous_columns=column_config_data.get("autonomous_columns", fallback_config.autonomous_columns if fallback_config else []),
+            teleop_columns=column_config_data.get("teleop_columns", fallback_config.teleop_columns if fallback_config else []),
+            endgame_columns=column_config_data.get("endgame_columns", fallback_config.endgame_columns if fallback_config else [])
+        )
+
+        robot_val_data = data.get("robot_valuation", {}) or {}
+        self._file_robot_valuation = RobotValuationConfig(
+            phase_weights=robot_val_data.get("phase_weights", fallback_robot.phase_weights if fallback_robot else [0.25, 0.35, 0.40]),
+            phase_names=robot_val_data.get("phase_names", fallback_robot.phase_names if fallback_robot else ["Early Season", "Mid Season", "Late Season"])
+        )
+
+        self._streamlit_config = data.get("streamlit_config", {}) or {}
+
+    def reload_file_configuration(self) -> None:
+        """Reload configuration from JSON file."""
+        self._load_file_configuration()
     
     def _load_presets(self) -> Dict:
         """Load configuration presets"""
@@ -161,15 +234,23 @@ class ConfigManager:
     
     def get_column_config(self, format_name: str = "new_standard") -> ColumnConfig:
         """Get column configuration for specified format"""
+        if self._file_column_config is not None:
+            return self._file_column_config
         if format_name in self.presets:
             return self.presets[format_name]["column_config"]
         return self.presets["new_standard"]["column_config"]
     
     def get_robot_valuation_config(self, format_name: str = "new_standard") -> RobotValuationConfig:
         """Get robot valuation configuration"""
+        if self._file_robot_valuation is not None:
+            return self._file_robot_valuation
         if format_name in self.presets:
             return self.presets[format_name]["robot_valuation"]
         return self.presets["new_standard"]["robot_valuation"]
+
+    def get_streamlit_config(self) -> Dict[str, Any]:
+        """Get Streamlit configuration overrides from JSON file."""
+        return self._streamlit_config.copy()
     
     def get_configuration_presets(self) -> Dict:
         """Get all available presets"""
@@ -371,19 +452,13 @@ class GlobalConfigManager:
         self._columns_config = self._load_columns_config()
     
     def _load_json_file(self, filename: str) -> Optional[Dict]:
-        """Load a JSON file from the config directory."""
+        """Load a JSON file from the config directory (uses module-level cache)."""
         config_path = CONFIG_DIR / filename
         if not config_path.exists():
             # Fallback to lib directory
             config_path = BASE_DIR / filename
         
-        if config_path.exists():
-            try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except Exception as e:
-                print(f"Error loading {filename}: {e}")
-        return None
+        return _load_json_cached(config_path)
     
     def _load_scoring_config(self) -> ScoringConfig:
         """Load scoring configuration."""

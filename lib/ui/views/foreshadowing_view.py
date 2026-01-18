@@ -5,9 +5,21 @@ Provides UI components for match prediction and simulation.
 
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from typing import Dict, List, Any, Optional, Tuple
+
+# Lazy Plotly imports for Raspberry Pi optimization
+_px = None
+_go = None
+
+def _ensure_plotly():
+    """Lazy-load Plotly only when needed"""
+    global _px, _go
+    if _px is None:
+        import plotly.express as px_module
+        import plotly.graph_objects as go_module
+        _px = px_module
+        _go = go_module
+    return _px, _go
 
 
 def render_alliance_selectors(team_options: List[Tuple[str, str]], 
@@ -258,6 +270,7 @@ def render_score_comparison_chart(prediction: Any) -> None:
     ]
     
     score_df = pd.DataFrame(score_components)
+    px, go = _ensure_plotly()
     fig = px.bar(
         score_df,
         x='Alliance',

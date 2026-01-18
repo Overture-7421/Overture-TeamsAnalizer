@@ -1,15 +1,42 @@
 #!/usr/bin/env python3
 """
-Create a default robot image for tier list export
+Create a default robot image for tier list export.
+Optimized for Raspberry Pi 4 with lazy imports and caching.
 """
 
-from PIL import Image, ImageDraw, ImageFont
 import base64
 import io
 import os
 
+# Lazy PIL import for faster startup when images aren't needed
+_pil_loaded = False
+_Image = None
+_ImageDraw = None
+_ImageFont = None
+
+# Cache for generated images to avoid recreating the same images
+_image_cache = {}
+
+
+def _ensure_pil():
+    """Lazily import PIL only when needed."""
+    global _pil_loaded, _Image, _ImageDraw, _ImageFont
+    if not _pil_loaded:
+        from PIL import Image, ImageDraw, ImageFont
+        _Image = Image
+        _ImageDraw = ImageDraw
+        _ImageFont = ImageFont
+        _pil_loaded = True
+    return _Image, _ImageDraw, _ImageFont
+
+
 def create_default_robot_image(team_number, size=(150, 150)):
-    """Create a default robot image with team number"""
+    """Create a default robot image with team number (cached)."""
+    cache_key = (str(team_number), size)
+    if cache_key in _image_cache:
+        return _image_cache[cache_key]
+    
+    Image, ImageDraw, ImageFont = _ensure_pil()
     # Create a new image with a robot-like background
     img = Image.new('RGB', size, color='#2E3440')  # Dark background
     draw = ImageDraw.Draw(img)
@@ -77,7 +104,10 @@ def create_default_robot_image(team_number, size=(150, 150)):
     
     draw.text((text_x, text_y), text, fill='#ECEFF4', font=font)
     
+    # Cache the image before returning
+    _image_cache[cache_key] = img
     return img
+
 
 def image_to_base64(img):
     """Convert PIL Image to base64 string"""
@@ -86,8 +116,19 @@ def image_to_base64(img):
     img_data = buffer.getvalue()
     return base64.b64encode(img_data).decode('utf-8')
 
+
+# Cache for base64 encoded images
+_base64_cache = {}
+
+
 def load_team_image(team_number, images_folder=None):
-    """Load team image from folder or create default"""
+    """Load team image from folder or create default (with caching)."""
+    cache_key = (str(team_number), images_folder)
+    if cache_key in _base64_cache:
+        return _base64_cache[cache_key]
+    
+    Image, _, _ = _ensure_pil()
+    
     if images_folder and os.path.exists(images_folder):
         # Look for image files with team number
         for ext in ['.png', '.jpg', '.jpeg', '.gif', '.bmp']:
@@ -97,13 +138,17 @@ def load_team_image(team_number, images_folder=None):
                     img = Image.open(img_path)
                     # Resize to standard size
                     img = img.resize((150, 150), Image.Resampling.LANCZOS)
-                    return image_to_base64(img)
+                    result = image_to_base64(img)
+                    _base64_cache[cache_key] = result
+                    return result
                 except Exception as e:
                     print(f"Error loading image for team {team_number}: {e}")
     
     # Create default image
     default_img = create_default_robot_image(team_number)
-    return image_to_base64(default_img)
+    result = image_to_base64(default_img)
+    _base64_cache[cache_key] = result
+    return result
 
 if __name__ == "__main__":
     # Test the function

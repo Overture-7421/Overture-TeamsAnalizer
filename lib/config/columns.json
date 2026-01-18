@@ -255,6 +255,103 @@
             "Broke / Major Failure"
         ]
     },
+    "streamlit_config": {
+        "overall_rankings": {
+            "average_columns": [
+                {"column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
+                {"column": "Artifacts Scored (OVERFLOW) (Auto)", "label": "Auto Overflow"},
+                {"column": "Artifacts Placed in Depot (Auto)", "label": "Auto Depot"},
+                {"column": "Pattern Matches at End of Auto (0-9)", "label": "Auto Pattern Matches"},
+                {"column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
+                {"column": "Artifacts Scored (OVERFLOW) (Teleop)", "label": "Teleop Overflow"},
+                {"column": "Artifacts Placed in Depot (Teleop)", "label": "Teleop Depot"},
+                {"column": "How many artifacts failed to score?", "label": "Teleop Failed"},
+                {"column": "Pattern Matches at End of Match (0-9)", "label": "Teleop Pattern Matches"}
+            ],
+            "rate_columns": [
+                {"columns": ["No Show"], "label": "No Show Rate (%)"},
+                {"columns": ["Left Launch Line (LEAVE)"], "label": "Leave Rate (%)"},
+                {"columns": ["Played Defense"], "label": "Played Defense Rate (%)"},
+                {"columns": ["Was Defended Heavily"], "label": "Defended Heavily Rate (%)"},
+                {"columns": ["Died/Stopped Moving in Auto"], "label": "Auto Died Rate (%)"},
+                {"columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate (%)"},
+                {"columns": ["Returned to Base"], "label": "Returned to Base Rate (%)"},
+                {"columns": ["Climbed On Top of Another Robot"], "label": "Climb On Top Rate (%)"},
+                {"columns": ["Tipped/Fell Over"], "label": "Tip/Fall Rate (%)"},
+                {"columns": ["Broke / Major Failure"], "label": "Broke Rate (%)"}
+            ]
+        },
+        "simplified_ranking": {
+            "rate_columns": [
+                {"columns": ["Played Defense"], "label": "Defense Rate (%)"},
+                {"columns": ["Died/Stopped Moving in Teleop"], "label": "Died Rate (%)"}
+            ],
+            "mode_columns": [
+                {"column": "Cycle Focus", "label": "Cycle Focus"},
+                {"column": "Climbed On Top of Another Robot", "label": "Climb On Top Mode"}
+            ]
+        },
+        "detailed_stats": {
+            "compare_metrics": [
+                {"type": "overall_avg", "label": "Overall Avg"},
+                {"type": "robot_valuation", "label": "Robot Valuation"},
+                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
+                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"},
+                {"type": "rate", "columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate", "format": "percent"}
+            ],
+            "radar_categories": [
+                {"type": "overall_avg", "label": "Overall Avg"},
+                {"type": "robot_valuation", "label": "Robot Valuation"},
+                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
+                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
+                {"type": "consistency", "label": "Consistency"}
+            ],
+            "bar_metrics": [
+                {"type": "overall_avg", "label": "Overall Avg"},
+                {"type": "robot_valuation", "label": "Robot Valuation"},
+                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
+                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"}
+            ],
+            "comparison_table": [
+                {"type": "overall_avg", "label": "Overall Avg"},
+                {"type": "overall_std", "label": "Overall Std"},
+                {"type": "robot_valuation", "label": "Robot Valuation"},
+                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
+                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"}
+            ]
+        },
+        "match_trend": {
+            "auto": {
+                "leave": "Left Launch Line (LEAVE)",
+                "artifact_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
+                "artifact_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
+                "depot": "Artifacts Placed in Depot (Auto)",
+                "pattern": "Pattern Matches at End of Auto (0-9)"
+            },
+            "teleop": {
+                "artifact_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
+                "artifact_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
+                "depot": "Artifacts Placed in Depot (Teleop)",
+                "pattern": "Pattern Matches at End of Match (0-9)"
+            },
+            "endgame": {
+                "returned": "Returned to Base"
+            }
+        }
+    },
+    "foreshadowing_columns": {
+        "auto_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
+        "auto_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
+        "auto_depot": "Artifacts Placed in Depot (Auto)",
+        "auto_pattern": "Pattern Matches at End of Auto (0-9)",
+        "teleop_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
+        "teleop_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
+        "teleop_depot": "Artifacts Placed in Depot (Teleop)",
+        "teleop_failed": "How many artifacts failed to score?",
+        "teleop_pattern": "Pattern Matches at End of Match (0-9)",
+        "auto_leave": "Left Launch Line (LEAVE)",
+        "endgame_returned": "Returned to Base"
+    },
     "robot_valuation": {
         "phase_weights": [
             0.2,

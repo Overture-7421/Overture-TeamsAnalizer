@@ -1,30 +1,48 @@
 """
 Streamlit Web Application for Alliance Simulator
-Provides a web-based interface for all the core functionality of the desktop application
+Optimized for Raspberry Pi 4 - lazy imports and cached computations
 """
 
 import streamlit as st
 import pandas as pd
-import io
-import base64
-import tempfile
-import json
-from collections import Counter
 from pathlib import Path
-from engine import AnalizadorRobot
-from allianceSelector import AllianceSelector, Team, teams_from_dicts
-from school_system import TeamScoring, BehaviorReportType
-import matplotlib.pyplot as plt
-import plotly.express as px
-import plotly.graph_objects as go
+
+# Lazy imports - only load heavy modules when needed
+_plotly_loaded = False
+px = None
+go = None
+
+def _ensure_plotly():
+    """Lazy-load plotly only when needed for charts."""
+    global _plotly_loaded, px, go
+    if not _plotly_loaded:
+        import plotly.express as _px
+        import plotly.graph_objects as _go
+        px = _px
+        go = _go
+        _plotly_loaded = True
+    return px, go
+
+# Core imports (lightweight)
+import json
 import os
 import threading
 import queue
+import time
+import base64
+import tempfile
+from collections import Counter
+
+# Local imports
+from engine import AnalizadorRobot
+from allianceSelector import AllianceSelector, Team
+from school_system import TeamScoring, BehaviorReportType
 from toa_manager import TOAManager
 from default_robot_image import load_team_image
 from foreshadowing import TeamStatsExtractor, MatchSimulator
 from exam_integrator import ExamDataIntegrator
 from qr_utils import scan_qr_codes, test_camera
+from config_manager import get_global_config
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -114,8 +132,12 @@ def load_app_config():
     return config
 
 
-# Load configuration
-APP_CONFIG = load_app_config()
+# Load configuration (cached to avoid repeated disk reads)
+@st.cache_data(ttl=300)
+def _cached_load_app_config():
+    return load_app_config()
+
+APP_CONFIG = _cached_load_app_config()
 
 # Page configuration - uses values from APP_CONFIG
 app_config = APP_CONFIG.get("app", {})
@@ -125,307 +147,286 @@ st.set_page_config(
     layout=app_config.get("layout", "wide"),
     initial_sidebar_state=app_config.get("initial_sidebar_state", "expanded"),
     menu_items={
-        'About': f"{app_config.get('title', 'Alliance Simulator')} | {app_config.get('subtitle', 'FRC 2025')}"
+        'About': f"{app_config.get('title', 'Alliance Simulator')} | {app_config.get('subtitle', 'FTC DECODE 2026')}"
     }
 )
 
-# Initialize session state
-if 'analizador' not in st.session_state:
-    st.session_state.analizador = AnalizadorRobot()
-if 'auto_decode_reset_done' not in st.session_state:
-    st.session_state.auto_decode_reset_done = False
-if not st.session_state.auto_decode_reset_done:
+
+def _init_session_state():
+    """Initialize all session state variables in one pass for efficiency."""
+    global_config = get_global_config()
+    
+    # Define defaults for simple values
+    defaults = {
+        'auto_decode_reset_done': False,
+        'alliance_selector': None,
+        'toa_manager': None,
+        'toa_api_key': "",
+        'toa_application_origin': "",
+        'toa_use_api': True,
+        'toa_event_key': "",
+        'events_list': [],
+        'selected_event_name': "",
+        'foreshadowing_prediction': None,
+        'foreshadowing_mode': None,
+        'foreshadowing_last_iterations': 0,
+        'foreshadowing_error': "",
+        'foreshadowing_last_inputs': {"red": [], "blue": []},
+        'foreshadowing_team_performance': {"red": [], "blue": []},
+        'foreshadowing_quick_slider': 1000,
+        'exam_integrator': None,
+        'selected_team_for_details': None,
+        'app_config': APP_CONFIG,
+        # QR Scanner state
+        'qr_scanner_thread': None,
+        'qr_scanner_running': False,
+        'qr_scanner_selected_camera': 0,
+        'qr_available_cameras': [],
+        'qr_scanned_codes': [],
+        'qr_scanner_status': "",
+        'qr_scanner_debounce_seconds': 2.0,
+        'qr_last_scan_ts': 0.0,
+        'qr_idle_seconds': 5.0,
+        'qr_last_scan_preview': "",
+        'raw_data_last_edit_ts': 0.0,
+        'raw_data_last_saved_hash': "",
+    }
+    
+    # Set defaults only if not already in session state
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+    
+    # Queue needs special handling (not hashable)
+    if 'qr_scanner_queue' not in st.session_state:
+        st.session_state.qr_scanner_queue = queue.Queue()
+    
+    # Initialize analizador
+    if 'analizador' not in st.session_state:
+        st.session_state.analizador = AnalizadorRobot()
+    
+    # Auto-detect and reset FRC to DECODE data if needed
+    if not st.session_state.auto_decode_reset_done:
+        try:
+            raw_data = st.session_state.analizador.get_raw_data()
+            if raw_data and raw_data[0]:
+                header = raw_data[0]
+                has_frc_columns = any("Coral" in col or "Algae" in col for col in header)
+                decode_header = st.session_state.analizador.config_manager.get_column_config().headers
+                has_decode_columns = any("Artifacts Scored" in col for col in decode_header)
+                if has_frc_columns and has_decode_columns:
+                    st.session_state.analizador.set_raw_data([decode_header])
+                    st.session_state.auto_decode_reset_done = True
+        except Exception:
+            st.session_state.auto_decode_reset_done = True
+    
+    # Initialize school_system with config values
+    if 'school_system' not in st.session_state:
+        scoring_cfg = global_config.get_scoring_config()
+        honor_weights = scoring_cfg.honor_roll_weights or {}
+        st.session_state.school_system = TeamScoring(
+            match_weight=honor_weights.get("match_performance", 0.50),
+            pit_weight=honor_weights.get("pit_scouting", 0.30),
+            event_weight=honor_weights.get("during_event", 0.20)
+        )
+        st.session_state.school_system.competencies_multiplier = scoring_cfg.competency_multipliers.get("competencies", 6)
+        st.session_state.school_system.subcompetencies_multiplier = scoring_cfg.competency_multipliers.get("subcompetencies", 3)
+        st.session_state.school_system.behavior_reports_multiplier = scoring_cfg.competency_multipliers.get("behavior_reports", 0)
+        st.session_state.school_system.min_competencies_count = scoring_cfg.disqualification_thresholds.get("min_competencies", 2)
+        st.session_state.school_system.min_subcompetencies_count = scoring_cfg.disqualification_thresholds.get("min_subcompetencies", 1)
+        st.session_state.school_system.min_honor_roll_score = scoring_cfg.disqualification_thresholds.get("min_honor_roll_score", 70.0)
+    
+    # Initialize scoring_weights
+    if 'scoring_weights' not in st.session_state:
+        scoring_cfg = global_config.get_scoring_config()
+        honor_weights = scoring_cfg.honor_roll_weights or {}
+        st.session_state.scoring_weights = {
+            "match": int(round(honor_weights.get("match_performance", 0.50) * 100)),
+            "pit": int(round(honor_weights.get("pit_scouting", 0.30) * 100)),
+            "event": int(round(honor_weights.get("during_event", 0.20) * 100))
+        }
+
+
+# Run session state initialization
+_init_session_state()
+global_config = get_global_config()
+
+# CSS must be injected on every rerun since Streamlit re-renders the entire page
+# Minified CSS for better Pi 4 performance
+st.markdown("""<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+*{font-family:'Inter',sans-serif}
+body,.stApp,.main{background-color:#000;color:#f5f5f5}
+.main{background:#000;background-attachment:fixed}
+.block-container{padding:2rem 3rem;background:rgba(18,18,20,0.95);border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,0.6);backdrop-filter:blur(16px);margin:1rem;color:#f5f5f5}
+.main-header{font-size:3rem;font-weight:700;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center;margin-bottom:2rem}
+.sub-header{font-size:1.8rem;font-weight:600;color:#9f9dfd;margin-top:2rem;margin-bottom:1rem;border-left:4px solid #9f9dfd;padding-left:1rem}
+div[data-testid="stMetricValue"]{font-size:2rem;font-weight:700;color:#c3c2ff}
+div[data-testid="stMetricLabel"]{font-weight:600;color:#d1d5db}
+.metric-card{background:linear-gradient(135deg,rgba(50,50,70,0.6) 0%,rgba(30,30,45,0.8) 100%);padding:1.5rem;border-radius:12px;box-shadow:0 10px 24px rgba(15,15,25,0.7);margin:0.5rem 0;border:1px solid rgba(159,157,253,0.35);transition:transform 0.2s,box-shadow 0.2s}
+.metric-card:hover{transform:translateY(-2px);box-shadow:0 12px 24px rgba(102,126,234,0.25)}
+.stButton>button{width:100%;background:linear-gradient(135deg,#7f7eff 0%,#a855f7 100%);color:#fff;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-weight:600;transition:all 0.3s ease;box-shadow:0 6px 14px rgba(128,90,213,0.5)}
+.stButton>button:hover{transform:translateY(-2px);box-shadow:0 12px 24px rgba(128,90,213,0.6)}
+section[data-testid="stSidebar"]{background:linear-gradient(180deg,#111118 0%,#1f1b2b 100%)}
+section[data-testid="stSidebar"] h2{color:white !important;font-weight:700}
+section[data-testid="stSidebar"] h3{color:rgba(255,255,255,0.9) !important;font-weight:600}
+section[data-testid="stSidebar"] .stRadio label{color:white !important;font-weight:500}
+.stTabs [data-baseweb="tab-list"]{gap:8px;background-color:transparent}
+.stTabs [data-baseweb="tab"]{background:linear-gradient(135deg,rgba(40,40,60,0.8) 0%,rgba(30,30,45,0.9) 100%);border-radius:8px;padding:0.5rem 1rem;font-weight:600;border:1px solid rgba(159,157,253,0.25);color:#e5e7ff}
+.stTabs [aria-selected="true"]{background:linear-gradient(135deg,#7f7eff 0%,#a855f7 100%);color:#fff !important}
+.dataframe{border-radius:8px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,0.6);color:#f5f5f5;background:rgba(15,15,20,0.85)}
+.stAlert{border-radius:8px;border-left:4px solid;background:rgba(30,30,45,0.9);color:#f8fafc}
+.uploadedFile{border-radius:8px;border:2px dashed #667eea}
+.js-plotly-plot{border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,0.7);background:rgba(15,15,20,0.8)}
+.team-badge{display:inline-block;background:linear-gradient(135deg,#7f7eff 0%,#a855f7 100%);color:white;padding:0.3rem 0.8rem;border-radius:20px;font-weight:600;font-size:0.9rem;margin:0.2rem}
+.stats-card{background:linear-gradient(135deg,rgba(40,40,60,0.85) 0%,rgba(25,25,40,0.9) 100%);padding:1.5rem;border-radius:12px;box-shadow:0 12px 32px rgba(10,10,20,0.7);margin:1rem 0;border-left:4px solid #9f9dfd}
+.footer{text-align:center;padding:2rem;color:#9ca3af;font-size:0.9rem;margin-top:3rem}
+</style>""", unsafe_allow_html=True)
+
+# Streamlit configuration defaults (can be overridden in config/columns.json)
+DEFAULT_STREAMLIT_CONFIG = {
+    "overall_rankings": {
+        "average_columns": [
+            {"column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
+            {"column": "Artifacts Scored (OVERFLOW) (Auto)", "label": "Auto Overflow"},
+            {"column": "Artifacts Placed in Depot (Auto)", "label": "Auto Depot"},
+            {"column": "Pattern Matches at End of Auto (0-9)", "label": "Auto Pattern Matches"},
+            {"column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
+            {"column": "Artifacts Scored (OVERFLOW) (Teleop)", "label": "Teleop Overflow"},
+            {"column": "Artifacts Placed in Depot (Teleop)", "label": "Teleop Depot"},
+            {"column": "How many artifacts failed to score?", "label": "Teleop Failed"},
+            {"column": "Pattern Matches at End of Match (0-9)", "label": "Teleop Pattern Matches"}
+        ],
+        "rate_columns": [
+            {"columns": ["No Show"], "label": "No Show Rate (%)"},
+            {"columns": ["Left Launch Line (LEAVE)"], "label": "Leave Rate (%)"},
+            {"columns": ["Played Defense"], "label": "Played Defense Rate (%)"},
+            {"columns": ["Was Defended Heavily"], "label": "Defended Heavily Rate (%)"},
+            {"columns": ["Died/Stopped Moving in Auto"], "label": "Auto Died Rate (%)"},
+            {"columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate (%)"},
+            {"columns": ["Returned to Base"], "label": "Returned to Base Rate (%)"},
+            {"columns": ["Climbed On Top of Another Robot"], "label": "Climb On Top Rate (%)"},
+            {"columns": ["Tipped/Fell Over"], "label": "Tip/Fall Rate (%)"},
+            {"columns": ["Broke / Major Failure"], "label": "Broke Rate (%)"}
+        ]
+    },
+    "simplified_ranking": {
+        "rate_columns": [
+            {"columns": ["Played Defense"], "label": "Defense Rate (%)"},
+            {"columns": ["Died/Stopped Moving in Teleop"], "label": "Died Rate (%)"}
+        ],
+        "mode_columns": [
+            {"column": "Cycle Focus", "label": "Cycle Focus"},
+            {"column": "Climbed On Top of Another Robot", "label": "Climb On Top Mode"}
+        ]
+    },
+    "detailed_stats": {
+        "compare_metrics": [
+            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "robot_valuation", "label": "Robot Valuation"},
+            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
+            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"},
+            {"type": "rate", "columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate", "format": "percent"}
+        ],
+        "radar_categories": [
+            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "robot_valuation", "label": "Robot Valuation"},
+            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
+            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
+            {"type": "consistency", "label": "Consistency"}
+        ],
+        "bar_metrics": [
+            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "robot_valuation", "label": "Robot Valuation"},
+            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
+            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"}
+        ],
+        "comparison_table": [
+            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "overall_std", "label": "Overall Std"},
+            {"type": "robot_valuation", "label": "Robot Valuation"},
+            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
+            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"}
+        ]
+    },
+    "match_trend": {
+        "auto": {
+            "leave": "Left Launch Line (LEAVE)",
+            "artifact_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
+            "artifact_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
+            "depot": "Artifacts Placed in Depot (Auto)",
+            "pattern": "Pattern Matches at End of Auto (0-9)"
+        },
+        "teleop": {
+            "artifact_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
+            "artifact_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
+            "depot": "Artifacts Placed in Depot (Teleop)",
+            "pattern": "Pattern Matches at End of Match (0-9)"
+        },
+        "endgame": {
+            "returned": "Returned to Base"
+        }
+    }
+}
+
+def _merge_dicts(base: dict, override: dict) -> dict:
+    """Shallow-deep merge dictionaries for nested config sections."""
+    merged = dict(base)
+    for key, value in (override or {}).items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_dicts(merged.get(key, {}), value)
+        else:
+            merged[key] = value
+    return merged
+
+def get_streamlit_config() -> dict:
+    """Return streamlit_config from config/columns.json, merged with defaults."""
+    analyzer = st.session_state.analizador if 'analizador' in st.session_state else None
+    if analyzer and hasattr(analyzer, 'config_manager'):
+        overrides = analyzer.config_manager.get_streamlit_config()
+    else:
+        overrides = {}
+    return _merge_dicts(DEFAULT_STREAMLIT_CONFIG, overrides)
+
+def _metric_value(team_stat: dict, team_rows: list, metric: dict) -> float:
+    metric_type = metric.get("type")
+    if metric_type == "overall_avg":
+        return float(team_stat.get('overall_avg', 0.0))
+    if metric_type == "overall_std":
+        return float(team_stat.get('overall_std', 0.0))
+    if metric_type == "robot_valuation":
+        return float(team_stat.get('RobotValuation', 0.0))
+    if metric_type == "avg":
+        column = metric.get("column")
+        return float(compute_numeric_average(team_rows, column)) if column else 0.0
+    if metric_type == "rate":
+        columns = metric.get("columns") or []
+        return float(get_rate_from_stat(team_stat, tuple(columns)) * 100.0) if columns else 0.0
+    if metric_type == "consistency":
+        overall_avg = float(team_stat.get('overall_avg', 0.0))
+        overall_std = float(team_stat.get('overall_std', 0.0))
+        if overall_avg <= 0:
+            return 50.0
+        consistency = (1 - (overall_std / (overall_avg + 0.01))) * 100
+        return float(max(0.0, min(100.0, consistency)))
+    return 0.0
+
+def _format_metric_value(metric: dict, value: float) -> str:
+    fmt = metric.get("format")
+    if fmt == "percent":
+        return f"{value:.1f}%"
+    return f"{value:.2f}"
+
+def _safe_autorefresh(interval_ms: int, key: str) -> None:
+    """Safely trigger periodic reruns if streamlit-autorefresh is available."""
     try:
-        raw_data = st.session_state.analizador.get_raw_data()
-        if raw_data and raw_data[0]:
-            header = raw_data[0]
-            has_frc_columns = any("Coral" in col or "Algae" in col for col in header)
-            decode_header = st.session_state.analizador.config_manager.get_column_config().headers
-            has_decode_columns = any("Artifacts Scored" in col for col in decode_header)
-            if has_frc_columns and has_decode_columns:
-                st.session_state.analizador.set_raw_data([decode_header])
-                st.session_state.auto_decode_reset_done = True
+        import importlib
+        module = importlib.import_module("streamlit_autorefresh")
+        st_autorefresh = getattr(module, "st_autorefresh", None)
+        if st_autorefresh:
+            st_autorefresh(interval=interval_ms, key=key)
     except Exception:
-        st.session_state.auto_decode_reset_done = True
-if 'alliance_selector' not in st.session_state:
-    st.session_state.alliance_selector = None
-if 'school_system' not in st.session_state:
-    st.session_state.school_system = TeamScoring()
-if 'toa_manager' not in st.session_state:
-    st.session_state.toa_manager = None
-if 'toa_api_key' not in st.session_state:
-    st.session_state.toa_api_key = ""
-if 'toa_application_origin' not in st.session_state:
-    st.session_state.toa_application_origin = ""
-if 'toa_use_api' not in st.session_state:
-    st.session_state.toa_use_api = True
-if 'toa_event_key' not in st.session_state:
-    st.session_state.toa_event_key = ""
-if 'events_list' not in st.session_state:
-    st.session_state.events_list = []
-if 'selected_event_name' not in st.session_state:
-    st.session_state.selected_event_name = ""
-if 'foreshadowing_prediction' not in st.session_state:
-    st.session_state.foreshadowing_prediction = None
-if 'foreshadowing_mode' not in st.session_state:
-    st.session_state.foreshadowing_mode = None
-if 'foreshadowing_last_iterations' not in st.session_state:
-    st.session_state.foreshadowing_last_iterations = 0
-if 'foreshadowing_error' not in st.session_state:
-    st.session_state.foreshadowing_error = ""
-if 'foreshadowing_last_inputs' not in st.session_state:
-    st.session_state.foreshadowing_last_inputs = {"red": [], "blue": []}
-if 'foreshadowing_team_performance' not in st.session_state:
-    st.session_state.foreshadowing_team_performance = {"red": [], "blue": []}
-if 'foreshadowing_quick_slider' not in st.session_state:
-    st.session_state.foreshadowing_quick_slider = 1000
-if 'exam_integrator' not in st.session_state:
-    st.session_state.exam_integrator = None
-if 'scoring_weights' not in st.session_state:
-    # Initialize scoring weights from config
-    config_weights = APP_CONFIG.get("scoring_weights", {})
-    st.session_state.scoring_weights = {
-        "match": config_weights.get("match_performance", 50),
-        "pit": config_weights.get("pit_scouting", 30),
-        "event": config_weights.get("during_event", 20)
-    }
-if 'selected_team_for_details' not in st.session_state:
-    st.session_state.selected_team_for_details = None
-if 'app_config' not in st.session_state:
-    st.session_state.app_config = APP_CONFIG
-
-# QR Scanner state (used in Data Management -> QR Code Scanner)
-if 'qr_scanner_queue' not in st.session_state:
-    st.session_state.qr_scanner_queue = queue.Queue()
-if 'qr_scanner_thread' not in st.session_state:
-    st.session_state.qr_scanner_thread = None
-if 'qr_scanner_running' not in st.session_state:
-    st.session_state.qr_scanner_running = False
-if 'qr_scanner_selected_camera' not in st.session_state:
-    st.session_state.qr_scanner_selected_camera = 0
-if 'qr_available_cameras' not in st.session_state:
-    st.session_state.qr_available_cameras = []
-if 'qr_scanned_codes' not in st.session_state:
-    st.session_state.qr_scanned_codes = []
-if 'qr_scanner_status' not in st.session_state:
-    st.session_state.qr_scanner_status = ""
-if 'qr_scanner_debounce_seconds' not in st.session_state:
-    st.session_state.qr_scanner_debounce_seconds = 2.0
-if 'qr_last_scan_ts' not in st.session_state:
-    st.session_state.qr_last_scan_ts = 0.0
-if 'qr_idle_seconds' not in st.session_state:
-    st.session_state.qr_idle_seconds = 5.0
-if 'raw_data_last_edit_ts' not in st.session_state:
-    st.session_state.raw_data_last_edit_ts = 0.0
-if 'raw_data_last_saved_hash' not in st.session_state:
-    st.session_state.raw_data_last_saved_hash = ""
-
-# Enhanced Custom CSS for better UI
-st.markdown("""
-<style>
-    /* Import Google Fonts */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    
-    /* Global Styles */
-    * {
-        font-family: 'Inter', sans-serif;
-    }
-    
-    body, .stApp, .main {
-        background-color: #000000;
-        color: #f5f5f5;
-    }
-    
-    /* Main container */
-    .main {
-        background: #000000;
-        background-attachment: fixed;
-    }
-    
-    /* Content area */
-    .block-container {
-        padding: 2rem 3rem;
-        background: rgba(18, 18, 20, 0.95);
-        border-radius: 20px;
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(16px);
-        margin: 1rem;
-        color: #f5f5f5;
-    }
-    
-    /* Headers */
-    .main-header {
-        font-size: 3rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-align: center;
-        margin-bottom: 2rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .sub-header {
-        font-size: 1.8rem;
-        font-weight: 600;
-        color: #9f9dfd;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-        border-left: 4px solid #9f9dfd;
-        padding-left: 1rem;
-    }
-    
-    /* Metric cards */
-    div[data-testid="stMetricValue"] {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #c3c2ff;
-    }
-    
-    div[data-testid="stMetricLabel"] {
-        font-weight: 600;
-        color: #d1d5db;
-    }
-    
-    .metric-card {
-        background: linear-gradient(135deg, rgba(50, 50, 70, 0.6) 0%, rgba(30, 30, 45, 0.8) 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 10px 24px rgba(15, 15, 25, 0.7);
-        margin: 0.5rem 0;
-        border: 1px solid rgba(159, 157, 253, 0.35);
-        transition: transform 0.2s, box-shadow 0.2s;
-    }
-    
-    .metric-card:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 24px rgba(102, 126, 234, 0.25);
-    }
-    
-    /* Buttons */
-    .stButton>button {
-        width: 100%;
-        background: linear-gradient(135deg, #7f7eff 0%, #a855f7 100%);
-        color: #ffffff;
-        border: none;
-        border-radius: 8px;
-        padding: 0.6rem 1.2rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 6px 14px rgba(128, 90, 213, 0.5);
-    }
-    
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 24px rgba(128, 90, 213, 0.6);
-    }
-    
-    /* Sidebar */
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #111118 0%, #1f1b2b 100%);
-    }
-    
-    section[data-testid="stSidebar"] .css-1d391kg {
-        color: white;
-    }
-    
-    section[data-testid="stSidebar"] h2 {
-        color: white !important;
-        font-weight: 700;
-    }
-    
-    section[data-testid="stSidebar"] h3 {
-        color: rgba(255, 255, 255, 0.9) !important;
-        font-weight: 600;
-    }
-    
-    section[data-testid="stSidebar"] .stRadio label {
-        color: white !important;
-        font-weight: 500;
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: transparent;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background: linear-gradient(135deg, rgba(40, 40, 60, 0.8) 0%, rgba(30, 30, 45, 0.9) 100%);
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-        border: 1px solid rgba(159, 157, 253, 0.25);
-        color: #e5e7ff;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #7f7eff 0%, #a855f7 100%);
-        color: #ffffff !important;
-    }
-    
-    /* DataFrames */
-    .dataframe {
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
-        color: #f5f5f5;
-        background: rgba(15, 15, 20, 0.85);
-    }
-    
-    /* Info/Warning/Success boxes */
-    .stAlert {
-        border-radius: 8px;
-        border-left: 4px solid;
-        background: rgba(30, 30, 45, 0.9);
-        color: #f8fafc;
-    }
-    
-    /* File uploader */
-    .uploadedFile {
-        border-radius: 8px;
-        border: 2px dashed #667eea;
-    }
-    
-    /* Plotly charts */
-    .js-plotly-plot {
-        border-radius: 12px;
-        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
-        background: rgba(15, 15, 20, 0.8);
-    }
-    
-    /* Team badge */
-    .team-badge {
-        display: inline-block;
-        background: linear-gradient(135deg, #7f7eff 0%, #a855f7 100%);
-        color: white;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        margin: 0.2rem;
-    }
-    
-    /* Stats card */
-    .stats-card {
-        background: linear-gradient(135deg, rgba(40, 40, 60, 0.85) 0%, rgba(25, 25, 40, 0.9) 100%);
-        padding: 1.5rem;
-        border-radius: 12px;
-        box-shadow: 0 12px 32px rgba(10, 10, 20, 0.7);
-        margin: 1rem 0;
-        border-left: 4px solid #9f9dfd;
-    }
-    
-    /* Footer */
-    .footer {
-        text-align: center;
-        padding: 2rem;
-        color: #9ca3af;
-        font-size: 0.9rem;
-        margin-top: 3rem;
-    }
-</style>
-""", unsafe_allow_html=True)
+        return
 
 # Helper functions
 def load_csv_data(uploaded_file):
@@ -452,6 +453,11 @@ def get_team_stats_dataframe():
     toa_manager = st.session_state.toa_manager
     team_data_grouped = st.session_state.analizador.get_team_data_grouped()
     
+    streamlit_cfg = get_streamlit_config()
+    simplified_cfg = streamlit_cfg.get("simplified_ranking", {})
+    rate_columns = simplified_cfg.get("rate_columns", [])
+    mode_columns = simplified_cfg.get("mode_columns", [])
+
     # Convert to DataFrame with selected columns for simplified view
     df_data = []
     for team_stat in stats:
@@ -460,20 +466,29 @@ def get_team_stats_dataframe():
         team_key = str(team_num)
         team_rows = team_data_grouped.get(team_key, [])
 
-        defense_rate = get_rate_from_stat(team_stat, ("Played Defense",)) * 100.0
-        death_rate = get_rate_from_stat(team_stat, ("Died/Stopped Moving in Teleop",)) * 100.0
-        cycle_focus_mode = get_mode_from_rows(team_rows, "Cycle Focus")
-        climb_mode = get_mode_from_rows(team_rows, "Climbed On Top of Another Robot")
-        df_data.append({
+        row = {
             'Team': f"{team_num} - {team_name}",
             'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
             'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
             'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
-            'Defense Rate (%)': round(defense_rate, 2),
-            'Died Rate (%)': round(death_rate, 2),
-            'Cycle Focus': cycle_focus_mode,
-            'Climb On Top Mode': climb_mode,
-        })
+        }
+
+        for rate_cfg in rate_columns:
+            label = rate_cfg.get("label")
+            columns = rate_cfg.get("columns") or []
+            if not label:
+                continue
+            rate_value = get_rate_from_stat(team_stat, tuple(columns)) * 100.0
+            row[label] = round(rate_value, 2)
+
+        for mode_cfg in mode_columns:
+            label = mode_cfg.get("label")
+            column = mode_cfg.get("column")
+            if not label or not column:
+                continue
+            row[label] = get_mode_from_rows(team_rows, column)
+
+        df_data.append(row)
     
     return pd.DataFrame(df_data)
 
@@ -699,120 +714,39 @@ st.sidebar.markdown("### 📍 Navigation")
 
 page = st.sidebar.radio(
     "Select Page",
-    ["📊 Dashboard", "📁 Data Management", "📈 Team Statistics", 
+    ["📁 Data Management", "📈 Team Statistics", 
      "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing", "⚙️ TOA Settings"],
     label_visibility="collapsed"
 )
 
+st.sidebar.markdown("---")
+if st.sidebar.button("🔄 Reload Configurations"):
+    global_config.reload_all()
+    st.session_state.analizador.reload_configuration_from_file()
+    scoring_cfg = global_config.get_scoring_config()
+    honor_weights = scoring_cfg.honor_roll_weights or {}
+    st.session_state.scoring_weights = {
+        "match": int(round(honor_weights.get("match_performance", 0.50) * 100)),
+        "pit": int(round(honor_weights.get("pit_scouting", 0.30) * 100)),
+        "event": int(round(honor_weights.get("during_event", 0.20) * 100))
+    }
+    st.session_state.school_system.set_scoring_weights(
+        honor_weights.get("match_performance", 0.50),
+        honor_weights.get("pit_scouting", 0.30),
+        honor_weights.get("during_event", 0.20)
+    )
+    st.session_state.school_system.competencies_multiplier = scoring_cfg.competency_multipliers.get("competencies", 6)
+    st.session_state.school_system.subcompetencies_multiplier = scoring_cfg.competency_multipliers.get("subcompetencies", 3)
+    st.session_state.school_system.behavior_reports_multiplier = scoring_cfg.competency_multipliers.get("behavior_reports", 0)
+    st.session_state.school_system.min_competencies_count = scoring_cfg.disqualification_thresholds.get("min_competencies", 2)
+    st.session_state.school_system.min_subcompetencies_count = scoring_cfg.disqualification_thresholds.get("min_subcompetencies", 1)
+    st.session_state.school_system.min_honor_roll_score = scoring_cfg.disqualification_thresholds.get("min_honor_roll_score", 70.0)
+    st.session_state.alliance_selector = None
+    st.sidebar.success("Configurations reloaded.")
+    st.rerun()
+
 # Main content based on selected page
-if page == "📊 Dashboard":
-    st.markdown("<div class='main-header'>🤖 Alliance Simulator Dashboard</div>", unsafe_allow_html=True)
-    
-    # Welcome message
-    st.markdown(""" 
-    <div style='text-align: center; padding: 1rem; background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%); 
-                border-radius: 12px; margin-bottom: 2rem;'>
-        <p style='color: #4a5568; font-size: 1.1rem; margin: 0;'>
-            Welcome to the Alliance Simulator - Your comprehensive FRC scouting and analysis tool
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Quick stats with enhanced styling
-    st.markdown("<div class='sub-header'>📊 Quick Statistics</div>", unsafe_allow_html=True)
-    col1, col2, col3, col4 = st.columns(4)
-    
-    raw_data = st.session_state.analizador.get_raw_data()
-    num_matches = len(raw_data) - 1 if raw_data else 0
-    
-    team_data = st.session_state.analizador.get_team_data_grouped()
-    num_teams = len(team_data)
-    
-    with col1:
-        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-        st.metric("🎯 Total Matches", num_matches)
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-        st.metric("🤖 Total Teams", num_teams)
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col3:
-        stats = st.session_state.analizador.get_detailed_team_stats()
-        avg_overall = sum(s.get('overall_avg', 0) for s in stats) / len(stats) if stats else 0
-        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-        st.metric("📈 Avg Overall Score", f"{avg_overall:.2f}")
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col4:
-        alliances = len(st.session_state.alliance_selector.alliances) if st.session_state.alliance_selector else 0
-        st.markdown("<div class='metric-card'>", unsafe_allow_html=True)
-        st.metric("🤝 Alliances Configured", alliances)
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Quick overview ranking table with enhanced styling
-    if stats:
-        st.markdown("<div class='sub-header'>🏆 Top 10 Teams by Overall Performance</div>", unsafe_allow_html=True)
-
-        ranking_rows = []
-        for rank, team_stat in enumerate(stats[:10], 1):
-            overall_avg = team_stat.get('overall_avg', 0.0)
-            overall_std = team_stat.get('overall_std', 0.0)
-            team_num = team_stat.get('team', 'N/A')
-            team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
-            ranking_rows.append({
-                'Rank': rank,
-                'Team': f"{team_num} - {team_name}",
-                'Overall ± Std': f"{overall_avg:.2f} ± {overall_std:.2f}",
-                'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2)
-            })
-
-        ranking_df = pd.DataFrame(ranking_rows)
-        st.dataframe(
-            ranking_df,
-            use_container_width=True,
-            height=360
-        )
-        
-        # Additional insights
-        st.markdown("<div class='sub-header'>💡 Quick Insights</div>", unsafe_allow_html=True)
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            st.markdown("<div class='stats-card'>", unsafe_allow_html=True)
-            st.markdown("**🥇 Top Team**")
-            if stats:
-                top_team = stats[0]
-                team_num = top_team.get('team', 'N/A')
-                team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
-                st.markdown(f"<div class='team-badge'>{team_num} - {team_name}</div>", unsafe_allow_html=True)
-                st.markdown(f"Overall: **{top_team.get('overall_avg', 0.0):.2f}**")
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with col2:
-            st.markdown("<div class='stats-card'>", unsafe_allow_html=True)
-            st.markdown("**🎯 Most Consistent**")
-            if stats:
-                consistent_team = min(stats, key=lambda x: x.get('overall_std', 100))
-                team_num = consistent_team.get('team', 'N/A')
-                team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
-                st.markdown(f"<div class='team-badge'>{team_num} - {team_name}</div>", unsafe_allow_html=True)
-                st.markdown(f"Std Dev: **{consistent_team.get('overall_std', 0.0):.2f}**")
-            st.markdown("</div>", unsafe_allow_html=True)
-        
-        with col3:
-            st.markdown("<div class='stats-card'>", unsafe_allow_html=True)
-            st.markdown("**⚙️ Best Robot**")
-            if stats:
-                best_robot = max(stats, key=lambda x: x.get('RobotValuation', 0))
-                team_num = best_robot.get('team', 'N/A')
-                team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
-                st.markdown(f"<div class='team-badge'>{team_num} - {team_name}</div>", unsafe_allow_html=True)
-                st.markdown(f"Valuation: **{best_robot.get('RobotValuation', 0.0):.2f}**")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-elif page == "📁 Data Management":
+if page == "📁 Data Management":
     st.markdown("<div class='main-header'>📁 Data Management</div>", unsafe_allow_html=True)
     
     tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload Data", "📷 QR Scanner", "📋 View Raw Data", "💾 Export Data"])
@@ -875,19 +809,23 @@ elif page == "📁 Data Management":
         st.markdown("### 📷 QR Code Scanner")
         st.markdown("""
         Use your webcam to scan QR codes containing scouting data.
-        
-        **Requirements:**
-        - `opencv-python` and `pyzbar` must be installed
-        - Webcam access required
+
+        **Quick Start:**
+        1) Click **Check cameras**
+        2) Select your camera index
+        3) Click **Start Scanner**
+        4) Press **Q** in the camera window to stop
         """)
 
-        # Validate dependencies (opencv-python, pyzbar, numpy)
+        # Validate dependencies (opencv-python, pyzbar, numpy) without opening the camera
         deps_ok = True
         deps_error = None
         try:
-            # This will raise a helpful ImportError if opencv isn't installed.
-            _ = test_camera(0)
-        except ImportError as e:
+            import importlib
+            importlib.import_module("cv2")
+            importlib.import_module("pyzbar")
+            importlib.import_module("numpy")
+        except Exception as e:
             deps_ok = False
             deps_error = str(e)
 
@@ -922,6 +860,7 @@ elif page == "📁 Data Management":
                             st.session_state.analizador.load_qr_data(payload)
                             auto_updated = True
                             st.session_state.qr_last_scan_ts = time.time()
+                            st.session_state.qr_last_scan_preview = payload[:80] + ("..." if len(payload) > 80 else "")
                     elif kind == "DONE":
                         st.session_state.qr_scanner_running = False
                         st.session_state.qr_scanner_status = "Scanner stopped."
@@ -953,7 +892,7 @@ elif page == "📁 Data Management":
                     step=1,
                     help="Checks camera indices 0..N and lists the ones that open successfully."
                 )
-                if st.button("Detect available cameras"):
+                if st.button("Check cameras"):
                     available = []
                     for idx in range(int(max_probe) + 1):
                         try:
@@ -981,14 +920,15 @@ elif page == "📁 Data Management":
                     )
                     st.session_state.qr_scanner_selected_camera = int(selected)
                 else:
+                    st.info("Click 'Check cameras' to list available devices.")
                     st.session_state.qr_scanner_selected_camera = int(
                         st.number_input(
-                            "Camera index",
+                            "Manual camera index",
                             min_value=0,
                             max_value=20,
                             value=int(st.session_state.qr_scanner_selected_camera),
                             step=1,
-                            help="If detection doesn't find your camera, try 0, 1, 2..."
+                            help="If detection doesn't find your camera, enter the index manually."
                         )
                     )
 
@@ -1031,40 +971,46 @@ elif page == "📁 Data Management":
             st.markdown("---")
             st.markdown("#### 🔍 Scanning")
             start_disabled = bool(st.session_state.qr_scanner_running)
-            if st.button("Start QR Scanner (opens new window)", disabled=start_disabled):
-                # Clear any old queue messages
-                q = st.session_state.qr_scanner_queue
-                while True:
-                    try:
-                        q.get_nowait()
-                    except queue.Empty:
-                        break
+            scan_cols = st.columns(2)
+            with scan_cols[0]:
+                if st.button("▶️ Start Scanner", disabled=start_disabled):
+                    # Clear any old queue messages
+                    q = st.session_state.qr_scanner_queue
+                    while True:
+                        try:
+                            q.get_nowait()
+                        except queue.Empty:
+                            break
 
-                camera_index = int(st.session_state.qr_scanner_selected_camera)
-                debounce = float(st.session_state.qr_scanner_debounce_seconds)
+                    camera_index = int(st.session_state.qr_scanner_selected_camera)
+                    debounce = float(st.session_state.qr_scanner_debounce_seconds)
 
-                def _worker(out_queue: "queue.Queue", cam_idx: int, debounce_seconds: float):
-                    try:
-                        scanned = scan_qr_codes(
-                            update_callback=lambda data: out_queue.put(("SCAN", data)),
-                            camera_index=cam_idx,
-                            debounce_seconds=debounce_seconds,
-                            show_window=True,
-                        )
-                        out_queue.put(("DONE", scanned))
-                    except Exception as e:
-                        out_queue.put(("ERROR", str(e)))
+                    def _worker(out_queue: "queue.Queue", cam_idx: int, debounce_seconds: float):
+                        try:
+                            scanned = scan_qr_codes(
+                                update_callback=lambda data: out_queue.put(("SCAN", data)),
+                                camera_index=cam_idx,
+                                debounce_seconds=debounce_seconds,
+                                show_window=True,
+                            )
+                            out_queue.put(("DONE", scanned))
+                        except Exception as e:
+                            out_queue.put(("ERROR", str(e)))
 
-                st.session_state.qr_scanner_running = True
-                st.session_state.qr_scanner_status = f"Starting scanner on camera {camera_index}..."
-                st.session_state.qr_last_scan_ts = time.time()
-                t = threading.Thread(
-                    target=_worker,
-                    args=(st.session_state.qr_scanner_queue, camera_index, debounce),
-                    daemon=True,
-                )
-                st.session_state.qr_scanner_thread = t
-                t.start()
+                    st.session_state.qr_scanner_running = True
+                    st.session_state.qr_scanner_status = f"Starting scanner on camera {camera_index}..."
+                    st.session_state.qr_last_scan_ts = time.time()
+                    t = threading.Thread(
+                        target=_worker,
+                        args=(st.session_state.qr_scanner_queue, camera_index, debounce),
+                        daemon=True,
+                    )
+                    st.session_state.qr_scanner_thread = t
+                    t.start()
+
+            with scan_cols[1]:
+                if st.button("⏹️ Stop Scanner", disabled=not st.session_state.qr_scanner_running):
+                    st.session_state.qr_scanner_status = "To stop the camera, focus the scanner window and press 'q'."
 
             refresh_cols = st.columns(2)
             with refresh_cols[0]:
@@ -1082,6 +1028,8 @@ elif page == "📁 Data Management":
             st.markdown("---")
             st.markdown("#### 📋 Results")
             st.metric("Scanned QR codes", len(st.session_state.qr_scanned_codes))
+            if st.session_state.qr_last_scan_preview:
+                st.caption(f"Last scan: {st.session_state.qr_last_scan_preview}")
             if st.session_state.qr_scanned_codes:
                 st.dataframe(pd.DataFrame({"QR Data": st.session_state.qr_scanned_codes}))
             else:
@@ -1092,14 +1040,14 @@ elif page == "📁 Data Management":
                 last_scan = st.session_state.qr_last_scan_ts
                 if last_scan and (time.time() - last_scan) >= st.session_state.qr_idle_seconds:
                     st.session_state.qr_scanner_status = "No new scans detected. Auto-updating..."
-                st.autorefresh(interval=1000, key="qr_scanner_autorefresh")
+                _safe_autorefresh(interval_ms=1000, key="qr_scanner_autorefresh")
 
             st.markdown("---")
             st.markdown("### 🖥️ Headless Mode (Linux)")
             st.markdown("""
             For headless deployments with barcode/QR scanners acting as HID devices:
 
-            1. Configure scanner hardware ID in `columnsConfig.json`
+            1. Configure scanner hardware ID in `config/columns.json`
             2. Run the HID interceptor: `python lib/headless_interceptor.py`
             3. Or use systemd services: `sudo scripts/install_services.sh --enable-hid`
 
@@ -1107,7 +1055,7 @@ elif page == "📁 Data Management":
             """)
 
     with tab3:
-        st.markdown("### 📋 Raw Data View")
+        st.markdown("### ✏️ Edit Raw Data")
         raw_data = st.session_state.analizador.get_raw_data()
         
         if raw_data and len(raw_data) > 1:
@@ -1121,12 +1069,6 @@ elif page == "📁 Data Management":
                     row = list(row)[:target_len]
                 normalized_rows.append(row)
             df = pd.DataFrame(normalized_rows, columns=header)
-            st.dataframe(df, use_container_width=True, height=400)
-            
-            st.markdown(f"**Total Records:** {len(raw_data) - 1}")
-
-            st.markdown("---")
-            st.markdown("### ✏️ Edit Raw Data")
             st.caption("Modify cells below and click Save Changes to update the dataset.")
             edited_df = st.data_editor(
                 df,
@@ -1135,6 +1077,18 @@ elif page == "📁 Data Management":
                 num_rows="dynamic",
                 key="raw_data_editor"
             )
+
+            save_cols = st.columns([1, 3])
+            with save_cols[0]:
+                if st.button("💾 Save Changes"):
+                    cleaned_df = edited_df.fillna("")
+                    rows = cleaned_df.values.tolist()
+                    new_sheet = [raw_data[0]] + [[str(cell) for cell in row] for row in rows]
+                    st.session_state.analizador.set_raw_data(new_sheet)
+                    st.session_state.raw_data_last_edit_ts = 0.0
+                    st.session_state.raw_data_last_saved_hash = cleaned_df.to_csv(index=False)
+                    st.success("Raw data saved. Stats updated.")
+                    st.rerun()
 
             # Auto-save changes after idle
             cleaned_df = edited_df.fillna("")
@@ -1171,37 +1125,10 @@ elif page == "📁 Data Management":
         if st.button("Export Simplified Ranking"):
             stats = st.session_state.analizador.get_detailed_team_stats()
             if stats:
-                # Create simplified ranking data
-                simplified_data = []
-                team_data_grouped = st.session_state.analizador.get_team_data_grouped()
-                
-                for rank, team_stat in enumerate(stats, 1):
-                    team_num = str(team_stat.get('team', 'N/A'))
-                    overall_avg = team_stat.get('overall_avg', 0.0)
-                    overall_std = team_stat.get('overall_std', 0.0)
-                    robot_valuation = team_stat.get('RobotValuation', 0.0)
-                    team_rows = team_data_grouped.get(team_num, [])
-
-                    death_rate = get_rate_from_stat(team_stat, ("Died", "Died?"))
-                    defense_rate = get_rate_from_stat(team_stat, ("Crossed Field/Defense", "Crossed Feild/Played Defense?"))
-                    defended_rate = get_rate_from_stat(team_stat, ("Defended", "Was the robot Defended by someone?"))
-
-                    pickup_mode = get_mode_from_rows(team_rows, "Pickup Location") or "Unknown"
-                    climb_mode = get_mode_from_rows(team_rows, "End Position") or "Unknown"
-
-                    simplified_data.append({
-                        'Rank': rank,
-                        'Team': team_num,
-                        'Overall ± Std': f"{overall_avg:.2f} ± {overall_std:.2f}",
-                        'Robot Valuation': f"{robot_valuation:.2f}",
-                        'Defense Rate (%)': f"{defense_rate * 100:.3f}",
-                        'Died Rate (%)': f"{death_rate * 100:.3f}",
-                        'Pickup Mode': pickup_mode,
-                        'Climb Mode': climb_mode,
-                        'Defended Rate (%)': f"{defended_rate * 100:.3f}"
-                    })
-                
-                df = pd.DataFrame(simplified_data)
+                df = get_team_stats_dataframe()
+                if df is None:
+                    st.warning("No statistics available to export")
+                    st.stop()
                 csv = df.to_csv(index=False)
                 b64 = base64.b64encode(csv.encode()).decode()
                 href = f'<a href="data:file/csv;base64,{b64}" download="simplified_ranking.csv">Download Simplified Ranking</a>'
@@ -1226,43 +1153,37 @@ elif page == "📈 Team Statistics":
             
             team_data_grouped = st.session_state.analizador.get_team_data_grouped()
 
-            auto_decode_columns = [
-                ("Artifacts Scored (CLASSIFIED) (Auto)", "Auto Classified"),
-                ("Artifacts Scored (OVERFLOW) (Auto)", "Auto Overflow"),
-                ("Artifacts Placed in Depot (Auto)", "Auto Depot"),
-                ("Pattern Matches at End of Auto (0-9)", "Auto Pattern Matches"),
-            ]
-            teleop_decode_columns = [
-                ("Artifacts Scored (CLASSIFIED) (Teleop)", "Teleop Classified"),
-                ("Artifacts Scored (OVERFLOW) (Teleop)", "Teleop Overflow"),
-                ("Artifacts Placed in Depot (Teleop)", "Teleop Depot"),
-                ("How many artifacts failed to score?", "Teleop Failed"),
-                ("Pattern Matches at End of Match (0-9)", "Teleop Pattern Matches"),
-            ]
-            rate_columns = [
-                (("No Show",), "No Show Rate (%)"),
-                (("Left Launch Line (LEAVE)",), "Leave Rate (%)"),
-                (("Played Defense",), "Played Defense Rate (%)"),
-                (("Was Defended Heavily",), "Defended Heavily Rate (%)"),
-                (("Died/Stopped Moving in Auto",), "Auto Died Rate (%)"),
-                (("Died/Stopped Moving in Teleop",), "Teleop Died Rate (%)"),
-                (("Returned to Base",), "Returned to Base Rate (%)"),
-                (("Climbed On Top of Another Robot",), "Climb On Top Rate (%)"),
-                (("Tipped/Fell Over",), "Tip/Fall Rate (%)"),
-                (("Broke / Major Failure",), "Broke Rate (%)"),
-            ]
+            streamlit_cfg = get_streamlit_config()
+            overall_cfg = streamlit_cfg.get("overall_rankings", {})
+            average_columns_cfg = overall_cfg.get("average_columns", [])
+            rate_columns_cfg = overall_cfg.get("rate_columns", [])
+
+            analyzer = st.session_state.analizador
+            available_columns = set(analyzer._column_indices.keys())
+
+            average_columns = []
+            for item in average_columns_cfg:
+                column = item.get("column")
+                label = item.get("label")
+                if column and label and column in available_columns:
+                    average_columns.append((column, label))
+
+            rate_columns = []
+            for item in rate_columns_cfg:
+                label = item.get("label")
+                columns = item.get("columns") or []
+                if label and columns:
+                    rate_columns.append((tuple(columns), label))
 
             base_columns = [
                 'Rank', 'Team', 'Matches',
                 'Robot Valuation', 'Overall Avg', 'Overall Std'
             ]
-            auto_labels = [label for _, label in auto_decode_columns]
-            teleop_labels = [label for _, label in teleop_decode_columns]
+            avg_labels = [label for _, label in average_columns]
             rate_labels = [label for _, label in rate_columns]
             columns_order = (
                 base_columns
-                + auto_labels
-                + teleop_labels
+                + avg_labels
                 + rate_labels
             )
 
@@ -1279,7 +1200,7 @@ elif page == "📈 Team Statistics":
                     'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
                 }
 
-                for source_col, label in auto_decode_columns + teleop_decode_columns:
+                for source_col, label in average_columns:
                     row[label] = compute_numeric_average(team_data_grouped.get(team_num, []), source_col)
 
                 for source_candidates, label in rate_columns:
@@ -1298,6 +1219,7 @@ elif page == "📈 Team Statistics":
 
                 # Visualization
                 st.markdown("### Performance Visualization")
+                px, go = _ensure_plotly()
                 fig = px.scatter(
                     df,
                     x='Overall Avg',
@@ -1329,6 +1251,8 @@ elif page == "📈 Team Statistics":
             st.markdown("### Detailed Team Statistics")
             
             all_teams = [s.get('team', 'N/A') for s in stats]
+            streamlit_cfg = get_streamlit_config()
+            details_cfg = streamlit_cfg.get("detailed_stats", {})
             
             # Add compare mode toggle
             compare_mode = st.checkbox("🔀 Compare Multiple Teams", key="compare_mode_toggle")
@@ -1358,11 +1282,18 @@ elif page == "📈 Team Statistics":
                 if len(selected_teams) >= 2:
                     # Get stats for selected teams
                     selected_stats = [s for s in stats if s.get('team') in selected_teams]
-                    
+
+                    streamlit_cfg = get_streamlit_config()
+                    details_cfg = streamlit_cfg.get("detailed_stats", {})
+                    compare_metrics = details_cfg.get("compare_metrics", [])
+                    radar_metrics = details_cfg.get("radar_categories", [])
+                    bar_metrics = details_cfg.get("bar_metrics", [])
+                    table_metrics = details_cfg.get("comparison_table", [])
+
                     # Side-by-side metrics display using columns
                     st.markdown("#### Key Metrics Comparison")
                     cols = st.columns(len(selected_teams))
-                    
+
                     for idx, team_num in enumerate(selected_teams):
                         team_stat = next((s for s in stats if s.get('team') == team_num), None)
                         if team_stat:
@@ -1371,153 +1302,112 @@ elif page == "📈 Team Statistics":
                                 if st.session_state.toa_manager:
                                     team_name = f"{team_num} - {st.session_state.toa_manager.get_team_nickname(team_num)}"
                                 team_rows = team_data_grouped.get(team_num, [])
-                                auto_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Auto)")
-                                teleop_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)")
                                 st.markdown(f"**{team_name}**")
-                                st.metric("Overall Avg", f"{team_stat.get('overall_avg', 0):.2f}")
-                                st.metric("Robot Valuation", f"{team_stat.get('RobotValuation', 0):.2f}")
-                                st.metric("Auto Classified Avg", f"{auto_classified_avg:.2f}")
-                                st.metric("Teleop Classified Avg", f"{teleop_classified_avg:.2f}")
-                                died_rate = get_rate_from_stat(team_stat, ("Died/Stopped Moving in Teleop",))
-                                st.metric("Teleop Died Rate", f"{died_rate * 100:.1f}%")
-                    
-                    # Radar chart comparison
-                    st.markdown("#### Performance Radar Chart")
-                    
-                    # Prepare radar data
-                    categories = ['Overall Avg', 'Robot Valuation', 'Auto Classified', 'Teleop Classified', 'Consistency']
-                    
-                    radar_fig = go.Figure()
-                    
-                    # Normalize values for radar chart - safely handle zero maximum values
-                    max_overall_val = max((s.get('overall_avg', 0) for s in selected_stats), default=0)
-                    max_overall = max_overall_val if max_overall_val > 0 else 1
-                    max_robot_val_raw = max((s.get('RobotValuation', 0) for s in selected_stats), default=0)
-                    max_robot_val = max_robot_val_raw if max_robot_val_raw > 0 else 1
-                    auto_classified_vals = [
-                        compute_numeric_average(team_data_grouped.get(s.get('team', ''), []), "Artifacts Scored (CLASSIFIED) (Auto)")
-                        for s in selected_stats
-                    ]
-                    teleop_classified_vals = [
-                        compute_numeric_average(team_data_grouped.get(s.get('team', ''), []), "Artifacts Scored (CLASSIFIED) (Teleop)")
-                        for s in selected_stats
-                    ]
-                    max_auto_classified = max(auto_classified_vals) if auto_classified_vals else 1
-                    max_auto_classified = max_auto_classified if max_auto_classified > 0 else 1
-                    max_teleop_classified = max(teleop_classified_vals) if teleop_classified_vals else 1
-                    max_teleop_classified = max_teleop_classified if max_teleop_classified > 0 else 1
-                    
-                    # Use chart colors from config if available
-                    ui_config = APP_CONFIG.get("ui", {})
-                    chart_colors = ui_config.get("chart_colors", {})
-                    colors = px.colors.qualitative.Set2
-                    
-                    for idx, team_stat in enumerate(selected_stats):
-                        team_num = team_stat.get('team', 'N/A')
-                        team_rows = team_data_grouped.get(team_num, [])
-                        auto_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Auto)")
-                        teleop_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)")
-                        
-                        # Calculate consistency (inverse of std dev relative to avg)
-                        overall_avg = team_stat.get('overall_avg', 0)
-                        overall_std = team_stat.get('overall_std', 0)
-                        consistency = (1 - (overall_std / (overall_avg + 0.01))) * 100 if overall_avg > 0 else 50
-                        consistency = max(0, min(100, consistency))
-                        
-                        values = [
-                            (team_stat.get('overall_avg', 0) / max_overall) * 100 if max_overall > 0 else 0,
-                            (team_stat.get('RobotValuation', 0) / max_robot_val) * 100 if max_robot_val > 0 else 0,
-                            (auto_classified_avg / max_auto_classified) * 100 if max_auto_classified > 0 else 0,
-                            (teleop_classified_avg / max_teleop_classified) * 100 if max_teleop_classified > 0 else 0,
-                            consistency
-                        ]
-                        
-                        radar_fig.add_trace(go.Scatterpolar(
-                            r=values + [values[0]],  # Close the polygon
-                            theta=categories + [categories[0]],
-                            fill='toself',
-                            name=f"Team {team_num}",
-                            line=dict(color=colors[idx % len(colors)])
-                        ))
-                    
-                    radar_fig.update_layout(
-                        polar=dict(
-                            radialaxis=dict(visible=True, range=[0, 100]),
-                            bgcolor='rgba(0,0,0,0)'
-                        ),
-                        showlegend=True,
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#f8fafc'),
-                        title="Team Performance Comparison"
-                    )
-                    st.plotly_chart(radar_fig, use_container_width=True)
-                    
-                    # Bar chart comparison
-                    st.markdown("#### Side-by-Side Bar Comparison")
-                    
-                    comparison_metrics = ['overall_avg', 'RobotValuation', 'auto_classified_avg', 'teleop_classified_avg']
-                    metric_labels = ['Overall Avg', 'Robot Valuation', 'Auto Classified', 'Teleop Classified']
-                    
-                    bar_data = []
-                    for team_stat in selected_stats:
-                        team_num = team_stat.get('team', 'N/A')
-                        team_rows = team_data_grouped.get(team_num, [])
-                        auto_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Auto)")
-                        teleop_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)")
-                        for metric, label in zip(comparison_metrics, metric_labels):
-                            if metric == 'auto_classified_avg':
-                                value = auto_classified_avg
-                            elif metric == 'teleop_classified_avg':
-                                value = teleop_classified_avg
-                            else:
-                                value = team_stat.get(metric, 0)
-                            bar_data.append({
-                                'Team': f"Team {team_num}",
-                                'Metric': label,
-                                'Value': value
-                            })
-                    
-                    bar_df = pd.DataFrame(bar_data)
-                    bar_fig = px.bar(
-                        bar_df,
-                        x='Metric',
-                        y='Value',
-                        color='Team',
-                        barmode='group',
-                        title='Metrics Comparison'
-                    )
-                    bar_fig.update_layout(
-                        plot_bgcolor='rgba(0,0,0,0)',
-                        paper_bgcolor='rgba(0,0,0,0)',
-                        font=dict(color='#f8fafc'),
-                        xaxis=dict(color='#d1d5db'),
-                        yaxis=dict(color='#d1d5db')
-                    )
-                    st.plotly_chart(bar_fig, use_container_width=True)
-                    
-                    # Comparison table
-                    st.markdown("#### Detailed Comparison Table")
-                    comparison_df = pd.DataFrame(selected_stats)
-                    comparison_df = comparison_df.set_index('team')
-                    key_columns = ['overall_avg', 'overall_std', 'RobotValuation']
-                    available_columns = [col for col in key_columns if col in comparison_df.columns]
-                    if available_columns:
-                        base_table = comparison_df[available_columns].T
-                        extra_rows = {}
-                        for team_num in selected_teams:
+                                for metric in compare_metrics:
+                                    label = metric.get("label") or metric.get("column") or metric.get("type")
+                                    if not label:
+                                        continue
+                                    value = _metric_value(team_stat, team_rows, metric)
+                                    st.metric(label, _format_metric_value(metric, value))
+
+                    if radar_metrics:
+                        st.markdown("#### Performance Radar Chart")
+                        px, go = _ensure_plotly()
+                        categories = [m.get("label") or m.get("column") or m.get("type") for m in radar_metrics]
+                        max_values = []
+                        for metric in radar_metrics:
+                            metric_values = []
+                            for s in selected_stats:
+                                team_num = s.get('team', 'N/A')
+                                metric_values.append(_metric_value(s, team_data_grouped.get(team_num, []), metric))
+                            max_val = max(metric_values) if metric_values else 1
+                            max_values.append(max_val if max_val > 0 else 1)
+
+                        radar_fig = go.Figure()
+                        colors = px.colors.qualitative.Set2
+                        for idx, team_stat in enumerate(selected_stats):
+                            team_num = team_stat.get('team', 'N/A')
                             team_rows = team_data_grouped.get(team_num, [])
-                            extra_rows.setdefault('auto_classified_avg', {})[team_num] = compute_numeric_average(
-                                team_rows, "Artifacts Scored (CLASSIFIED) (Auto)"
+                            raw_values = [_metric_value(team_stat, team_rows, m) for m in radar_metrics]
+                            values = [
+                                (raw_values[i] / max_values[i]) * 100 if max_values[i] > 0 else 0
+                                for i in range(len(raw_values))
+                            ]
+                            radar_fig.add_trace(go.Scatterpolar(
+                                r=values + [values[0]] if values else [0],
+                                theta=categories + [categories[0]] if categories else [],
+                                fill='toself',
+                                name=f"Team {team_num}",
+                                line=dict(color=colors[idx % len(colors)])
+                            ))
+
+                        radar_fig.update_layout(
+                            polar=dict(
+                                radialaxis=dict(visible=True, range=[0, 100]),
+                                bgcolor='rgba(0,0,0,0)'
+                            ),
+                            showlegend=True,
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            font=dict(color='#f8fafc'),
+                            title="Team Performance Comparison"
+                        )
+                        st.plotly_chart(radar_fig, use_container_width=True)
+
+                    if bar_metrics:
+                        st.markdown("#### Side-by-Side Bar Comparison")
+                        bar_data = []
+                        for team_stat in selected_stats:
+                            team_num = team_stat.get('team', 'N/A')
+                            team_rows = team_data_grouped.get(team_num, [])
+                            for metric in bar_metrics:
+                                label = metric.get("label") or metric.get("column") or metric.get("type")
+                                if not label:
+                                    continue
+                                value = _metric_value(team_stat, team_rows, metric)
+                                bar_data.append({
+                                    'Team': f"Team {team_num}",
+                                    'Metric': label,
+                                    'Value': value
+                                })
+
+                        if bar_data:
+                            bar_df = pd.DataFrame(bar_data)
+                            px, go = _ensure_plotly()
+                            bar_fig = px.bar(
+                                bar_df,
+                                x='Metric',
+                                y='Value',
+                                color='Team',
+                                barmode='group',
+                                title='Metrics Comparison'
                             )
-                            extra_rows.setdefault('teleop_classified_avg', {})[team_num] = compute_numeric_average(
-                                team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)"
+                            bar_fig.update_layout(
+                                plot_bgcolor='rgba(0,0,0,0)',
+                                paper_bgcolor='rgba(0,0,0,0)',
+                                font=dict(color='#f8fafc'),
+                                xaxis=dict(color='#d1d5db'),
+                                yaxis=dict(color='#d1d5db')
                             )
-                        extra_df = pd.DataFrame(extra_rows)
-                        extra_df = extra_df.T
-                        extra_df.index = ['Auto Classified Avg', 'Teleop Classified Avg']
-                        comparison_table = pd.concat([base_table, extra_df], axis=0)
-                        st.dataframe(comparison_table, use_container_width=True)
+                            st.plotly_chart(bar_fig, use_container_width=True)
+
+                    if table_metrics:
+                        st.markdown("#### Detailed Comparison Table")
+                        table_rows = {}
+                        for metric in table_metrics:
+                            label = metric.get("label") or metric.get("column") or metric.get("type")
+                            if not label:
+                                continue
+                            table_rows[label] = {}
+                            for team_num in selected_teams:
+                                team_stat = next((s for s in stats if s.get('team') == team_num), None)
+                                if not team_stat:
+                                    continue
+                                team_rows = team_data_grouped.get(team_num, [])
+                                table_rows[label][team_num] = _metric_value(team_stat, team_rows, metric)
+                        if table_rows:
+                            comparison_table = pd.DataFrame(table_rows).T
+                            st.dataframe(comparison_table, use_container_width=True)
                     
                 elif len(selected_teams) == 1:
                     st.info("Please select at least 2 teams to compare.")
@@ -1545,22 +1435,15 @@ elif page == "📈 Team Statistics":
                     
                     if team_stat:
                         team_rows = st.session_state.analizador.get_team_data_grouped().get(str(selected_team_num), [])
-                        col1, col2, col3 = st.columns(3)
-                        
-                        with col1:
-                            st.metric("Overall Average", f"{team_stat.get('overall_avg', 0):.2f}")
-                            st.metric("Overall Std Dev", f"{team_stat.get('overall_std', 0):.2f}")
-                        
-                        with col2:
-                            st.metric("Robot Valuation", f"{team_stat.get('RobotValuation', 0):.2f}")
-                            auto_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Auto)")
-                            st.metric("Auto Classified Avg", f"{auto_classified_avg:.2f}")
-                        
-                        with col3:
-                            teleop_classified_avg = compute_numeric_average(team_rows, "Artifacts Scored (CLASSIFIED) (Teleop)")
-                            st.metric("Teleop Classified Avg", f"{teleop_classified_avg:.2f}")
-                            died_rate = get_rate_from_stat(team_stat, ("Died/Stopped Moving in Teleop",))
-                            st.metric("Teleop Died Rate", f"{died_rate * 100:.1f}%")
+                        metrics = details_cfg.get("compare_metrics", [])
+                        cols = st.columns(3)
+                        for idx, metric in enumerate(metrics):
+                            label = metric.get("label") or metric.get("column") or metric.get("type")
+                            if not label:
+                                continue
+                            value = _metric_value(team_stat, team_rows, metric)
+                            with cols[idx % 3]:
+                                st.metric(label, _format_metric_value(metric, value))
                         
                         # Complete metrics table
                         st.markdown("### Complete Metric Snapshot")
@@ -1627,6 +1510,25 @@ elif page == "📈 Team Statistics":
                             teleop_points = game_cfg.get("teleop", {}) or {}
                             endgame_points = game_cfg.get("endgame", {}) or {}
 
+                            streamlit_cfg = get_streamlit_config()
+                            match_cfg = streamlit_cfg.get("match_trend", {})
+                            auto_cols = match_cfg.get("auto", {}) or {}
+                            teleop_cols = match_cfg.get("teleop", {}) or {}
+                            endgame_cols = match_cfg.get("endgame", {}) or {}
+
+                            leave_col = auto_cols.get("leave", "Left Launch Line (LEAVE)")
+                            auto_classified_col = auto_cols.get("artifact_classified", "Artifacts Scored (CLASSIFIED) (Auto)")
+                            auto_overflow_col = auto_cols.get("artifact_overflow", "Artifacts Scored (OVERFLOW) (Auto)")
+                            auto_depot_col = auto_cols.get("depot", "Artifacts Placed in Depot (Auto)")
+                            auto_pattern_col = auto_cols.get("pattern", "Pattern Matches at End of Auto (0-9)")
+
+                            teleop_classified_col = teleop_cols.get("artifact_classified", "Artifacts Scored (CLASSIFIED) (Teleop)")
+                            teleop_overflow_col = teleop_cols.get("artifact_overflow", "Artifacts Scored (OVERFLOW) (Teleop)")
+                            teleop_depot_col = teleop_cols.get("depot", "Artifacts Placed in Depot (Teleop)")
+                            teleop_pattern_col = teleop_cols.get("pattern", "Pattern Matches at End of Match (0-9)")
+
+                            returned_col = endgame_cols.get("returned", "Returned to Base")
+
                             def _get_value(row, col_name):
                                 col_idx = analyzer._column_indices.get(col_name)
                                 if col_idx is None or col_idx >= len(row):
@@ -1657,31 +1559,31 @@ elif page == "📈 Team Statistics":
                             points = 0.0
 
                             # Autonomous scoring
-                            leave = _parse_bool(_get_value(row, "Left Launch Line (LEAVE)"))
+                            leave = _parse_bool(_get_value(row, leave_col))
                             if leave:
                                 points += float(auto_points.get("leave", 0))
 
-                            auto_classified = _get_num(row, "Artifacts Scored (CLASSIFIED) (Auto)")
-                            auto_overflow = _get_num(row, "Artifacts Scored (OVERFLOW) (Auto)")
-                            auto_depot = _get_num(row, "Artifacts Placed in Depot (Auto)")
-                            auto_pattern = _get_num(row, "Pattern Matches at End of Auto (0-9)")
+                            auto_classified = _get_num(row, auto_classified_col)
+                            auto_overflow = _get_num(row, auto_overflow_col)
+                            auto_depot = _get_num(row, auto_depot_col)
+                            auto_pattern = _get_num(row, auto_pattern_col)
                             points += auto_classified * float(auto_points.get("artifact", 0))
                             points += auto_overflow * float(auto_points.get("overflow", 0))
                             points += auto_depot * float(auto_points.get("depot", 0))
                             points += auto_pattern * float(auto_points.get("pattern_match", 0))
 
                             # Teleop scoring
-                            teleop_classified = _get_num(row, "Artifacts Scored (CLASSIFIED) (Teleop)")
-                            teleop_overflow = _get_num(row, "Artifacts Scored (OVERFLOW) (Teleop)")
-                            teleop_depot = _get_num(row, "Artifacts Placed in Depot (Teleop)")
-                            teleop_pattern = _get_num(row, "Pattern Matches at End of Match (0-9)")
+                            teleop_classified = _get_num(row, teleop_classified_col)
+                            teleop_overflow = _get_num(row, teleop_overflow_col)
+                            teleop_depot = _get_num(row, teleop_depot_col)
+                            teleop_pattern = _get_num(row, teleop_pattern_col)
                             points += teleop_classified * float(teleop_points.get("artifact", 0))
                             points += teleop_overflow * float(teleop_points.get("overflow", 0))
                             points += teleop_depot * float(teleop_points.get("depot", 0))
                             points += teleop_pattern * float(teleop_points.get("pattern_match", 0))
 
                             # Endgame scoring (per-robot)
-                            returned_val = _get_text(row, "Returned to Base")
+                            returned_val = _get_text(row, returned_col)
                             return_key = _normalize_returned(returned_val)
                             if return_key == "partial":
                                 points += float(endgame_points.get("park_partial", 0))
@@ -1713,6 +1615,7 @@ elif page == "📈 Team Statistics":
                             st.info("No match performance data available for this team.")
                         else:
                             matches, overall_avgs = zip(*data_points)
+                            px, go = _ensure_plotly()
                             trend_fig = go.Figure(
                                 data=[
                                     go.Scatter(
@@ -2507,6 +2410,7 @@ elif page == "🏆 Honor Roll System":
                     ]
                     
                     # Create bar chart for score breakdown
+                    px, go = _ensure_plotly()
                     fig = go.Figure()
                     fig.add_trace(go.Bar(
                         x=categories,
@@ -2777,6 +2681,7 @@ elif page == "🔮 Foreshadowing":
                     }
                 ]
                 score_df = pd.DataFrame(score_components)
+                px, go = _ensure_plotly()
                 fig = px.bar(
                     score_df,
                     x='Alliance',

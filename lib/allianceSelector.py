@@ -1,5 +1,7 @@
+from config_manager import get_global_config
+
 # Enhanced scoring weights based on comprehensive analysis
-W_AUTO = 1.5      # Increased weight for autonomous performance 
+W_AUTO = 1.5      # Increased weight for autonomous performance
 W_TELEOP = 1.0    # Base teleop weight
 W_ENDGAME = 1.2   # Increased weight for endgame (critical for close matches)
 W_DEFENSE = 12    # Slightly reduced but still significant for defensive teams
@@ -94,11 +96,23 @@ class Alliance:
 
 class AllianceSelector:
     def __init__(self, teams):
+        global W_AUTO, W_TELEOP, W_ENDGAME, W_DEFENSE, W_CONSISTENCY, W_CLUTCH
+        config = get_global_config().get_alliance_config()
+        scoring_weights = config.scoring_weights or {}
+        W_AUTO = scoring_weights.get("auto", W_AUTO)
+        W_TELEOP = scoring_weights.get("teleop", W_TELEOP)
+        W_ENDGAME = scoring_weights.get("endgame", W_ENDGAME)
+        W_DEFENSE = scoring_weights.get("defense", W_DEFENSE)
+        W_CONSISTENCY = scoring_weights.get("consistency", W_CONSISTENCY)
+        W_CLUTCH = scoring_weights.get("clutch", W_CLUTCH)
+
         self.teams = sorted(teams, key=lambda t: t.rank)
         # For testing purposes, create reasonable number of alliances
-        # In real FRC: 8 alliances for events with 24+ teams, fewer for smaller events
         # FTC: 2 teams per alliance (captain + pick1)
-        max_alliances = min(8, max(1, len(teams) // 2))
+        draft_params = config.draft_parameters or {}
+        teams_per_alliance = draft_params.get("teams_per_alliance", 2) or 2
+        max_alliances_cfg = draft_params.get("max_alliances", 8) or 8
+        max_alliances = min(max_alliances_cfg, max(1, len(teams) // teams_per_alliance))
         self.alliances = [Alliance(i+1) for i in range(max_alliances)]
         self.update_alliance_captains()
         self.update_recommendations()
