@@ -22,6 +22,7 @@ import argparse
 import csv
 import json
 import os
+import signal
 import sys
 import time
 from datetime import datetime
@@ -34,6 +35,18 @@ ROOT_DIR = BASE_DIR.parent
 DATA_DIR = ROOT_DIR / "data"
 DEFAULT_CSV_PATH = DATA_DIR / "default_scouting.csv"
 CONFIG_PATH = BASE_DIR / "config" / "columns.json"
+
+# Global interceptor instance for signal handling
+_interceptor_instance: Optional['HIDInterceptor'] = None
+
+
+def _signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    print(f"\n[Signal {signum}] Shutting down...")
+    if _interceptor_instance:
+        _interceptor_instance.stop()
+    sys.exit(0)
+
 
 # evdev is only available on Linux
 try:
@@ -339,12 +352,15 @@ class HIDInterceptor:
             if len(record) > num_cols:
                 record = record[:num_cols]
         
-        with open(self.output_csv, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(record)
-        
-        timestamp = datetime.now().strftime('%H:%M:%S')
-        print(f"[{timestamp}] Record appended: {record[:3]}... ({len(record)} fields)")
+        try:
+            with open(self.output_csv, 'a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(record)
+            
+            timestamp = datetime.now().strftime('%H:%M:%S')
+            print(f"[{timestamp}] Record appended: {record[:3]}... ({len(record)} fields)")
+        except IOError as e:
+            print(f"[ERROR] Failed to write record: {e}")
     
     def start(self, grab_device: bool = True) -> None:
         """
@@ -353,20 +369,38 @@ class HIDInterceptor:
         Args:
             grab_device: If True, grab the device so events don't leak to the OS
         """
+        global _interceptor_instance
+        _interceptor_instance = self
+        
+        # Register signal handlers for graceful shutdown
+        signal.signal(signal.SIGTERM, _signal_handler)
+        signal.signal(signal.SIGINT, _signal_handler)
+        
         try:
             self.device = InputDevice(self.device_path)
-            print(f"Connected to device: {self.device.name}")
-            print(f"  Vendor ID: {self.device.info.vendor:04x}")
+            print(f"")
+            print(f"╔══════════════════════════════════════════════════════════════╗")
+            print(f"║         Overture HID Scanner Interceptor Started             ║")
+            print(f"╚══════════════════════════════════════════════════════════════╝")
+            print(f"")
+            print(f"  Device:     {self.device.name}")
+            print(f"  Vendor ID:  {self.device.info.vendor:04x}")
             print(f"  Product ID: {self.device.info.product:04x}")
-            print(f"  Path: {self.device_path}")
+            print(f"  Path:       {self.device_path}")
             print(f"  Output CSV: {self.output_csv}")
             
             if grab_device:
                 self.device.grab()
-                print("Device grabbed - input is exclusive to this process")
+                print(f"  Mode:       Exclusive (device grabbed)")
+            else:
+                print(f"  Mode:       Shared (events pass through)")
             
-            print("\nListening for scanner input... (Press Ctrl+C to stop)")
+            print(f"")
+            print(f"Listening for scanner input... (Press Ctrl+C to stop)")
+            print(f"─" * 60)
+            
             self.running = True
+            self._record_count = 0
             
             for event in self.device.read_loop():
                 if not self.running:
@@ -374,40 +408,70 @@ class HIDInterceptor:
                 
                 record = self._process_key_event(event)
                 if record:
+                    self._record_count += 1
                     self._append_record(record)
                     
         except KeyboardInterrupt:
-            print("\nInterrupted by user")
+            print(f"\n[Ctrl+C] Stopped by user")
         except PermissionError:
-            print(f"Permission denied for {self.device_path}")
-            print("Try running with sudo or add your user to the 'input' group:")
-            print(f"  sudo usermod -a -G input $USER")
-            print("Then log out and back in.")
+            print(f"\n[ERROR] Permission denied for {self.device_path}")
+            print("")
+            print("Fix with one of these options:")
+            print("  1. Run with sudo:")
+            print(f"     sudo python {__file__}")
+            print("")
+            print("  2. Add your user to the 'input' group:")
+            print(f"     sudo usermod -a -G input $USER")
+            print("     (then log out and back in)")
+            sys.exit(1)
         except FileNotFoundError:
-            print(f"Device not found: {self.device_path}")
+            print(f"\n[ERROR] Device not found: {self.device_path}")
+            print("")
             print("Use --list to see available devices")
+            sys.exit(1)
+        except OSError as e:
+            if "errno 19" in str(e).lower() or "no such device" in str(e).lower():
+                print(f"\n[ERROR] Device disconnected: {self.device_path}")
+            else:
+                print(f"\n[ERROR] Device error: {e}")
+            sys.exit(1)
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"\n[ERROR] Unexpected error: {e}")
+            sys.exit(1)
         finally:
             self.stop()
     
     def stop(self) -> None:
         """Stop intercepting and release the device."""
         self.running = False
+        record_count = getattr(self, '_record_count', 0)
         if self.device:
             try:
                 self.device.ungrab()
             except Exception:
                 pass
-            self.device.close()
+            try:
+                self.device.close()
+            except Exception:
+                pass
             self.device = None
-        print("Interceptor stopped")
+        print(f"")
+        print(f"─" * 60)
+        print(f"Interceptor stopped. Records captured: {record_count}")
 
 
 def main():
     """Main entry point for the headless interceptor."""
     parser = argparse.ArgumentParser(
-        description="Headless HID Interceptor for Barcode/QR Scanners"
+        description="Overture HID Interceptor for Barcode/QR Scanners",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  List devices:       python headless_interceptor.py --list
+  Start capture:      sudo python headless_interceptor.py -d /dev/input/event5
+  Custom output:      sudo python headless_interceptor.py -o /path/to/output.csv
+  Test mode:          sudo python headless_interceptor.py --no-grab
+"""
     )
     parser.add_argument(
         '--device', '-d',
