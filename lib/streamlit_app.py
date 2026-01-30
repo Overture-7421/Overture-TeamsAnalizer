@@ -3,6 +3,10 @@ Streamlit Web Application for Alliance Simulator
 Provides a web-based interface for all the core functionality of the desktop application
 """
 
+import time
+_start_time = time.time()
+print(f"[DEBUG] ========== SCRIPT START at {_start_time} ==========")
+
 import streamlit as st
 import pandas as pd
 import io
@@ -652,15 +656,20 @@ st.sidebar.markdown("<hr style='border: 1px solid rgba(255,255,255,0.2); margin:
 
 st.sidebar.markdown("### 📍 Navigation")
 
-page = st.sidebar.radio(
+page = st.sidebar.selectbox(
     "Select Page",
-    ["📊 Dashboard", "📁 Data Management", "📈 Team Statistics", 
+    ["📊 Dashboard", "📁 Data Management", "📈 Team Statistics",
      "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing", "⚙️ TBA Settings"],
-    label_visibility="collapsed"
+    key="main_navigation"
 )
+
+# DEBUG: Print selected page to terminal
+print(f"[DEBUG] Selected page: {repr(page)}")
+print(f"[DEBUG] Session state main_navigation: {repr(st.session_state.get('main_navigation', 'NOT SET'))}")
 
 # Main content based on selected page
 if page == "📊 Dashboard":
+    print("[DEBUG] Entering Dashboard page")
     st.markdown("<div class='main-header'>🤖 Alliance Simulator Dashboard</div>", unsafe_allow_html=True)
     
     # Welcome message
@@ -768,6 +777,7 @@ if page == "📊 Dashboard":
             st.markdown("</div>", unsafe_allow_html=True)
 
 elif page == "📁 Data Management":
+    print("[DEBUG] Entering Data Management page")
     st.markdown("<div class='main-header'>📁 Data Management</div>", unsafe_allow_html=True)
     
     tab1, tab2, tab3, tab4 = st.tabs(["📤 Upload Data", "📷 QR Scanner", "📋 View Raw Data", "💾 Export Data"])
@@ -1102,6 +1112,7 @@ elif page == "📁 Data Management":
                 st.warning("No statistics available to export")
 
 elif page == "📈 Team Statistics":
+    print("[DEBUG] Entering Team Statistics page")
     st.markdown("<div class='main-header'>📈 Team Statistics</div>", unsafe_allow_html=True)
     
     stats = st.session_state.analizador.get_detailed_team_stats()
@@ -1627,6 +1638,7 @@ elif page == "📈 Team Statistics":
                 st.info("No data to display.")
 
 elif page == "🤝 Alliance Selector":
+    print("[DEBUG] Entering Alliance Selector page")
     st.markdown("<div class='main-header'>🤝 Alliance Selector</div>", unsafe_allow_html=True)
     
     # Initialize alliance selector if not exists
@@ -1790,6 +1802,7 @@ elif page == "🤝 Alliance Selector":
         st.info("Please initialize the Alliance Selector first.")
 
 elif page == "🏆 Honor Roll System":
+    print("[DEBUG] Entering Honor Roll System page")
     st.markdown("<div class='main-header'>🏆 Honor Roll System</div>", unsafe_allow_html=True)
     
     # Exam Import Section
@@ -2483,6 +2496,7 @@ elif page == "🏆 Honor Roll System":
         st.info("No teams in Honor Roll System. Please auto-populate from data.")
 
 elif page == "🔮 Foreshadowing":
+    print("[DEBUG] Entering Foreshadowing page")
     st.markdown("<div class='main-header'>🔮 Match Prediction (Foreshadowing)</div>", unsafe_allow_html=True)
 
     stats = st.session_state.analizador.get_detailed_team_stats()
@@ -2731,6 +2745,7 @@ elif page == "🔮 Foreshadowing":
                 st.caption("Foreshadowing simulations use historical averages and random sampling for variability.")
 
 elif page == "⚙️ TBA Settings":
+    print("[DEBUG] Entering TBA Settings page")
     st.markdown("<div class='main-header'>⚙️ The Blue Alliance Settings</div>", unsafe_allow_html=True)
 
     use_api = st.toggle(

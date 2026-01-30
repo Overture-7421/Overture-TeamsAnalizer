@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(Get-ChildItem -Path \"D:\\\\1.SQM\\\\2.OVERTURE\\\\2026_SCOUTING\\\\Overture-TeamsAnalizer\" -Recurse -Directory -Name)",
+      "Bash(Select-String -Pattern \"pages\")"
+    ]
+  }
+}
