@@ -2,7 +2,7 @@
     "version": "1.0",
     "description": "Alliance selection configuration for AllianceSelector",
     "draft_parameters": {
-        "max_alliances": 8,
+        "max_alliances": 4,
         "teams_per_alliance": 2,
         "min_teams_per_alliance_for_calc": 2
     },

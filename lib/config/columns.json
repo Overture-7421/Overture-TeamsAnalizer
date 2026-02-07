@@ -27,7 +27,7 @@
             "label": "Starting Side (Relative)",
             "key": "starting_side",
             "type": "dropdown",
-            "options": ["Goal Side", "Obelisk Side", "Center", "Unknown"]
+            "options": ["Goal Side", "Obelisk Side", "Audience - Center", "Audience - Left", "Audience - Right", "Unknown"]
         },
         {
             "label": "No Show",
@@ -52,14 +52,9 @@
             "type": "counter"
         },
         {
-            "label": "Artifacts Placed in Depot",
-            "key": "auto_depot_placed",
-            "type": "counter"
-        },
-        {
-            "label": "Pattern Matches at End of Auto (0-9)",
-            "key": "auto_pattern_matches",
-            "type": "counter"
+            "label": "Patterns Made in Auto?",
+            "key": "patterns_made_auto",
+            "type": "switch"
         },
         {
             "label": "Auto Strategy",
@@ -75,6 +70,11 @@
     ],
     "TELEOP": [
         {
+            "label": "How many artifacts failed to score?",
+            "key": "teleop_artifact_failed",
+            "type": "counter"
+        },
+        {
             "label": "Artifacts Scored (CLASSIFIED)",
             "key": "teleop_artifact_classified",
             "type": "counter"
@@ -85,25 +85,15 @@
             "type": "counter"
         },
         {
-            "label": "Artifacts Placed in Depot",
-            "key": "teleop_depot_placed",
-            "type": "counter"
-        },
-        {
-            "label": "How many artifacts failed to score?",
-            "key": "teleop_artifact_failed",
-            "type": "counter"
-        },
-        {
-            "label": "Pattern Matches at End of Match (0-9)",
-            "key": "teleop_pattern_matches",
-            "type": "counter"
+            "label": "Pattern Made in TeleOp",
+            "key": "teleop_pattern_made",
+            "type": "switch"
         },
         {
             "label": "Cycle Focus",
             "key": "teleop_cycle_focus",
             "type": "dropdown",
-            "options": ["Goal Scoring", "Pattern Building", "Depot", "Mixed", "None/Dead"]
+            "options": ["Goal Scoring", "Pattern Building", "Mixed", "None/Dead"]
         },
         {
             "label": "Played Defense",
@@ -135,11 +125,6 @@
             "options": ["NOT Attempted", "Attempted - Successful", "Attempted - Failed"]
         },
         {
-            "label": "Tipped/Fell Over",
-            "key": "endgame_tipped",
-            "type": "switch"
-        },
-        {
             "label": "Broke / Major Failure",
             "key": "endgame_broke",
             "type": "switch"
@@ -161,22 +146,19 @@
         "Left Launch Line (LEAVE)",
         "Artifacts Scored (CLASSIFIED) (Auto)",
         "Artifacts Scored (OVERFLOW) (Auto)",
-        "Artifacts Placed in Depot (Auto)",
-        "Pattern Matches at End of Auto (0-9)",
+        "Pattern Made in Auto",
         "Auto Strategy",
         "Died/Stopped Moving in Auto",
+        "How many artifacts failed to score?",
         "Artifacts Scored (CLASSIFIED) (Teleop)",
         "Artifacts Scored (OVERFLOW) (Teleop)",
-        "Artifacts Placed in Depot (Teleop)",
-        "How many artifacts failed to score?",
-        "Pattern Matches at End of Match (0-9)",
+        "Pattern Made in TeleOp",
         "Cycle Focus",
         "Played Defense",
         "Was Defended Heavily",
         "Died/Stopped Moving in Teleop",
         "Returned to Base",
         "Climbed On Top of Another Robot",
-        "Tipped/Fell Over",
         "Broke / Major Failure",
         "Card"
     ],
@@ -185,12 +167,10 @@
             "Artifacts Scored (CLASSIFIED) (Auto)",
             "Artifacts Scored (OVERFLOW) (Auto)",
             "Artifacts Placed in Depot (Auto)",
-            "Pattern Matches at End of Auto (0-9)",
             "Artifacts Scored (CLASSIFIED) (Teleop)",
             "Artifacts Scored (OVERFLOW) (Teleop)",
             "Artifacts Placed in Depot (Teleop)",
-            "How many artifacts failed to score?",
-            "Pattern Matches at End of Match (0-9)"
+            "How many artifacts failed to score?"
         ],
         "stats_columns": [
             "No Show",
@@ -226,23 +206,23 @@
             "Returned to Base",
             "Climbed On Top of Another Robot",
             "Tipped/Fell Over",
-            "Broke / Major Failure"
+            "Broke / Major Failure",
+            "Pattern Made in Auto",
+            "Pattern Made in TeleOp"
         ],
         "autonomous_columns": [
             "Left Launch Line (LEAVE)",
             "Artifacts Scored (CLASSIFIED) (Auto)",
             "Artifacts Scored (OVERFLOW) (Auto)",
-            "Artifacts Placed in Depot (Auto)",
-            "Pattern Matches at End of Auto (0-9)",
+            "Pattern Made in Auto",
             "Auto Strategy",
             "Died/Stopped Moving in Auto"
         ],
         "teleop_columns": [
             "Artifacts Scored (CLASSIFIED) (Teleop)",
             "Artifacts Scored (OVERFLOW) (Teleop)",
-            "Artifacts Placed in Depot (Teleop)",
             "How many artifacts failed to score?",
-            "Pattern Matches at End of Match (0-9)",
+            "Pattern Made in TeleOp",
             "Cycle Focus",
             "Played Defense",
             "Was Defended Heavily",
@@ -251,8 +231,8 @@
         "endgame_columns": [
             "Returned to Base",
             "Climbed On Top of Another Robot",
-            "Tipped/Fell Over",
-            "Broke / Major Failure"
+            "Broke / Major Failure",
+            "Card"
         ]
     },
     "streamlit_config": {
@@ -261,12 +241,12 @@
                 {"column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
                 {"column": "Artifacts Scored (OVERFLOW) (Auto)", "label": "Auto Overflow"},
                 {"column": "Artifacts Placed in Depot (Auto)", "label": "Auto Depot"},
-                {"column": "Pattern Matches at End of Auto (0-9)", "label": "Auto Pattern Matches"},
+                {"column": "Pattern Made in Auto", "label": "Auto Pattern Made"},
                 {"column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
                 {"column": "Artifacts Scored (OVERFLOW) (Teleop)", "label": "Teleop Overflow"},
                 {"column": "Artifacts Placed in Depot (Teleop)", "label": "Teleop Depot"},
                 {"column": "How many artifacts failed to score?", "label": "Teleop Failed"},
-                {"column": "Pattern Matches at End of Match (0-9)", "label": "Teleop Pattern Matches"}
+                {"column": "Pattern Made in TeleOp", "label": "Teleop Pattern Made"}
             ],
             "rate_columns": [
                 {"columns": ["No Show"], "label": "No Show Rate (%)"},
@@ -342,13 +322,12 @@
     "foreshadowing_columns": {
         "auto_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
         "auto_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
-        "auto_depot": "Artifacts Placed in Depot (Auto)",
-        "auto_pattern": "Pattern Matches at End of Auto (0-9)",
+        "auto_pattern": "Pattern Made in Auto",
         "teleop_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
         "teleop_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
         "teleop_depot": "Artifacts Placed in Depot (Teleop)",
         "teleop_failed": "How many artifacts failed to score?",
-        "teleop_pattern": "Pattern Matches at End of Match (0-9)",
+        "teleop_pattern": "Pattern Made in TeleOp",
         "auto_leave": "Left Launch Line (LEAVE)",
         "endgame_returned": "Returned to Base"
     },
