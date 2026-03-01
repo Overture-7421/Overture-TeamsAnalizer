@@ -571,58 +571,57 @@ class AnalizadorRobot:
         return bonus_by_row_id
 
     def _decode_score_row(self, row: List[str], *, endgame_bonus: float = 0.0) -> Dict[str, float]:
-        """Compute DECODE points for a single robot/match row."""
+        """Compute FRC REBUILT 2026 match points for a single robot/match row.
+        
+        Scoring:
+        - AUTO: Leave 3pts, FUEL 1pt each, Tower L1 15pts (max 2 robots)
+        - TELEOP: FUEL 1pt each (active HUB)
+        - ENDGAME: Tower Level 1=10pts, Level 2=20pts, Level 3=30pts
+        """
         # Autonomous
         auto_leave = 1.0 if self._decode_parse_bool(self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "leave"]) )
                                                     or self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "moved"]) )) else 0.0
-        auto_artifacts = self._decode_get_count(
+
+        # Auto FUEL (FRC: "FUEL Scored (Active HUB) (Auto)")
+        auto_fuel = self._decode_get_count(
             row,
-            primary=["artifactsAuto", "Artifacts (Auto)", "Classified (Auto)", "Artifacts Auto", "Classified Auto"],
-            fallback=[["auto", "artifact"], ["auto", "classified"]],
+            primary=["FUEL Scored (Active HUB) (Auto)", "auto_fuel", "Auto FUEL"],
+            fallback=[["auto", "fuel"], ["auto", "artifact"], ["auto", "classified"]],
         )
-        auto_overflow = self._decode_get_count(
-            row,
-            primary=["overflowAuto", "Overflow (Auto)", "Overflow Auto"],
-            fallback=[["auto", "overflow"]],
-        )
-        auto_depot = self._decode_get_count(
-            row,
-            primary=["depotAuto", "Depot (Auto)", "Depot Auto"],
-            fallback=[["auto", "depot"]],
-        )
-        auto_pattern = self._decode_get_count(
-            row,
-            primary=["patternAuto", "Pattern (Auto)", "Pattern Match (Auto)", "Pattern Auto"],
-            fallback=[["auto", "pattern"]],
-        )
-        autonomous = 3.0 * auto_leave + 3.0 * auto_artifacts + 1.0 * auto_overflow + 1.0 * auto_depot + 2.0 * auto_pattern
+
+        # Auto Tower Level 1 (FRC: "Tower Level 1 - Auto")
+        auto_tower_l1 = 1.0 if self._decode_parse_bool(
+            self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "tower"])) or
+            self._decode_get_cell(row, self._decode_find_column(keywords=["tower", "level", "auto"]))
+        ) else 0.0
+
+        autonomous = 3.0 * auto_leave + 1.0 * auto_fuel + 15.0 * auto_tower_l1
 
         # TeleOp
-        teleop_artifacts = self._decode_get_count(
+        # Teleop FUEL (FRC: "FUEL Scored (Active HUB) (Teleop)")
+        teleop_fuel = self._decode_get_count(
             row,
-            primary=["artifactsTeleop", "Artifacts (Teleop)", "Classified (Teleop)", "Artifacts Teleop", "Classified Teleop"],
-            fallback=[["teleop", "artifact"], ["teleop", "classified"], ["tele", "artifact"], ["tele", "classified"]],
+            primary=["FUEL Scored (Active HUB) (Teleop)", "teleop_fuel", "Teleop FUEL"],
+            fallback=[["teleop", "fuel"], ["tele", "fuel"], ["teleop", "artifact"], ["teleop", "classified"]],
         )
-        teleop_overflow = self._decode_get_count(
-            row,
-            primary=["overflowTeleop", "Overflow (Teleop)", "Overflow Teleop"],
-            fallback=[["teleop", "overflow"], ["tele", "overflow"]],
-        )
-        teleop_depot = self._decode_get_count(
-            row,
-            primary=["depotTeleop", "Depot (Teleop)", "Depot Teleop"],
-            fallback=[["teleop", "depot"], ["tele", "depot"]],
-        )
-        teleop_pattern = self._decode_get_count(
-            row,
-            primary=["patternTeleop", "Pattern (Teleop)", "Pattern Match (Teleop)", "Pattern Teleop"],
-            fallback=[["teleop", "pattern"], ["tele", "pattern"]],
-        )
-        teleop = 3.0 * teleop_artifacts + 1.0 * teleop_overflow + 1.0 * teleop_depot + 2.0 * teleop_pattern
 
-        # Endgame
-        endgame_status = self._decode_get_endgame_status(row)
-        endgame = float(endgame_status["points"])
+        teleop = 1.0 * teleop_fuel
+
+        # Endgame - Tower Climb Level (FRC: "Tower Climb Level")
+        tower_climb_col = self._decode_find_column(keywords=["tower", "climb"]) or \
+                          self._decode_find_column(keywords=["climb", "level"])
+        tower_climb_val = str(self._decode_get_cell(row, tower_climb_col) or "").strip().lower()
+
+        if "level 3" in tower_climb_val or "level3" in tower_climb_val:
+            endgame = 30.0
+        elif "level 2" in tower_climb_val or "level2" in tower_climb_val:
+            endgame = 20.0
+        elif "level 1" in tower_climb_val or "level1" in tower_climb_val:
+            endgame = 10.0
+        else:
+            # Fallback: legacy FTC endgame (Returned to Base)
+            endgame_status = self._decode_get_endgame_status(row)
+            endgame = float(endgame_status["points"])
 
         total = autonomous + teleop + endgame + float(endgame_bonus or 0.0)
         return {

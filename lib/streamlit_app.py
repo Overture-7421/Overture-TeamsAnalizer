@@ -78,7 +78,7 @@ def load_app_config():
             "app": {
                 "title": "Alliance Simulator - Overture 7421",
                 "icon": "🤖",
-                "subtitle": "FTC DECODE 2026",
+                "subtitle": "FRC REBUILT 2026",
                 "team_name": "Team Overture 7421"
             },
             "scoring_weights": {
@@ -87,30 +87,25 @@ def load_app_config():
                 "during_event": 20
             },
             "game": {
-                "name": "DECODE 2026",
+                "name": "REBUILT 2026",
                 "autonomous": {
                     "leave": 3,
-                    "artifact": 3,
-                    "overflow": 1,
-                    "depot": 1,
-                    "pattern_match": 2
+                    "fuel": 1,
+                    "tower_level1_auto": 15
                 },
                 "teleop": {
-                    "artifact": 3,
-                    "overflow": 1,
-                    "depot": 1,
-                    "pattern_match": 2
+                    "fuel": 1
                 },
                 "endgame": {
-                    "park_partial": 5,
-                    "park_full": 10,
-                    "double_park_bonus": 10
+                    "tower_level1": 10,
+                    "tower_level2": 20,
+                    "tower_level3": 30
                 }
             },
             "metrics": {
                 "game_phases": ["autonomous", "teleop", "endgame"],
-                "endgame_states": ["park_partial", "park_full"],
-                "match_items": ["artifact", "overflow", "depot", "pattern_match"]
+                "endgame_states": ["tower_level1", "tower_level2", "tower_level3"],
+                "match_items": ["fuel", "tower_level1_auto"]
             }
         }
     
@@ -147,7 +142,7 @@ st.set_page_config(
     layout=app_config.get("layout", "wide"),
     initial_sidebar_state=app_config.get("initial_sidebar_state", "expanded"),
     menu_items={
-        'About': f"{app_config.get('title', 'Alliance Simulator')} | {app_config.get('subtitle', 'FTC DECODE 2026')}"
+        'About': f"{app_config.get('title', 'Alliance Simulator')} | {app_config.get('subtitle', 'FRC REBUILT 2026')}"
     }
 )
 
@@ -190,6 +185,7 @@ def _init_session_state():
         'qr_last_scan_preview': "",
         'raw_data_last_edit_ts': 0.0,
         'raw_data_last_saved_hash': "",
+        'post_match_data': [],
     }
     
     # Set defaults only if not already in session state
@@ -205,17 +201,17 @@ def _init_session_state():
     if 'analizador' not in st.session_state:
         st.session_state.analizador = AnalizadorRobot()
     
-    # Auto-detect and reset FRC to DECODE data if needed
+    # Auto-detect and reset old FTC data if current config is FRC
     if not st.session_state.auto_decode_reset_done:
         try:
             raw_data = st.session_state.analizador.get_raw_data()
             if raw_data and raw_data[0]:
                 header = raw_data[0]
-                has_frc_columns = any("Coral" in col or "Algae" in col for col in header)
-                decode_header = st.session_state.analizador.config_manager.get_column_config().headers
-                has_decode_columns = any("Artifacts Scored" in col for col in decode_header)
-                if has_frc_columns and has_decode_columns:
-                    st.session_state.analizador.set_raw_data([decode_header])
+                has_old_columns = any("Artifacts Scored" in col or "Coral" in col or "Algae" in col for col in header)
+                current_header = st.session_state.analizador.config_manager.get_column_config().headers
+                has_frc_columns = any("FUEL Scored" in col for col in current_header)
+                if has_old_columns and has_frc_columns:
+                    st.session_state.analizador.set_raw_data([current_header])
                     st.session_state.auto_decode_reset_done = True
         except Exception:
             st.session_state.auto_decode_reset_done = True
@@ -287,27 +283,20 @@ section[data-testid="stSidebar"] .stRadio label{color:white !important;font-weig
 DEFAULT_STREAMLIT_CONFIG = {
     "overall_rankings": {
         "average_columns": [
-            {"column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-            {"column": "Artifacts Scored (OVERFLOW) (Auto)", "label": "Auto Overflow"},
-            {"column": "Artifacts Placed in Depot (Auto)", "label": "Auto Depot"},
-            {"column": "Pattern Matches at End of Auto (0-9)", "label": "Auto Pattern Matches"},
-            {"column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
-            {"column": "Artifacts Scored (OVERFLOW) (Teleop)", "label": "Teleop Overflow"},
-            {"column": "Artifacts Placed in Depot (Teleop)", "label": "Teleop Depot"},
-            {"column": "How many artifacts failed to score?", "label": "Teleop Failed"},
-            {"column": "Pattern Matches at End of Match (0-9)", "label": "Teleop Pattern Matches"}
+            {"column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
+            {"column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"}
         ],
         "rate_columns": [
             {"columns": ["No Show"], "label": "No Show Rate (%)"},
             {"columns": ["Left Launch Line (LEAVE)"], "label": "Leave Rate (%)"},
+            {"columns": ["Tower Level 1 - Auto"], "label": "Auto Tower L1 Rate (%)"},
             {"columns": ["Played Defense"], "label": "Played Defense Rate (%)"},
             {"columns": ["Was Defended Heavily"], "label": "Defended Heavily Rate (%)"},
             {"columns": ["Died/Stopped Moving in Auto"], "label": "Auto Died Rate (%)"},
             {"columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate (%)"},
-            {"columns": ["Returned to Base"], "label": "Returned to Base Rate (%)"},
-            {"columns": ["Climbed On Top of Another Robot"], "label": "Climb On Top Rate (%)"},
             {"columns": ["Tipped/Fell Over"], "label": "Tip/Fall Rate (%)"},
-            {"columns": ["Broke / Major Failure"], "label": "Broke Rate (%)"}
+            {"columns": ["Broke / Major Failure"], "label": "Broke Rate (%)"},
+            {"columns": ["Disabled"], "label": "Disabled Rate (%)"}
         ]
     },
     "simplified_ranking": {
@@ -317,54 +306,49 @@ DEFAULT_STREAMLIT_CONFIG = {
         ],
         "mode_columns": [
             {"column": "Cycle Focus", "label": "Cycle Focus"},
-            {"column": "Climbed On Top of Another Robot", "label": "Climb On Top Mode"}
+            {"column": "Tower Climb Level", "label": "Tower Climb Level Mode"}
         ]
     },
     "detailed_stats": {
         "compare_metrics": [
             {"type": "overall_avg", "label": "Overall Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"},
+            {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL Avg"},
+            {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL Avg"},
             {"type": "rate", "columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate", "format": "percent"}
         ],
         "radar_categories": [
             {"type": "overall_avg", "label": "Overall Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
+            {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
+            {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"},
             {"type": "consistency", "label": "Consistency"}
         ],
         "bar_metrics": [
             {"type": "overall_avg", "label": "Overall Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"}
+            {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
+            {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"}
         ],
         "comparison_table": [
             {"type": "overall_avg", "label": "Overall Avg"},
             {"type": "overall_std", "label": "Overall Std"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"}
+            {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL Avg"},
+            {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL Avg"}
         ]
     },
     "match_trend": {
         "auto": {
             "leave": "Left Launch Line (LEAVE)",
-            "artifact_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
-            "artifact_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
-            "depot": "Artifacts Placed in Depot (Auto)",
-            "pattern": "Pattern Matches at End of Auto (0-9)"
+            "fuel": "FUEL Scored (Active HUB) (Auto)",
+            "tower_l1": "Tower Level 1 - Auto"
         },
         "teleop": {
-            "artifact_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
-            "artifact_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
-            "depot": "Artifacts Placed in Depot (Teleop)",
-            "pattern": "Pattern Matches at End of Match (0-9)"
+            "fuel": "FUEL Scored (Active HUB) (Teleop)"
         },
         "endgame": {
-            "returned": "Returned to Base"
+            "tower_climb": "Tower Climb Level"
         }
     }
 }
@@ -626,8 +610,8 @@ def get_foreshadowing_team_options():
 
 def validate_alliance_selection(red, blue):
     """Validate alliance inputs before running simulations."""
-    if len(red) != 2 or len(blue) != 2:
-        return False, "Select exactly 2 teams for each alliance."
+    if len(red) != 3 or len(blue) != 3:
+        return False, "Select exactly 3 teams for each alliance."
 
     combined = red + blue
     if len(set(combined)) != len(combined):
@@ -640,38 +624,37 @@ def build_coral_breakdown_df(breakdown):
     data = [
         {
             'Phase': 'Auto',
-            'Classified': breakdown['auto_artifacts']['classified'],
-            'Overflow': breakdown['auto_artifacts']['overflow'],
-            'Depot': breakdown['auto_artifacts']['depot'],
-            'Pattern Matches': breakdown['auto_artifacts']['pattern']
+            'FUEL': breakdown.get('auto_fuel', 0),
+            'Tower L1': breakdown.get('auto_tower_l1_count', 0),
+            'Leave': breakdown.get('teams_left_auto_zone', 0)
         },
         {
             'Phase': 'Teleop',
-            'Classified': breakdown['teleop_artifacts']['classified'],
-            'Overflow': breakdown['teleop_artifacts']['overflow'],
-            'Depot': breakdown['teleop_artifacts']['depot'],
-            'Failed': breakdown['teleop_artifacts']['failed'],
-            'Pattern Matches': breakdown['teleop_artifacts']['pattern']
+            'FUEL': breakdown.get('teleop_fuel', 0),
+            'Tower L1': breakdown.get('endgame_climbs', {}).get('level1', 0),
+            'Tower L2': breakdown.get('endgame_climbs', {}).get('level2', 0),
+            'Tower L3': breakdown.get('endgame_climbs', {}).get('level3', 0)
         }
     ]
     return pd.DataFrame(data)
 
 
 def build_algae_summary_df(breakdown):
+    climbs = breakdown.get('endgame_climbs', {})
     return pd.DataFrame([
-        {'Return': 'None', 'Teams': breakdown['endgame_returns']['none']},
-        {'Return': 'Partial', 'Teams': breakdown['endgame_returns']['partial']},
-        {'Return': 'Full', 'Teams': breakdown['endgame_returns']['full']},
-        {'Return': 'Double Park Bonus', 'Teams': 1 if breakdown.get('double_park_bonus', 0) else 0}
+        {'Climb Level': 'Did Not Climb', 'Teams': climbs.get('none', 0)},
+        {'Climb Level': 'Level 1 (10 pts)', 'Teams': climbs.get('level1', 0)},
+        {'Climb Level': 'Level 2 (20 pts)', 'Teams': climbs.get('level2', 0)},
+        {'Climb Level': 'Level 3 (30 pts)', 'Teams': climbs.get('level3', 0)},
     ])
 
 
 def build_climb_breakdown_df(breakdown):
     rows = []
-    for team, return_type, points in breakdown['endgame_scores']:
+    for team, climb_type, points in breakdown.get('endgame_scores', []):
         rows.append({
             'Team': get_team_display_label(team),
-            'Return': return_type.capitalize(),
+            'Climb Level': climb_type.replace('level', 'Level ').replace('none', 'Did Not Climb').capitalize(),
             'Points': points
         })
     return pd.DataFrame(rows)
@@ -682,15 +665,9 @@ def build_team_performance_df(team_performances):
     for perf in team_performances:
         rows.append({
             'Team': get_team_display_label(perf.team_number),
-            'Auto Classified': round(perf.auto_classified, 2),
-            'Auto Overflow': round(perf.auto_overflow, 2),
-            'Auto Depot': round(perf.auto_depot, 2),
-            'Auto Pattern': round(perf.auto_pattern, 2),
-            'Teleop Classified': round(perf.teleop_classified, 2),
-            'Teleop Overflow': round(perf.teleop_overflow, 2),
-            'Teleop Depot': round(perf.teleop_depot, 2),
-            'Teleop Failed': round(perf.teleop_failed, 2),
-            'Teleop Pattern': round(perf.teleop_pattern, 2),
+            'Auto FUEL': round(perf.auto_fuel, 2),
+            'Auto Tower L1 %': round(getattr(perf, 'p_auto_tower_l1', 0) * 100, 1),
+            'Teleop FUEL': round(perf.teleop_fuel, 2),
             'Auto Leave %': round(perf.p_leave_auto_zone * 100, 1),
             'Expected Endgame': round(perf.expected_endgame_points(), 2)
         })
@@ -704,7 +681,7 @@ st.sidebar.markdown(f"""
     <h1 style='color: white; font-size: 2.5rem; margin: 0;'>{sidebar_config.get('icon', '🤖')}</h1>
     <h2 style='color: white; font-weight: 700; margin: 0.5rem 0;'>Alliance Simulator</h2>
     <p style='color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;'>{sidebar_config.get('team_name', 'Team Overture 7421')}</p>
-    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>{game_config.get('name', 'FTC DECODE 2026')}</p>
+    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>{game_config.get('name', 'FRC REBUILT 2026')}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -715,7 +692,8 @@ st.sidebar.markdown("### 📍 Navigation")
 page = st.sidebar.radio(
     "Select Page",
     ["📁 Data Management", "📈 Team Statistics", 
-     "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing", "⚙️ TOA Settings"],
+     "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing",
+     "📊 Post-Match", "⚙️ TOA Settings"],
     label_visibility="collapsed"
 )
 
@@ -1517,17 +1495,12 @@ elif page == "📈 Team Statistics":
                             endgame_cols = match_cfg.get("endgame", {}) or {}
 
                             leave_col = auto_cols.get("leave", "Left Launch Line (LEAVE)")
-                            auto_classified_col = auto_cols.get("artifact_classified", "Artifacts Scored (CLASSIFIED) (Auto)")
-                            auto_overflow_col = auto_cols.get("artifact_overflow", "Artifacts Scored (OVERFLOW) (Auto)")
-                            auto_depot_col = auto_cols.get("depot", "Artifacts Placed in Depot (Auto)")
-                            auto_pattern_col = auto_cols.get("pattern", "Pattern Matches at End of Auto (0-9)")
+                            auto_fuel_col = auto_cols.get("fuel", "FUEL Scored (Active HUB) (Auto)")
+                            auto_tower_l1_col = auto_cols.get("tower_l1", "Tower Level 1 - Auto")
 
-                            teleop_classified_col = teleop_cols.get("artifact_classified", "Artifacts Scored (CLASSIFIED) (Teleop)")
-                            teleop_overflow_col = teleop_cols.get("artifact_overflow", "Artifacts Scored (OVERFLOW) (Teleop)")
-                            teleop_depot_col = teleop_cols.get("depot", "Artifacts Placed in Depot (Teleop)")
-                            teleop_pattern_col = teleop_cols.get("pattern", "Pattern Matches at End of Match (0-9)")
+                            teleop_fuel_col = teleop_cols.get("fuel", "FUEL Scored (Active HUB) (Teleop)")
 
-                            returned_col = endgame_cols.get("returned", "Returned to Base")
+                            tower_climb_col = endgame_cols.get("tower_climb", "Tower Climb Level")
 
                             def _get_value(row, col_name):
                                 col_idx = analyzer._column_indices.get(col_name)
@@ -1545,14 +1518,14 @@ elif page == "📈 Team Statistics":
                                 return ""
                             return str(v).strip().lower()
 
-                        def _normalize_returned(value: str) -> str:
+                        def _normalize_tower_climb(value: str) -> str:
                             v = (value or "").strip().lower()
-                            if not v:
-                                return "none"
-                            if "fully" in v:
-                                return "full"
-                            if "partial" in v:
-                                return "partial"
+                            if "level 3" in v or "level3" in v:
+                                return "level3"
+                            if "level 2" in v or "level2" in v:
+                                return "level2"
+                            if "level 1" in v or "level1" in v:
+                                return "level1"
                             return "none"
 
                         def _row_match_points(row) -> float:
@@ -1563,32 +1536,26 @@ elif page == "📈 Team Statistics":
                             if leave:
                                 points += float(auto_points.get("leave", 0))
 
-                            auto_classified = _get_num(row, auto_classified_col)
-                            auto_overflow = _get_num(row, auto_overflow_col)
-                            auto_depot = _get_num(row, auto_depot_col)
-                            auto_pattern = _get_num(row, auto_pattern_col)
-                            points += auto_classified * float(auto_points.get("artifact", 0))
-                            points += auto_overflow * float(auto_points.get("overflow", 0))
-                            points += auto_depot * float(auto_points.get("depot", 0))
-                            points += auto_pattern * float(auto_points.get("pattern_match", 0))
+                            auto_fuel = _get_num(row, auto_fuel_col)
+                            points += auto_fuel * float(auto_points.get("fuel", 0))
+
+                            auto_tower_l1 = _parse_bool(_get_value(row, auto_tower_l1_col))
+                            if auto_tower_l1:
+                                points += float(auto_points.get("tower_level1_auto", 0))
 
                             # Teleop scoring
-                            teleop_classified = _get_num(row, teleop_classified_col)
-                            teleop_overflow = _get_num(row, teleop_overflow_col)
-                            teleop_depot = _get_num(row, teleop_depot_col)
-                            teleop_pattern = _get_num(row, teleop_pattern_col)
-                            points += teleop_classified * float(teleop_points.get("artifact", 0))
-                            points += teleop_overflow * float(teleop_points.get("overflow", 0))
-                            points += teleop_depot * float(teleop_points.get("depot", 0))
-                            points += teleop_pattern * float(teleop_points.get("pattern_match", 0))
+                            teleop_fuel = _get_num(row, teleop_fuel_col)
+                            points += teleop_fuel * float(teleop_points.get("fuel", 0))
 
-                            # Endgame scoring (per-robot)
-                            returned_val = _get_text(row, returned_col)
-                            return_key = _normalize_returned(returned_val)
-                            if return_key == "partial":
-                                points += float(endgame_points.get("park_partial", 0))
-                            elif return_key == "full":
-                                points += float(endgame_points.get("park_full", 0))
+                            # Endgame scoring (tower climb level)
+                            climb_val = _get_text(row, tower_climb_col)
+                            climb_key = _normalize_tower_climb(climb_val)
+                            if climb_key == "level3":
+                                points += float(endgame_points.get("tower_level3", 0))
+                            elif climb_key == "level2":
+                                points += float(endgame_points.get("tower_level2", 0))
+                            elif climb_key == "level1":
+                                points += float(endgame_points.get("tower_level1", 0))
 
                             return points
 
@@ -1701,6 +1668,15 @@ elif page == "🤝 Alliance Selector":
                         selector.set_pick(alliance.allianceNumber - 1, 'pick1', available_teams[0].team)
                         made_changes = True
 
+                # Pick 2 round (highest seeds first)
+                for alliance in selector.alliances:
+                    if not alliance.captain or alliance.pick2:
+                        continue
+                    available_teams2 = selector.get_available_teams(alliance.captainRank, 'pick2')
+                    if available_teams2:
+                        selector.set_pick(alliance.allianceNumber - 1, 'pick2', available_teams2[0].team)
+                        made_changes = True
+
                 if made_changes:
                     st.success("Auto-optimization filled remaining picks.")
                 else:
@@ -1792,6 +1768,37 @@ elif page == "🤝 Alliance Selector":
                         try:
                             selected_val = int(selected_pick1) if selected_pick1 != "0" else None
                             selector.set_pick(i, 'pick1', selected_val)
+                            st.rerun()
+                        except ValueError as e:
+                            st.error(str(e))
+
+                    # Pick 2 — build available teams excluding already-selected picks
+                    available_teams2 = selector.get_available_teams(a.captainRank, 'pick2')
+                    if st.session_state.toa_manager:
+                        team_options2 = {str(team.team): f"{team.team} - {team.name}" for team in available_teams2}
+                        if a.pick2 and str(a.pick2) not in team_options2:
+                            team_options2[str(a.pick2)] = f"{a.pick2} - {st.session_state.toa_manager.get_team_nickname(a.pick2)}"
+                        team_options2["0"] = "None"
+                    else:
+                        team_options2 = {str(team.team): str(team.team) for team in available_teams2}
+                        if a.pick2 and str(a.pick2) not in team_options2:
+                            team_options2[str(a.pick2)] = str(a.pick2)
+                        team_options2["0"] = "None"
+
+                    options_list2 = list(team_options2.keys())
+                    pick2_val = str(a.pick2) if a.pick2 is not None and str(a.pick2) in team_options2 else "0"
+                    selected_pick2 = st.selectbox(
+                        f"Pick 2 A{a.allianceNumber}",
+                        options=options_list2,
+                        format_func=lambda x: team_options2.get(x, "None"),
+                        key=f"pick2_{i}",
+                        index=options_list2.index(pick2_val)
+                    )
+                    current_pick2_value = str(a.pick2) if a.pick2 is not None else "0"
+                    if selected_pick2 != current_pick2_value:
+                        try:
+                            selected_val2 = int(selected_pick2) if selected_pick2 != "0" else None
+                            selector.set_pick(i, 'pick2', selected_val2)
                             st.rerun()
                         except ValueError as e:
                             st.error(str(e))
@@ -2121,7 +2128,7 @@ elif page == "🏆 Honor Roll System":
                 total_qualified_non_def = len(qualified_non_defensive)
                 
                 if total_qualified_non_def > 0:
-                    # FTC 2-robot alliances: only one pick, so split into two tiers.
+                    # FRC 3-robot alliances: split into two pick tiers (pick1 and pick2).
                     tier_size = max(1, total_qualified_non_def // 2)
                     remainder = total_qualified_non_def % 2
 
@@ -2493,22 +2500,22 @@ elif page == "🔮 Foreshadowing":
             st.warning("No teams available. Upload data or fetch TBA event teams.")
         else:
             label_to_team = {label: team for label, team in team_options}
-            default_red = [label for label, _ in team_options[:2]]
-            default_blue = [label for label, _ in team_options[2:4]] if len(team_options) >= 4 else [label for label, _ in team_options[:2]]
+            default_red = [label for label, _ in team_options[:3]]
+            default_blue = [label for label, _ in team_options[3:6]] if len(team_options) >= 6 else [label for label, _ in team_options[:3]]
 
             with st.form("foreshadowing_form"):
                 st.markdown("### Configure Alliances")
                 select_cols = st.columns(2)
                 with select_cols[0]:
                     red_labels = st.multiselect(
-                        "Select Red Alliance (2 teams)",
+                        "Select Red Alliance (3 teams)",
                         options=[label for label, _ in team_options],
                         default=default_red,
                         key="foreshadowing_red_multiselect"
                     )
                 with select_cols[1]:
                     blue_labels = st.multiselect(
-                        "Select Blue Alliance (2 teams)",
+                        "Select Blue Alliance (3 teams)",
                         options=[label for label, _ in team_options],
                         default=default_blue,
                         key="foreshadowing_blue_multiselect"
@@ -2609,17 +2616,16 @@ elif page == "🔮 Foreshadowing":
                     algae_df = build_algae_summary_df(red_breakdown)
                     climb_df = build_climb_breakdown_df(red_breakdown)
 
-                    st.markdown("#### Artifact Contribution")
+                    st.markdown("#### Scoring Contribution")
                     st.dataframe(coral_df, use_container_width=True)
-                    st.markdown("#### Endgame Summary")
+                    st.markdown("#### Tower Climb Summary")
                     st.dataframe(algae_df, use_container_width=True)
-                    st.markdown("#### Endgame Returns")
+                    st.markdown("#### Endgame Breakdown")
                     st.dataframe(climb_df, use_container_width=True)
 
                     st.markdown("#### Additional Metrics")
                     st.write(
-                        f"Auto Leave: {red_breakdown['teams_left_auto_zone']}/2 | "
-                        f"Double Park Bonus: {'✅' if red_breakdown.get('double_park_bonus', 0) else '❌'}"
+                        f"Auto Leave: {red_breakdown.get('teams_left_auto_zone', 0)}/3"
                     )
 
                 with breakdown_tabs[1]:
@@ -2628,17 +2634,16 @@ elif page == "🔮 Foreshadowing":
                     algae_df = build_algae_summary_df(blue_breakdown)
                     climb_df = build_climb_breakdown_df(blue_breakdown)
 
-                    st.markdown("#### Artifact Contribution")
+                    st.markdown("#### Scoring Contribution")
                     st.dataframe(coral_df, use_container_width=True)
-                    st.markdown("#### Endgame Summary")
+                    st.markdown("#### Tower Climb Summary")
                     st.dataframe(algae_df, use_container_width=True)
-                    st.markdown("#### Endgame Returns")
+                    st.markdown("#### Endgame Breakdown")
                     st.dataframe(climb_df, use_container_width=True)
 
                     st.markdown("#### Additional Metrics")
                     st.write(
-                        f"Auto Leave: {blue_breakdown['teams_left_auto_zone']}/2 | "
-                        f"Double Park Bonus: {'✅' if blue_breakdown.get('double_park_bonus', 0) else '❌'}"
+                        f"Auto Leave: {blue_breakdown.get('teams_left_auto_zone', 0)}/3"
                     )
 
                 with breakdown_tabs[2]:
@@ -2718,17 +2723,188 @@ elif page == "🔮 Foreshadowing":
                     f"Confidence level: **{confidence}** | Favorite alliance: **{favorite}**"
                 )
 
-                red_teleop_total = sum(prediction.red_breakdown['teleop_artifacts'].values())
-                blue_teleop_total = sum(prediction.blue_breakdown['teleop_artifacts'].values())
+                red_teleop_fuel = prediction.red_breakdown.get('teleop_fuel', 0)
+                blue_teleop_fuel = prediction.blue_breakdown.get('teleop_fuel', 0)
 
-                if red_teleop_total > blue_teleop_total * 1.2:
-                    st.write("Red shows a strong teleop artifact advantage. Blue should focus on defense or endgame points.")
-                elif blue_teleop_total > red_teleop_total * 1.2:
-                    st.write("Blue shows a strong teleop artifact advantage. Red should prioritize efficient cycles.")
+                if red_teleop_fuel > blue_teleop_fuel * 1.2:
+                    st.write("Red shows a strong teleop FUEL advantage. Blue should focus on defense or tower climbing.")
+                elif blue_teleop_fuel > red_teleop_fuel * 1.2:
+                    st.write("Blue shows a strong teleop FUEL advantage. Red should prioritize efficient fuel cycles.")
                 else:
-                    st.write("Teleop artifacts are balanced. Endgame could decide the match.")
+                    st.write("Teleop FUEL is balanced. Tower climbing and endgame could decide the match.")
 
                 st.caption("Foreshadowing simulations use historical averages and random sampling for variability.")
+
+elif page == "📊 Post-Match":
+    st.markdown("<div class='main-header'>📊 Post-Match Analysis</div>", unsafe_allow_html=True)
+
+    CONTRIBUTION_OPTIONS = [
+        "Did not score any points",
+        "Dedicated to passing",
+        "Scored few points",
+        "Scored ~30% of alliance score",
+        "Scored ~50% of alliance score",
+        "Scored ~75% of alliance score",
+        "Scored almost all alliance score",
+    ]
+
+    tab_entry, tab_metrics = st.tabs(["📝 Match Entry", "📈 Qualitative Metrics"])
+
+    with tab_entry:
+        st.markdown("### Record Post-Match Data")
+
+        with st.form("post_match_form", clear_on_submit=True):
+            pm_col1, pm_col2 = st.columns(2)
+            with pm_col1:
+                pm_match_number = st.number_input("Match Number", min_value=1, value=1, step=1)
+                pm_red_points = st.number_input("Red Alliance Points", min_value=0, value=0, step=1)
+            with pm_col2:
+                pm_blue_points = st.number_input("Blue Alliance Points", min_value=0, value=0, step=1)
+                pm_num_teams = st.number_input(
+                    "Number of Teams That Participated",
+                    min_value=1, max_value=6, value=6, step=1,
+                    help="Total teams in this match (usually 6: 3 red + 3 blue)"
+                )
+
+            st.markdown("#### Team Contribution Breakdown")
+            st.caption("For each participating team, select how they contributed to their alliance's score.")
+            contributions = []
+            contrib_cols = st.columns(min(int(pm_num_teams), 3))
+            for t_idx in range(int(pm_num_teams)):
+                col = contrib_cols[t_idx % 3]
+                alliance_label = "🔴 Red" if t_idx < int(pm_num_teams) // 2 else "🔵 Blue"
+                with col:
+                    contrib = st.selectbox(
+                        f"Team {t_idx + 1} ({alliance_label})",
+                        options=CONTRIBUTION_OPTIONS,
+                        key=f"pm_contrib_{t_idx}"
+                    )
+                    contributions.append(contrib)
+
+            submitted = st.form_submit_button("✅ Save Match Entry", type="primary", use_container_width=True)
+            if submitted:
+                entry = {
+                    "match_number": int(pm_match_number),
+                    "red_points": int(pm_red_points),
+                    "blue_points": int(pm_blue_points),
+                    "num_teams": int(pm_num_teams),
+                    "contributions": list(contributions),
+                }
+                existing = [e for e in st.session_state.post_match_data if e["match_number"] != entry["match_number"]]
+                existing.append(entry)
+                st.session_state.post_match_data = sorted(existing, key=lambda x: x["match_number"])
+                st.success(f"Match {int(pm_match_number)} saved!")
+
+        if st.session_state.post_match_data:
+            st.markdown("---")
+            st.markdown("### Recorded Matches")
+            rows = []
+            for e in st.session_state.post_match_data:
+                rows.append({
+                    "Match": e["match_number"],
+                    "Red Pts": e["red_points"],
+                    "Blue Pts": e["blue_points"],
+                    "Teams": e["num_teams"],
+                    "Contributions": " | ".join(e.get("contributions", []))
+                })
+            st.dataframe(pd.DataFrame(rows), use_container_width=True)
+            if st.button("🗑️ Clear All Post-Match Data", type="secondary"):
+                st.session_state.post_match_data = []
+                st.rerun()
+
+    with tab_metrics:
+        st.markdown("### 📊 Qualitative Metrics")
+        pm_data = st.session_state.post_match_data
+        if not pm_data:
+            st.info("No post-match data yet. Record matches in the 'Match Entry' tab first.")
+        else:
+            # Aggregate contribution counts
+            all_contributions = []
+            all_red_points = []
+            all_blue_points = []
+            all_total_points = []
+            for entry in pm_data:
+                all_contributions.extend(entry.get("contributions", []))
+                all_red_points.append(entry["red_points"])
+                all_blue_points.append(entry["blue_points"])
+                all_total_points.append(entry["red_points"] + entry["blue_points"])
+
+            total_matches = len(pm_data)
+            avg_red = sum(all_red_points) / total_matches if total_matches else 0
+            avg_blue = sum(all_blue_points) / total_matches if total_matches else 0
+            avg_total = sum(all_total_points) / total_matches if total_matches else 0
+
+            # Summary metrics
+            metric_cols = st.columns(3)
+            with metric_cols[0]:
+                st.metric("Avg Red Alliance Points", f"{avg_red:.1f}")
+            with metric_cols[1]:
+                st.metric("Avg Blue Alliance Points", f"{avg_blue:.1f}")
+            with metric_cols[2]:
+                st.metric("Avg Total Points / Match", f"{avg_total:.1f}")
+
+            st.markdown("---")
+
+            # Contribution trend breakdown
+            st.markdown("#### Contribution Trend")
+            contribution_counts = Counter(all_contributions)
+            if contribution_counts:
+                contrib_df = pd.DataFrame(
+                    [{"Contribution": k, "Count": v, "Percentage": f"{v / len(all_contributions) * 100:.1f}%"}
+                     for k, v in sorted(contribution_counts.items(), key=lambda x: -x[1])]
+                )
+                st.dataframe(contrib_df, use_container_width=True, hide_index=True)
+
+                px, go = _ensure_plotly()
+                if px:
+                    fig_bar = px.bar(
+                        contrib_df,
+                        x="Contribution",
+                        y="Count",
+                        title="Contribution Distribution Across All Matches",
+                        color="Count",
+                        color_continuous_scale="Purples",
+                    )
+                    fig_bar.update_layout(
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#f8fafc'),
+                        xaxis=dict(color='#d1d5db', tickangle=-30),
+                        yaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)'),
+                        showlegend=False,
+                    )
+                    st.plotly_chart(fig_bar, use_container_width=True)
+
+            st.markdown("---")
+
+            # Points per match trend
+            if px and total_matches > 1:
+                match_nums = [e["match_number"] for e in pm_data]
+                red_pts = [e["red_points"] for e in pm_data]
+                blue_pts = [e["blue_points"] for e in pm_data]
+                fig_line = go.Figure()
+                fig_line.add_trace(go.Scatter(
+                    x=match_nums, y=red_pts,
+                    mode='lines+markers', name='Red Alliance',
+                    line=dict(color='#ef4444', width=2), marker=dict(size=7)
+                ))
+                fig_line.add_trace(go.Scatter(
+                    x=match_nums, y=blue_pts,
+                    mode='lines+markers', name='Blue Alliance',
+                    line=dict(color='#3b82f6', width=2), marker=dict(size=7)
+                ))
+                fig_line.update_layout(
+                    title='Alliance Points by Match',
+                    xaxis_title='Match Number',
+                    yaxis_title='Points',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#f8fafc'),
+                    xaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)'),
+                    yaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)', rangemode='tozero'),
+                    legend=dict(font=dict(color='#f8fafc')),
+                )
+                st.plotly_chart(fig_line, use_container_width=True)
 
 elif page == "⚙️ TOA Settings":
     st.markdown("<div class='main-header'>⚙️ The Orange Alliance Settings</div>", unsafe_allow_html=True)
@@ -2741,7 +2917,7 @@ elif page == "⚙️ TOA Settings":
     if use_api:
         st.markdown("""
         <div class='stats-card'>
-        <p>To fetch the latest FTC event/team data, provide your <strong>The Orange Alliance (TOA) credentials</strong>:</p>
+        <p>To fetch the latest FRC event/team data, provide your <strong>The Orange Alliance (TOA) credentials</strong>:</p>
         <ul>
             <li><code>X-TOA-Key</code> (API key)</li>
             <li><code>X-Application-Origin</code> (any identifier for your app)</li>
@@ -2757,7 +2933,7 @@ elif page == "⚙️ TOA Settings":
         st.session_state.toa_application_origin = st.text_input(
             "Application Origin (X-Application-Origin)",
             value=st.session_state.toa_application_origin,
-            placeholder="Overture_Analizador_FTC"
+            placeholder="Overture_Analizador_FRC"
         )
     else:
         st.info(
