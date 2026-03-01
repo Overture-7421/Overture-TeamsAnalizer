@@ -212,10 +212,10 @@ def _init_session_state():
             raw_data = st.session_state.analizador.get_raw_data()
             if raw_data and raw_data[0]:
                 header = raw_data[0]
-                has_old_columns = any("Artifacts Scored" in col or "Coral" in col or "Algae" in col for col in header)
+                has_old_columns = any("FUEL Scored" in col or "Tower Climb Level" in col or "Left Launch Line" in col for col in header)
                 current_header = st.session_state.analizador.config_manager.get_column_config().headers
-                has_frc_columns = any("FUEL Scored" in col for col in current_header)
-                if has_old_columns and has_frc_columns:
+                has_new_columns = any("HP Scored" in col for col in current_header)
+                if has_old_columns and has_new_columns:
                     st.session_state.analizador.set_raw_data([current_header])
                     st.session_state.auto_decode_reset_done = True
         except Exception:
@@ -288,72 +288,66 @@ section[data-testid="stSidebar"] .stRadio label{color:white !important;font-weig
 DEFAULT_STREAMLIT_CONFIG = {
     "overall_rankings": {
         "average_columns": [
-            {"column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
-            {"column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"}
+            {"column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+            {"column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
         ],
         "rate_columns": [
-            {"columns": ["No Show"], "label": "No Show Rate (%)"},
-            {"columns": ["Left Launch Line (LEAVE)"], "label": "Leave Rate (%)"},
-            {"columns": ["Tower Level 1 - Auto"], "label": "Auto Tower L1 Rate (%)"},
-            {"columns": ["Played Defense"], "label": "Played Defense Rate (%)"},
-            {"columns": ["Was Defended Heavily"], "label": "Defended Heavily Rate (%)"},
-            {"columns": ["Died/Stopped Moving in Auto"], "label": "Auto Died Rate (%)"},
-            {"columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate (%)"},
-            {"columns": ["Tipped/Fell Over"], "label": "Tip/Fall Rate (%)"},
-            {"columns": ["Broke / Major Failure"], "label": "Broke Rate (%)"},
-            {"columns": ["Disabled"], "label": "Disabled Rate (%)"}
+            {"columns": ["Is HP True to your team?"], "label": "HP True Rate (%)"},
+            {"columns": ["If climbed, Got stuck in Tower? (Auto)"], "label": "Auto Stuck Rate (%)"},
+            {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"},
+            {"columns": ["Died"], "label": "Died Rate (%)"},
+            {"columns": ["Do you want it on our alliance?"], "label": "Alliance Preference Rate (%)"}
         ]
     },
     "simplified_ranking": {
         "rate_columns": [
-            {"columns": ["Played Defense"], "label": "Defense Rate (%)"},
-            {"columns": ["Died/Stopped Moving in Teleop"], "label": "Died Rate (%)"}
+            {"columns": ["Died"], "label": "Died Rate (%)"},
+            {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"}
         ],
         "mode_columns": [
-            {"column": "Cycle Focus", "label": "Cycle Focus"},
-            {"column": "Tower Climb Level", "label": "Tower Climb Level Mode"}
+            {"column": "Auton Quality", "label": "Auton Quality"},
+            {"column": "Driver Quality", "label": "Driver Quality"},
+            {"column": "Climb", "label": "Climb Mode"}
         ]
     },
     "detailed_stats": {
         "compare_metrics": [
-            {"type": "overall_avg", "label": "Points Avg"},
+            {"type": "overall_avg", "label": "Overall Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL Avg"},
-            {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL Avg"},
-            {"type": "rate", "columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate", "format": "percent"}
+            {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
+            {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"},
+            {"type": "rate", "columns": ["Died"], "label": "Died Rate", "format": "percent"}
         ],
         "radar_categories": [
-            {"type": "overall_avg", "label": "Points Avg"},
+            {"type": "overall_avg", "label": "Overall Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
-            {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"},
+            {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+            {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"},
             {"type": "consistency", "label": "Consistency"}
         ],
         "bar_metrics": [
-            {"type": "overall_avg", "label": "Points Avg"},
+            {"type": "overall_avg", "label": "Overall Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
-            {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"}
+            {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+            {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
         ],
         "comparison_table": [
-            {"type": "overall_avg", "label": "Points Avg"},
-            {"type": "overall_std", "label": "Points Std"},
+            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "overall_std", "label": "Overall Std"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL Avg"},
-            {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL Avg"}
+            {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
+            {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"}
         ]
     },
     "match_trend": {
         "auto": {
-            "leave": "Left Launch Line (LEAVE)",
-            "fuel": "FUEL Scored (Active HUB) (Auto)",
-            "tower_l1": "Tower Level 1 - Auto"
+            "hp_scored": "HP Scored (Auto)"
         },
         "teleop": {
-            "fuel": "FUEL Scored (Active HUB) (Teleop)"
+            "hp_scored": "HP Scored (Teleop)"
         },
         "endgame": {
-            "tower_climb": "Tower Climb Level"
+            "tower_climb": "Climb"
         }
     }
 }
@@ -1622,13 +1616,13 @@ elif page == "📈 Team Statistics":
                             teleop_cols = match_cfg.get("teleop", {}) or {}
                             endgame_cols = match_cfg.get("endgame", {}) or {}
 
-                            leave_col = auto_cols.get("leave", "Left Launch Line (LEAVE)")
-                            auto_fuel_col = auto_cols.get("fuel", "FUEL Scored (Active HUB) (Auto)")
-                            auto_tower_l1_col = auto_cols.get("tower_l1", "Tower Level 1 - Auto")
+                            leave_col = auto_cols.get("leave", "")
+                            auto_hp_col = auto_cols.get("hp_scored", auto_cols.get("fuel", "HP Scored (Auto)"))
+                            auto_tower_l1_col = auto_cols.get("tower_l1", "")
 
-                            teleop_fuel_col = teleop_cols.get("fuel", "FUEL Scored (Active HUB) (Teleop)")
+                            teleop_hp_col = teleop_cols.get("hp_scored", teleop_cols.get("fuel", "HP Scored (Teleop)"))
 
-                            tower_climb_col = endgame_cols.get("tower_climb", "Tower Climb Level")
+                            tower_climb_col = endgame_cols.get("tower_climb", "Climb")
 
                             def _get_value(row, col_name):
                                 col_idx = analyzer._column_indices.get(col_name)
@@ -1648,11 +1642,11 @@ elif page == "📈 Team Statistics":
 
                         def _normalize_tower_climb(value: str) -> str:
                             v = (value or "").strip().lower()
-                            if "level 3" in v or "level3" in v:
+                            if v == "l3" or "level 3" in v or "level3" in v:
                                 return "level3"
-                            if "level 2" in v or "level2" in v:
+                            if v == "l2" or "level 2" in v or "level2" in v:
                                 return "level2"
-                            if "level 1" in v or "level1" in v:
+                            if v == "l1" or "level 1" in v or "level1" in v:
                                 return "level1"
                             return "none"
 
@@ -1664,16 +1658,16 @@ elif page == "📈 Team Statistics":
                             if leave:
                                 points += float(auto_points.get("leave", 0))
 
-                            auto_fuel = _get_num(row, auto_fuel_col)
-                            points += auto_fuel * float(auto_points.get("fuel", 0))
+                            auto_hp = _get_num(row, auto_hp_col)
+                            points += auto_hp * float(auto_points.get("fuel", 0))
 
                             auto_tower_l1 = _parse_bool(_get_value(row, auto_tower_l1_col))
                             if auto_tower_l1:
                                 points += float(auto_points.get("tower_level1_auto", 0))
 
                             # Teleop scoring
-                            teleop_fuel = _get_num(row, teleop_fuel_col)
-                            points += teleop_fuel * float(teleop_points.get("fuel", 0))
+                            teleop_hp = _get_num(row, teleop_hp_col)
+                            points += teleop_hp * float(teleop_points.get("fuel", 0))
 
                             # Endgame scoring (tower climb level)
                             climb_val = _get_text(row, tower_climb_col)

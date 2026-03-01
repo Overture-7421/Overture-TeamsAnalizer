@@ -299,13 +299,13 @@ class TeamStatsExtractor:
                 values.append(1.0 if _parse_bool(row[col_idx]) else 0.0)
             return sum(values) / len(values) if values else 0.0
 
-        perf.auto_fuel = _avg_numeric(self.columns_map.get("auto_fuel", "FUEL Scored (Active HUB) (Auto)"))
-        p_tower_l1_col = self.columns_map.get("auto_tower_l1", "Tower Level 1 - Auto")
+        perf.auto_fuel = _avg_numeric(self.columns_map.get("auto_fuel", "HP Scored (Auto)"))
+        p_tower_l1_col = self.columns_map.get("auto_tower_l1", "")
         perf.p_auto_tower_l1 = _rate_bool(p_tower_l1_col) if p_tower_l1_col else 0.0
 
-        perf.teleop_fuel = _avg_numeric(self.columns_map.get("teleop_fuel", "FUEL Scored (Active HUB) (Teleop)"))
+        perf.teleop_fuel = _avg_numeric(self.columns_map.get("teleop_fuel", "HP Scored (Teleop)"))
 
-        perf.p_leave_auto_zone = _rate_bool(self.columns_map.get("auto_leave", "Left Launch Line (LEAVE)")) or 0.5
+        perf.p_leave_auto_zone = _rate_bool(self.columns_map.get("auto_leave", "")) or 0.5
         perf.climb_distribution = self._extract_climb_distribution(team_rows)
 
         return perf
@@ -324,7 +324,7 @@ class TeamStatsExtractor:
     
     def _extract_climb_distribution(self, team_rows: List[List[str]]) -> Dict[str, float]:
         """Extract tower climb level distribution for a team."""
-        climb_col = self.columns_map.get("endgame_tower_climb", "Tower Climb Level")
+        climb_col = self.columns_map.get("endgame_tower_climb", "Climb")
         col_idx = self.analizador._column_indices.get(climb_col)
         if col_idx is None:
             return {"none": 0.5, "level1": 0.3, "level2": 0.15, "level3": 0.05}
@@ -334,11 +334,11 @@ class TeamStatsExtractor:
             if col_idx >= len(row):
                 continue
             value = str(row[col_idx]).strip().lower()
-            if "level 3" in value or "level3" in value:
+            if value == "l3" or "level 3" in value or "level3" in value:
                 counts["level3"] += 1
-            elif "level 2" in value or "level2" in value:
+            elif value == "l2" or "level 2" in value or "level2" in value:
                 counts["level2"] += 1
-            elif "level 1" in value or "level1" in value:
+            elif value == "l1" or "level 1" in value or "level1" in value:
                 counts["level1"] += 1
             else:
                 counts["none"] += 1

@@ -214,9 +214,8 @@ class ConfigManager:
         
         # Check for new format indicators
         new_format_indicators = {
-            "Scouter Name", "Left Launch Line (LEAVE)",
-            "Artifacts Scored (CLASSIFIED) (Auto)", "Artifacts Scored (CLASSIFIED) (Teleop)",
-            "Pattern Matches at End of Auto (0-9)", "Cycle Focus"
+            "Scouter Name", "HP Scored (Auto)", "HP Scored (Teleop)",
+            "Climb", "Auton Quality", "Driver Quality"
         }
         
         if len(new_format_indicators.intersection(headers_set)) >= 3:

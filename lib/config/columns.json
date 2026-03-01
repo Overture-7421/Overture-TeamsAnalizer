@@ -1,6 +1,6 @@
 {
-    "version": "2.0",
-    "timestamp": "9.0",
+    "version": "0.1.0",
+    "category": "FRC",
     "PREMATCH": [
         {
             "label": "Scouter Name",
@@ -27,96 +27,91 @@
             "label": "Starting Position",
             "key": "starting_position",
             "type": "dropdown",
-            "options": ["Left Side", "Center", "Right Side", "Unknown"]
+            "options": ["Outpost Side", "Middle", "Depot Side"]
         },
         {
-            "label": "No Show",
-            "key": "no_show",
+            "label": "Is HP True to your team?",
+            "key": "teleop_hp_true",
             "type": "switch"
         }
     ],
     "AUTONOMOUS": [
         {
-            "label": "Left Launch Line (LEAVE)",
-            "key": "auto_leave",
-            "type": "switch"
+            "label": "Shoot Time",
+            "key": "auton_shoot_time",
+            "type": "chrono"
         },
         {
-            "label": "FUEL Scored (Active HUB)",
-            "key": "auto_fuel",
+            "label": "HP Scored",
+            "key": "auto_hp_scored",
             "type": "counter"
         },
         {
-            "label": "Tower Level 1 - Auto",
-            "key": "auto_tower_l1",
-            "type": "switch"
-        },
-        {
-            "label": "Auto Strategy",
-            "key": "auto_strategy",
+            "label": "Climb Position",
+            "key": "auto_climb_position",
             "type": "dropdown",
-            "options": ["Fuel Focus", "Tower Level 1", "Mixed", "None/Dead"]
+            "options": ["Middle", "Side"]
         },
         {
-            "label": "Died/Stopped Moving in Auto",
-            "key": "auto_died",
+            "label": "If climbed, Got stuck in Tower?",
+            "key": "auto_descends_stuck",
             "type": "switch"
+        },
+        {
+            "label": "Auton Quality",
+            "key": "auton_quality",
+            "type": "dropdown",
+            "options": ["Did Nothing", "Bad", "Average", "Good", "Excellent"]
         }
     ],
     "TELEOP": [
         {
-            "label": "FUEL Scored (Active HUB)",
-            "key": "teleop_fuel",
+            "label": "Shoot Time",
+            "key": "teleop_shoot_time",
+            "type": "chrono"
+        },
+        {
+            "label": "Pass Time",
+            "key": "teleop_pass_time",
+            "type": "chrono"
+        },
+        {
+            "label": "HP Scored",
+            "key": "teleop_hp_scored",
             "type": "counter"
         },
         {
-            "label": "Cycle Focus",
-            "key": "teleop_cycle_focus",
-            "type": "dropdown",
-            "options": ["Fuel Scoring", "Tower Climbing", "Defense", "Mixed", "None/Dead"]
-        },
-        {
-            "label": "Played Defense",
-            "key": "teleop_defense",
-            "type": "switch"
-        },
-        {
-            "label": "Was Defended Heavily",
-            "key": "teleop_got_defended",
-            "type": "switch"
-        },
-        {
-            "label": "Died/Stopped Moving in Teleop",
-            "key": "teleop_died",
-            "type": "switch"
+            "label": "Penalty Counter",
+            "key": "teleop_penalty",
+            "type": "counter"
         }
     ],
     "ENDGAME": [
         {
-            "label": "Tower Climb Level",
-            "key": "endgame_tower_climb",
+            "label": "Climb",
+            "key": "endgame_climb",
             "type": "dropdown",
-            "options": ["Did Not Climb", "Level 1 (10 pts)", "Level 2 (20 pts)", "Level 3 (30 pts)"]
+            "options": ["Didn't Climb", "L1", "L2", "L3", "Failed Climb Attempt"]
         },
         {
-            "label": "Tipped/Fell Over",
-            "key": "endgame_tipped",
+            "label": "Jammed over balls?",
+            "key": "endgame_jammed_over_balls",
             "type": "switch"
         },
         {
-            "label": "Broke / Major Failure",
-            "key": "endgame_broke",
+            "label": "Died",
+            "key": "teleop_died",
             "type": "switch"
         },
         {
-            "label": "Card",
-            "key": "endgame_card",
+            "label": "Driver Quality",
+            "key": "driver_quality",
             "type": "dropdown",
-            "options": ["None", "Yellow Card", "Red Card"]
+            "options": ["Did Nothing", "Bad", "Average", "Good", "Excellent"]
         },
         {
-            "label": "Disabled",
-            "key": "endgame_disabled",
+            "label": "Do you want it on our alliance?",
+            "key": "scout_alliance_preference",
             "type": "switch"
         }
     ],
@@ -126,157 +121,145 @@
         "Robot Position",
         "Team Number",
         "Starting Position",
-        "No Show",
-        "Left Launch Line (LEAVE)",
-        "FUEL Scored (Active HUB) (Auto)",
-        "Tower Level 1 - Auto",
-        "Auto Strategy",
-        "Died/Stopped Moving in Auto",
-        "FUEL Scored (Active HUB) (Teleop)",
-        "Cycle Focus",
-        "Played Defense",
-        "Was Defended Heavily",
-        "Died/Stopped Moving in Teleop",
-        "Tower Climb Level",
-        "Tipped/Fell Over",
-        "Broke / Major Failure",
-        "Card",
-        "Disabled"
+        "Is HP True to your team?",
+        "Shoot Time (Auto)",
+        "HP Scored (Auto)",
+        "Climb Position (Auto)",
+        "If climbed, Got stuck in Tower? (Auto)",
+        "Auton Quality",
+        "Shoot Time (Teleop)",
+        "Pass Time",
+        "HP Scored (Teleop)",
+        "Penalty Counter",
+        "Climb",
+        "Jammed over balls?",
+        "Died",
+        "Driver Quality",
+        "Do you want it on our alliance?"
     ],
     "column_configuration": {
         "numeric_for_overall": [
-            "FUEL Scored (Active HUB) (Auto)",
-            "FUEL Scored (Active HUB) (Teleop)"
+            "HP Scored (Auto)",
+            "HP Scored (Teleop)"
         ],
         "stats_columns": [
-            "No Show",
-            "Left Launch Line (LEAVE)",
-            "FUEL Scored (Active HUB) (Auto)",
-            "Tower Level 1 - Auto",
-            "Auto Strategy",
-            "Died/Stopped Moving in Auto",
-            "FUEL Scored (Active HUB) (Teleop)",
-            "Cycle Focus",
-            "Played Defense",
-            "Was Defended Heavily",
-            "Died/Stopped Moving in Teleop",
-            "Tower Climb Level",
-            "Tipped/Fell Over",
-            "Broke / Major Failure",
-            "Card",
-            "Disabled"
+            "Starting Position",
+            "Is HP True to your team?",
+            "Shoot Time (Auto)",
+            "HP Scored (Auto)",
+            "Climb Position (Auto)",
+            "If climbed, Got stuck in Tower? (Auto)",
+            "Auton Quality",
+            "Shoot Time (Teleop)",
+            "Pass Time",
+            "HP Scored (Teleop)",
+            "Penalty Counter",
+            "Climb",
+            "Jammed over balls?",
+            "Died",
+            "Driver Quality",
+            "Do you want it on our alliance?"
         ],
         "mode_boolean_columns": [
-            "No Show",
-            "Left Launch Line (LEAVE)",
-            "Tower Level 1 - Auto",
-            "Died/Stopped Moving in Auto",
-            "Played Defense",
-            "Was Defended Heavily",
-            "Died/Stopped Moving in Teleop",
-            "Tipped/Fell Over",
-            "Broke / Major Failure",
-            "Disabled"
+            "Is HP True to your team?",
+            "If climbed, Got stuck in Tower? (Auto)",
+            "Jammed over balls?",
+            "Died",
+            "Do you want it on our alliance?"
         ],
         "autonomous_columns": [
-            "Left Launch Line (LEAVE)",
-            "FUEL Scored (Active HUB) (Auto)",
-            "Tower Level 1 - Auto",
-            "Auto Strategy",
-            "Died/Stopped Moving in Auto"
+            "Shoot Time (Auto)",
+            "HP Scored (Auto)",
+            "Climb Position (Auto)",
+            "If climbed, Got stuck in Tower? (Auto)",
+            "Auton Quality"
         ],
         "teleop_columns": [
-            "FUEL Scored (Active HUB) (Teleop)",
-            "Cycle Focus",
-            "Played Defense",
-            "Was Defended Heavily",
-            "Died/Stopped Moving in Teleop"
+            "Shoot Time (Teleop)",
+            "Pass Time",
+            "HP Scored (Teleop)",
+            "Penalty Counter"
         ],
         "endgame_columns": [
-            "Tower Climb Level",
-            "Tipped/Fell Over",
-            "Broke / Major Failure",
-            "Disabled"
+            "Climb",
+            "Jammed over balls?",
+            "Died",
+            "Driver Quality",
+            "Do you want it on our alliance?"
         ]
     },
     "streamlit_config": {
         "overall_rankings": {
             "average_columns": [
-                {"column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
-                {"column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"}
+                {"column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+                {"column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
             ],
             "rate_columns": [
-                {"columns": ["No Show"], "label": "No Show Rate (%)"},
-                {"columns": ["Left Launch Line (LEAVE)"], "label": "Leave Rate (%)"},
-                {"columns": ["Tower Level 1 - Auto"], "label": "Auto Tower L1 Rate (%)"},
-                {"columns": ["Played Defense"], "label": "Played Defense Rate (%)"},
-                {"columns": ["Was Defended Heavily"], "label": "Defended Heavily Rate (%)"},
-                {"columns": ["Died/Stopped Moving in Auto"], "label": "Auto Died Rate (%)"},
-                {"columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate (%)"},
-                {"columns": ["Tipped/Fell Over"], "label": "Tip/Fall Rate (%)"},
-                {"columns": ["Broke / Major Failure"], "label": "Broke Rate (%)"},
-                {"columns": ["Disabled"], "label": "Disabled Rate (%)"}
+                {"columns": ["Is HP True to your team?"], "label": "HP True Rate (%)"},
+                {"columns": ["If climbed, Got stuck in Tower? (Auto)"], "label": "Auto Stuck Rate (%)"},
+                {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"},
+                {"columns": ["Died"], "label": "Died Rate (%)"},
+                {"columns": ["Do you want it on our alliance?"], "label": "Alliance Preference Rate (%)"}
             ]
         },
         "simplified_ranking": {
             "rate_columns": [
-                {"columns": ["Played Defense"], "label": "Defense Rate (%)"},
-                {"columns": ["Died/Stopped Moving in Teleop"], "label": "Died Rate (%)"}
+                {"columns": ["Died"], "label": "Died Rate (%)"},
+                {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"}
             ],
             "mode_columns": [
-                {"column": "Cycle Focus", "label": "Cycle Focus"},
-                {"column": "Tower Climb Level", "label": "Tower Climb Level Mode"}
+                {"column": "Auton Quality", "label": "Auton Quality"},
+                {"column": "Driver Quality", "label": "Driver Quality"},
+                {"column": "Climb", "label": "Climb Mode"}
             ]
         },
         "detailed_stats": {
             "compare_metrics": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL Avg"},
-                {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL Avg"},
-                {"type": "rate", "columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate", "format": "percent"}
+                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
+                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"},
+                {"type": "rate", "columns": ["Died"], "label": "Died Rate", "format": "percent"}
             ],
             "radar_categories": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
-                {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"},
+                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"},
                 {"type": "consistency", "label": "Consistency"}
             ],
             "bar_metrics": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
-                {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"}
+                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
             ],
             "comparison_table": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "overall_std", "label": "Overall Std"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL Avg"},
-                {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL Avg"}
+                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
+                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"}
             ]
         },
         "match_trend": {
             "auto": {
-                "leave": "Left Launch Line (LEAVE)",
-                "fuel": "FUEL Scored (Active HUB) (Auto)",
-                "tower_l1": "Tower Level 1 - Auto"
+                "hp_scored": "HP Scored (Auto)"
             },
             "teleop": {
-                "fuel": "FUEL Scored (Active HUB) (Teleop)"
+                "hp_scored": "HP Scored (Teleop)"
             },
             "endgame": {
-                "tower_climb": "Tower Climb Level"
+                "tower_climb": "Climb"
             }
         }
     },
     "foreshadowing_columns": {
-        "auto_fuel": "FUEL Scored (Active HUB) (Auto)",
-        "auto_leave": "Left Launch Line (LEAVE)",
-        "auto_tower_l1": "Tower Level 1 - Auto",
-        "teleop_fuel": "FUEL Scored (Active HUB) (Teleop)",
-        "endgame_tower_climb": "Tower Climb Level"
+        "auto_fuel": "HP Scored (Auto)",
+        "auto_leave": "",
+        "auto_tower_l1": "",
+        "teleop_fuel": "HP Scored (Teleop)",
+        "endgame_tower_climb": "Climb"
     },
     "robot_valuation": {
         "phase_weights": [
@@ -291,7 +274,7 @@
         ]
     },
     "metadata": {
-        "total_columns": 21,
+        "total_columns": 20,
         "description": "FRC REBUILT 2026 Competition Column Configuration"
     }
 }
