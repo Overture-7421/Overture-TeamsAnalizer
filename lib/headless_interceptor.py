@@ -3,16 +3,17 @@
 Headless HID Event Interceptor for Barcode/QR Scanners
 
 This module provides a solution for capturing barcode/QR scanner input in a headless
-Linux environment (Debian/Ubuntu) where the scanner acts as a Human Interface Device (HID).
+Linux environment where the scanner acts as a Human Interface Device (HID).
 
 The scanner "grabs" the input device so events don't leak to the OS, translates keycodes
 to ASCII, handles Tab as delimiters and Enter as end of record, then writes captured
 data to the default scouting CSV file.
 
 Requirements:
-- Linux operating system (Debian/Ubuntu recommended)
+- Any Linux distribution (Debian, Ubuntu, Fedora, Arch, openSUSE, Raspberry Pi OS, DietPi, etc.)
 - python-evdev library: pip install evdev
 - Appropriate permissions to read /dev/input/event* devices
+  (add your user to the 'input' group, or run with sudo)
 
 Usage:
     python headless_interceptor.py [--device /dev/input/eventX] [--config path/to/config.json]
@@ -55,6 +56,33 @@ try:
     EVDEV_AVAILABLE = True
 except ImportError:
     EVDEV_AVAILABLE = False
+
+
+def _list_devices_fallback() -> list:
+    """
+    Fallback device discovery using /proc/bus/input/devices when evdev.list_devices()
+    returns an empty list (can happen on some Linux distributions or permission setups).
+
+    Returns a list of /dev/input/eventX paths found in /proc.
+    """
+    paths = []
+    proc_file = Path("/proc/bus/input/devices")
+    if not proc_file.exists():
+        return paths
+    try:
+        content = proc_file.read_text(encoding="utf-8", errors="replace")
+        for line in content.splitlines():
+            line = line.strip()
+            if line.startswith("H: Handlers=") and "event" in line:
+                # e.g. "H: Handlers=sysrq kbd event3 leds"
+                for token in line.split():
+                    if token.startswith("event"):
+                        dev_path = f"/dev/input/{token}"
+                        if Path(dev_path).exists():
+                            paths.append(dev_path)
+    except OSError:
+        pass
+    return paths
 
 
 # Keycode to character mapping for US keyboard layout
@@ -166,6 +194,9 @@ def find_scanner_device(
 ) -> Optional[str]:
     """
     Find the input device path for the barcode/QR scanner.
+
+    Works on any Linux distribution by first trying evdev.list_devices() and
+    falling back to /proc/bus/input/devices when evdev returns no results.
     
     Args:
         vendor_id: Vendor ID in hexadecimal format (e.g., "0416")
@@ -179,8 +210,18 @@ def find_scanner_device(
         print("Error: evdev library not available. Install with: pip install evdev")
         return None
     
-    devices = [InputDevice(path) for path in list_devices()]
-    
+    # Try primary discovery via evdev, then fall back to /proc parsing
+    device_paths = list_devices()
+    if not device_paths:
+        device_paths = _list_devices_fallback()
+
+    devices = []
+    for path in device_paths:
+        try:
+            devices.append(InputDevice(path))
+        except (OSError, PermissionError):
+            continue
+
     for device in devices:
         # Check by vendor/product ID
         if vendor_id and product_id:
@@ -209,6 +250,9 @@ def find_scanner_device(
 def list_all_input_devices() -> List[Dict]:
     """
     List all available input devices for debugging/configuration.
+
+    Works on any Linux distribution by falling back to /proc/bus/input/devices
+    when evdev.list_devices() returns an empty list.
     
     Returns:
         List of device information dictionaries
@@ -217,8 +261,12 @@ def list_all_input_devices() -> List[Dict]:
         print("Error: evdev library not available")
         return []
     
+    device_paths = list_devices()
+    if not device_paths:
+        device_paths = _list_devices_fallback()
+
     devices_info = []
-    for path in list_devices():
+    for path in device_paths:
         try:
             device = InputDevice(path)
             devices_info.append({
@@ -229,7 +277,7 @@ def list_all_input_devices() -> List[Dict]:
                 'product_id': f"{device.info.product:04x}",
                 'hardware_id': f"{device.info.vendor:04x}:{device.info.product:04x}"
             })
-        except Exception:
+        except (OSError, PermissionError):
             pass
     
     return devices_info
@@ -238,7 +286,10 @@ def list_all_input_devices() -> List[Dict]:
 class HIDInterceptor:
     """
     Intercepts HID input from a barcode/QR scanner and processes the data.
-    
+
+    Compatible with any Linux distribution (Debian, Ubuntu, Fedora, Arch, openSUSE,
+    Raspberry Pi OS, DietPi, etc.) that provides /dev/input/event* devices.
+
     Note: This class only works on Linux systems with the evdev library installed.
     For non-Linux platforms, use the QR scanner camera-based approach instead.
     """
@@ -254,7 +305,7 @@ class HIDInterceptor:
                 "evdev library not available. This module only works on Linux systems. "
                 "For non-Linux platforms (Windows/macOS), use the camera-based QR scanner "
                 "(lib/qr_utils.py) instead. "
-                "On Linux, install with: pip install evdev"
+                "On any Linux distro, install with: pip install evdev"
             )
         
         self.device_path = device_path
@@ -420,9 +471,14 @@ class HIDInterceptor:
             print("  1. Run with sudo:")
             print(f"     sudo python {__file__}")
             print("")
-            print("  2. Add your user to the 'input' group:")
+            print("  2. Add your user to the 'input' group (works on all Linux distros):")
             print(f"     sudo usermod -a -G input $USER")
             print("     (then log out and back in)")
+            print("")
+            print("  3. Create a udev rule for your specific scanner (replace with your vendor:product IDs):")
+            print("     echo 'SUBSYSTEM==\"input\", ATTRS{idVendor}==\"0416\", ATTRS{idProduct}==\"c141\", MODE=\"0666\"' |")
+            print("     sudo tee /etc/udev/rules.d/99-barcode-scanner.rules")
+            print("     sudo udevadm control --reload-rules && sudo udevadm trigger")
             sys.exit(1)
         except FileNotFoundError:
             print(f"\n[ERROR] Device not found: {self.device_path}")
@@ -506,6 +562,7 @@ Examples:
     if not EVDEV_AVAILABLE:
         print("Error: This script requires the evdev library and only works on Linux.")
         print("Install with: pip install evdev")
+        print("Supported distros: Debian, Ubuntu, Fedora, Arch, openSUSE, Raspberry Pi OS, DietPi, and more.")
         sys.exit(1)
     
     # List devices mode

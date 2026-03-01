@@ -3,6 +3,9 @@ Manages interaction with The Blue Alliance (TBA) API.
 
 This module provides a class to fetch event and team data from TBA,
 and to manage a local cache of team names to avoid excessive API calls.
+
+Cache files are stored in the project's data/ directory (not next to the source code)
+to keep the source tree clean and avoid accidental disclosure of fetched data.
 """
 
 import requests
@@ -10,7 +13,11 @@ import json
 from pathlib import Path
 
 BASE_URL = "https://www.thebluealliance.com/api/v3"
-DATA_DIR = Path(__file__).resolve().parent
+
+# Store cache files in <project_root>/data/ rather than next to the source code.
+_MODULE_DIR = Path(__file__).resolve().parent
+_ROOT_DIR = _MODULE_DIR.parent
+DATA_DIR = _ROOT_DIR / "data"
 
 
 def _ensure_data_dir() -> None:
@@ -59,7 +66,8 @@ class TBAManager:
 
         url = BASE_URL + endpoint
         try:
-            response = requests.get(url, headers=self.headers)
+            # timeout=(connect_timeout, read_timeout): 10s to establish connection, 30s for data read
+            response = requests.get(url, headers=self.headers, timeout=(10, 30))
             response.raise_for_status()  # Raises an exception for 4xx/5xx status codes
             return response.json()
         except requests.exceptions.HTTPError as e:
