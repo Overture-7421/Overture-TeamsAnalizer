@@ -607,6 +607,34 @@ def get_team_display_label(team_number):
     return num_str
 
 
+def get_pm_contribution_mode(team_number) -> str:
+    """Return the mode contribution label for a given team from post-match data.
+
+    Looks up ``st.session_state.post_match_data`` and aggregates every
+    contribution entry whose ``team_numbers`` slot matches *team_number*.
+    Returns the most frequent label, or an empty string when no data exist.
+    """
+    pm_data = st.session_state.get("post_match_data", [])
+    if not pm_data:
+        return ""
+    try:
+        target = int(team_number)
+    except (TypeError, ValueError):
+        return ""
+    if target == 0:
+        return ""
+    contribs = []
+    for entry in pm_data:
+        team_nums = entry.get("team_numbers", [])
+        for slot_idx, contrib in enumerate(entry.get("contributions", [])):
+            slot_team = team_nums[slot_idx] if slot_idx < len(team_nums) else None
+            if slot_team is not None and int(slot_team) == target:
+                contribs.append(contrib)
+    if not contribs:
+        return ""
+    return Counter(contribs).most_common(1)[0][0]
+
+
 def get_foreshadowing_team_options():
     """Build ordered list of selectable teams for foreshadowing."""
     stats = st.session_state.analizador.get_detailed_team_stats()
@@ -1279,7 +1307,7 @@ elif page == "📈 Team Statistics":
 
             base_columns = [
                 'Rank', 'Team', 'Matches',
-                'Robot Valuation', 'Points Avg', 'Points Std'
+                'Robot Valuation', 'Contribution Mode', 'Points Avg', 'Points Std'
             ]
             avg_labels = [label for _, label in average_columns]
             rate_labels = [label for _, label in rate_columns]
@@ -1297,6 +1325,7 @@ elif page == "📈 Team Statistics":
                     'Team': get_team_display_label(team_num),
                     'Matches': len(team_data_grouped.get(team_num, [])),
                     'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
+                    'Contribution Mode': get_pm_contribution_mode(team_num),
                     'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
                     'Points Std': round(team_stat.get('overall_std', 0.0), 2),
                 }
@@ -1314,7 +1343,8 @@ elif page == "📈 Team Statistics":
 
             if not df.empty:
                 df = df[columns_order]
-                float_columns = [col for col in columns_order if col not in ['Rank', 'Team', 'Matches']]
+                _non_float_cols = {'Rank', 'Team', 'Matches', 'Contribution Mode'}
+                float_columns = [col for col in columns_order if col not in _non_float_cols]
                 styled_df = df.style.format({col: "{:.2f}" for col in float_columns})
                 st.dataframe(styled_df, use_container_width=True, height=520)
 
@@ -2816,6 +2846,8 @@ elif page == "📊 Post-Match":
         return counts.most_common(1)[0][0]
 
     # ── Dummy data generator ────────────────────────────────────────────────
+    _DUMMY_TEAMS = [254, 1114, 2056, 118, 971, 148, 3538, 2910, 4414, 5940, 7421, 6328]
+
     def _generate_dummy_data() -> list:
         import random
         random.seed(_DUMMY_DATA_SEED)
@@ -2824,11 +2856,13 @@ elif page == "📊 Post-Match":
             r_pts = random.randint(40, 150)
             b_pts = random.randint(40, 150)
             contribs = [random.choice(CONTRIBUTION_OPTIONS) for _ in range(6)]
+            match_teams = random.sample(_DUMMY_TEAMS, 6)
             dummy.append({
                 "match_number": m,
                 "red_points": r_pts,
                 "blue_points": b_pts,
                 "num_teams": 6,
+                "team_numbers": match_teams,
                 "contributions": contribs,
             })
         return dummy
@@ -2858,12 +2892,14 @@ elif page == "📊 Post-Match":
             if st.session_state.post_match_data:
                 csv_rows = []
                 for e in st.session_state.post_match_data:
+                    team_nums = e.get("team_numbers", [])
                     for i, c in enumerate(e.get("contributions", [])):
                         alliance = "Red" if i < e.get("num_teams", 6) // 2 else "Blue"
                         csv_rows.append({
                             "match_number": e["match_number"],
                             "red_points": e["red_points"],
                             "blue_points": e["blue_points"],
+                            "team_number": team_nums[i] if i < len(team_nums) else "",
                             "team_slot": i + 1,
                             "alliance": alliance,
                             "contribution": c,
@@ -2929,15 +2965,25 @@ elif page == "📊 Post-Match":
                 )
 
             st.markdown("#### Team Contribution Breakdown")
-            st.caption("For each participating team, select how they contributed to their alliance's score.")
+            st.caption("For each participating team, enter the team number and select their contribution.")
             contributions = []
+            team_numbers = []
             contrib_cols = st.columns(min(int(pm_num_teams), 3))
             for t_idx in range(int(pm_num_teams)):
                 col = contrib_cols[t_idx % 3]
                 alliance_label = "🔴 Red" if t_idx < int(pm_num_teams) // 2 else "🔵 Blue"
                 with col:
+                    t_num = st.number_input(
+                        f"Team # ({alliance_label})",
+                        min_value=1, max_value=99999,
+                        value=None,
+                        placeholder="Team number",
+                        step=1,
+                        key=f"pm_team_num_{t_idx}"
+                    )
+                    team_numbers.append(int(t_num) if t_num else 0)
                     contrib = st.selectbox(
-                        f"Team {t_idx + 1} ({alliance_label})",
+                        "Contribution",
                         options=CONTRIBUTION_OPTIONS,
                         key=f"pm_contrib_{t_idx}"
                     )
@@ -2950,6 +2996,7 @@ elif page == "📊 Post-Match":
                     "red_points": int(pm_red_points),
                     "blue_points": int(pm_blue_points),
                     "num_teams": int(pm_num_teams),
+                    "team_numbers": team_numbers,
                     "contributions": list(contributions),
                 }
                 existing = [e for e in st.session_state.post_match_data if e["match_number"] != entry["match_number"]]
@@ -2962,16 +3009,29 @@ elif page == "📊 Post-Match":
         if st.session_state.post_match_data:
             st.markdown("---")
             st.markdown("### Recorded Matches")
-            rows = []
+
+            # Per-team row view (like Team Statistics)
+            per_team_rows = []
             for e in st.session_state.post_match_data:
-                rows.append({
-                    "Match": e["match_number"],
-                    "Red Pts": e["red_points"],
-                    "Blue Pts": e["blue_points"],
-                    "Teams": e["num_teams"],
-                    "Contributions": " | ".join(e.get("contributions", []))
-                })
-            st.dataframe(pd.DataFrame(rows), use_container_width=True)
+                team_nums = e.get("team_numbers", [])
+                for i, contrib in enumerate(e.get("contributions", [])):
+                    alliance = "🔴 Red" if i < e.get("num_teams", 6) // 2 else "🔵 Blue"
+                    team_display = (
+                        get_team_display_label(team_nums[i])
+                        if i < len(team_nums)
+                        else f"Slot {i + 1}"
+                    )
+                    per_team_rows.append({
+                        "Team": team_display,
+                        "Match": e["match_number"],
+                        "Alliance": alliance,
+                        "Red Pts": e["red_points"],
+                        "Blue Pts": e["blue_points"],
+                        "Contribution": contrib,
+                    })
+
+            pm_display_df = pd.DataFrame(per_team_rows)
+            st.dataframe(pm_display_df, use_container_width=True, hide_index=True)
             if st.button("🗑️ Clear All Post-Match Data", type="secondary"):
                 st.session_state.post_match_data = []
                 st.rerun()
@@ -3016,38 +3076,43 @@ elif page == "📊 Post-Match":
 
             st.markdown("---")
 
-            # ── Contribution Mode per slot ───────────────────────────────────
-            st.markdown("#### 🏅 Contribution Mode by Team Slot")
+            # ── Contribution Mode per team ───────────────────────────────────
+            st.markdown("#### 🏅 Contribution Mode by Team")
             st.caption(
-                "The most frequent contribution level for each team position across all recorded matches."
+                "The most frequent contribution level observed for each team across all recorded matches."
             )
-            max_slots = max(len(e.get("contributions", [])) for e in pm_data)
-            slot_rows = []
-            for slot_idx in range(max_slots):
-                slot_values = [
-                    e["contributions"][slot_idx]
-                    for e in pm_data
-                    if slot_idx < len(e.get("contributions", []))
-                ]
-                n_matches = len(slot_values)
-                alliance = "🔴 Red" if slot_idx < 3 else "🔵 Blue"
-                mode_val = _contribution_mode(slot_values)
-                slot_rows.append({
-                    "Slot": f"Team {slot_idx + 1}",
-                    "Alliance": alliance,
-                    "Matches": n_matches,
+            # Build a mapping: team_number → list of contributions across all matches
+            team_contrib_map: dict = {}
+            for entry in pm_data:
+                team_nums = entry.get("team_numbers", [])
+                for slot_idx, contrib in enumerate(entry.get("contributions", [])):
+                    team_id = (
+                        team_nums[slot_idx]
+                        if slot_idx < len(team_nums)
+                        else f"Slot {slot_idx + 1}"
+                    )
+                    team_contrib_map.setdefault(team_id, []).append(contrib)
+
+            team_mode_rows = []
+            for team_id, contribs in sorted(
+                team_contrib_map.items(),
+                key=lambda x: (0, int(x[0])) if str(x[0]).isdigit() else (1, str(x[0]))
+            ):
+                mode_val = _contribution_mode(contribs)
+                team_mode_rows.append({
+                    "Team": get_team_display_label(team_id),
+                    "Matches": len(contribs),
                     "Contribution Mode": mode_val,
                     "Weight": _CONTRIB_WEIGHTS.get(mode_val, 0),
                 })
-            slot_df = pd.DataFrame(slot_rows)
-            # Sort by weight descending so top contributors appear first
-            slot_df_display = (
-                slot_df
+            team_mode_df = pd.DataFrame(team_mode_rows)
+            team_mode_display = (
+                team_mode_df
                 .sort_values(by="Weight", ascending=False)
                 .drop(columns=["Weight"])
                 .reset_index(drop=True)
             )
-            st.dataframe(slot_df_display, use_container_width=True, hide_index=True)
+            st.dataframe(team_mode_display, use_container_width=True, hide_index=True)
 
             st.markdown("---")
 
