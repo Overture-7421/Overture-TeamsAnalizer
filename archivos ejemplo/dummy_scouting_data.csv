@@ -1,4 +1,4 @@
-Scouter Name,Match Number,Robot Position,Team Number,Starting Position,Is HP True to your team?,Shoot Time (Auto),HP Scored (Auto),Climb Position (Auto),If climbed, Got stuck in Tower? (Auto),Auton Quality,Shoot Time (Teleop),Pass Time,HP Scored (Teleop),Penalty Counter,Climb,Jammed over balls?,Died,Driver Quality,Do you want it on our alliance?
+Scouter Name,Match Number,Robot Position,Team Number,Starting Position,Is HP True to your team?,Shoot Time (Auto),HP Scored (Auto),Climb Position (Auto),Stuck in Tower If Climbed? (Auto),Auton Quality,Shoot Time (Teleop),Pass Time,HP Scored (Teleop),Penalty Counter,Climb,Jammed over balls?,Died,Driver Quality,Do you want it on our alliance?
 Marco,1,Blue 1,7421,Middle,True,4.52,12,Middle,False,Excellent,18.30,22.10,32,0,L3,False,False,Excellent,True
 Sofia,1,Blue 2,3826,Outpost Side,True,7.30,7,Side,False,Good,22.50,32.40,18,1,L2,False,False,Good,True
 Carlos,1,Blue 3,6647,Depot Side,False,0.00,1,Side,False,Bad,62.40,72.30,4,2,Didn't Climb,True,True,Bad,False

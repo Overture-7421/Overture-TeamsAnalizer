@@ -409,16 +409,17 @@ class AnalizadorRobot:
 
     # --- FTC DECODE scoring helpers ---
     def _has_decode_columns(self) -> bool:
-        """Return True if the current header looks like FTC DECODE scouting schema.
+        """Return True if the current header looks like a supported scouting schema
+        (FTC DECODE *or* FRC REBUILT QRS).
 
-        This is intentionally heuristic so the engine can support both the legacy FRC
-        REEFSCAPE schema and the FTC DECODE schema without hard coupling to one JSON.
+        This is intentionally heuristic so the engine can support multiple schemas
+        without hard coupling to one JSON config.
         """
         if not self.sheet_data or not self.sheet_data[0]:
             return False
 
         header_lower = [str(h).strip().lower() for h in self.sheet_data[0]]
-        # Require at least one of these DECODE-specific concepts.
+        # FTC DECODE schema markers
         decode_markers = (
             "artifact",
             "classified",
@@ -428,7 +429,13 @@ class AnalizadorRobot:
             "fully returned",
             "partially returned",
         )
-        return any(any(marker in h for marker in decode_markers) for h in header_lower)
+        if any(any(marker in h for marker in decode_markers) for h in header_lower):
+            return True
+
+        # FRC REBUILT QRS schema markers ("HP Scored" columns + "Climb")
+        qrs_markers = ("hp scored", "shoot time", "pass time", "penalty counter")
+        qrs_matches = sum(1 for h in header_lower if any(m in h for m in qrs_markers))
+        return qrs_matches >= 2
 
     def _decode_find_column(self, *, keywords: List[str]) -> Optional[str]:
         """Find the first column whose name contains all keywords (case-insensitive)."""
@@ -574,22 +581,23 @@ class AnalizadorRobot:
         """Compute FRC REBUILT 2026 match points for a single robot/match row.
         
         Scoring:
-        - AUTO: Leave 3pts, FUEL 1pt each, Tower L1 15pts (max 2 robots)
-        - TELEOP: FUEL 1pt each (active HUB)
-        - ENDGAME: Tower Level 1=10pts, Level 2=20pts, Level 3=30pts
+        - AUTO: Leave 3pts, HP/FUEL 1pt each, Tower L1 15pts (max 2 robots)
+        - TELEOP: HP/FUEL 1pt each
+        - ENDGAME: Climb L1/Level 1=10pts, L2/Level 2=20pts, L3/Level 3=30pts
         """
         # Autonomous
         auto_leave = 1.0 if self._decode_parse_bool(self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "leave"]) )
                                                     or self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "moved"]) )) else 0.0
 
-        # Auto FUEL (FRC: "FUEL Scored (Active HUB) (Auto)")
+        # Auto HP/FUEL scored
         auto_fuel = self._decode_get_count(
             row,
-            primary=["FUEL Scored (Active HUB) (Auto)", "auto_fuel", "Auto FUEL"],
-            fallback=[["auto", "fuel"], ["auto", "artifact"], ["auto", "classified"]],
+            primary=["HP Scored (Auto)", "FUEL Scored (Active HUB) (Auto)", "auto_fuel", "Auto FUEL"],
+            fallback=[["hp", "scored", "auto"], ["hp", "auto"], ["auto", "fuel"],
+                      ["auto", "artifact"], ["auto", "classified"]],
         )
 
-        # Auto Tower Level 1 (FRC: "Tower Level 1 - Auto")
+        # Auto Tower Level 1 (old schema only)
         auto_tower_l1 = 1.0 if self._decode_parse_bool(
             self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "tower"])) or
             self._decode_get_cell(row, self._decode_find_column(keywords=["tower", "level", "auto"]))
@@ -597,26 +605,31 @@ class AnalizadorRobot:
 
         autonomous = 3.0 * auto_leave + 1.0 * auto_fuel + 15.0 * auto_tower_l1
 
-        # TeleOp
-        # Teleop FUEL (FRC: "FUEL Scored (Active HUB) (Teleop)")
+        # TeleOp HP/FUEL scored
         teleop_fuel = self._decode_get_count(
             row,
-            primary=["FUEL Scored (Active HUB) (Teleop)", "teleop_fuel", "Teleop FUEL"],
-            fallback=[["teleop", "fuel"], ["tele", "fuel"], ["teleop", "artifact"], ["teleop", "classified"]],
+            primary=["HP Scored (Teleop)", "FUEL Scored (Active HUB) (Teleop)", "teleop_fuel", "Teleop FUEL"],
+            fallback=[["hp", "scored", "teleop"], ["hp", "teleop"], ["teleop", "fuel"],
+                      ["tele", "fuel"], ["teleop", "artifact"], ["teleop", "classified"]],
         )
 
         teleop = 1.0 * teleop_fuel
 
-        # Endgame - Tower Climb Level (FRC: "Tower Climb Level")
-        tower_climb_col = self._decode_find_column(keywords=["tower", "climb"]) or \
-                          self._decode_find_column(keywords=["climb", "level"])
-        tower_climb_val = str(self._decode_get_cell(row, tower_climb_col) or "").strip().lower()
+        # Endgame - Climb level (new QRS: "Climb" with L1/L2/L3; old: "Tower Climb Level")
+        # Use exact name lookup first to avoid accidentally matching "Climb Position (Auto)"
+        climb_col = next(
+            (name for name in ["Climb", "Tower Climb Level", "Tower Climb"]
+             if name in self._column_indices),
+            None
+        ) or self._decode_find_column(keywords=["tower", "climb"]) \
+          or self._decode_find_column(keywords=["climb", "level"])
+        climb_val = str(self._decode_get_cell(row, climb_col) or "").strip().lower()
 
-        if "level 3" in tower_climb_val or "level3" in tower_climb_val:
+        if climb_val == "l3" or "level 3" in climb_val or "level3" in climb_val:
             endgame = 30.0
-        elif "level 2" in tower_climb_val or "level2" in tower_climb_val:
+        elif climb_val == "l2" or "level 2" in climb_val or "level2" in climb_val:
             endgame = 20.0
-        elif "level 1" in tower_climb_val or "level1" in tower_climb_val:
+        elif climb_val == "l1" or "level 1" in climb_val or "level1" in climb_val:
             endgame = 10.0
         else:
             # Fallback: legacy FTC endgame (Returned to Base)

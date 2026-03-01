@@ -53,7 +53,7 @@
             "options": ["Middle", "Side"]
         },
         {
-            "label": "If climbed, Got stuck in Tower?",
+            "label": "Stuck in Tower If Climbed?",
             "key": "auto_descends_stuck",
             "type": "switch"
         },
@@ -125,7 +125,7 @@
         "Shoot Time (Auto)",
         "HP Scored (Auto)",
         "Climb Position (Auto)",
-        "If climbed, Got stuck in Tower? (Auto)",
+        "Stuck in Tower If Climbed? (Auto)",
         "Auton Quality",
         "Shoot Time (Teleop)",
         "Pass Time",
@@ -148,7 +148,7 @@
             "Shoot Time (Auto)",
             "HP Scored (Auto)",
             "Climb Position (Auto)",
-            "If climbed, Got stuck in Tower? (Auto)",
+            "Stuck in Tower If Climbed? (Auto)",
             "Auton Quality",
             "Shoot Time (Teleop)",
             "Pass Time",
@@ -162,7 +162,7 @@
         ],
         "mode_boolean_columns": [
             "Is HP True to your team?",
-            "If climbed, Got stuck in Tower? (Auto)",
+            "Stuck in Tower If Climbed? (Auto)",
             "Jammed over balls?",
             "Died",
             "Do you want it on our alliance?"
@@ -171,7 +171,7 @@
             "Shoot Time (Auto)",
             "HP Scored (Auto)",
             "Climb Position (Auto)",
-            "If climbed, Got stuck in Tower? (Auto)",
+            "Stuck in Tower If Climbed? (Auto)",
             "Auton Quality"
         ],
         "teleop_columns": [
@@ -196,7 +196,7 @@
             ],
             "rate_columns": [
                 {"columns": ["Is HP True to your team?"], "label": "HP True Rate (%)"},
-                {"columns": ["If climbed, Got stuck in Tower? (Auto)"], "label": "Auto Stuck Rate (%)"},
+                {"columns": ["Stuck in Tower If Climbed? (Auto)"], "label": "Auto Stuck Rate (%)"},
                 {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"},
                 {"columns": ["Died"], "label": "Died Rate (%)"},
                 {"columns": ["Do you want it on our alliance?"], "label": "Alliance Preference Rate (%)"}
