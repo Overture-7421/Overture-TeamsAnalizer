@@ -42,10 +42,16 @@ from foreshadowing import TeamStatsExtractor, MatchSimulator
 from exam_integrator import ExamDataIntegrator
 from qr_utils import scan_qr_codes, test_camera
 from config_manager import get_global_config
+from tba_manager import TBAManager
 
 
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
+
+# ── Module-level constants ──────────────────────────────────────────────────
+_POST_MATCH_MAX_ENTRIES = 200       # Hard cap for post-match session state list
+_POST_MATCH_UPLOAD_MAX_BYTES = 2 * 1024 * 1024  # 2 MB upload guard
+_DUMMY_DATA_SEED = 42               # Random seed for repeatable dummy data
 
 
 def load_app_config():
@@ -178,6 +184,13 @@ def _init_session_state():
         'raw_data_last_edit_ts': 0.0,
         'raw_data_last_saved_hash': "",
         'post_match_data': [],
+        # TBA Manager state
+        'tba_manager': None,
+        'tba_api_key': "",
+        'tba_year': 2026,
+        'tba_event_key': "",
+        'tba_events_list': [],
+        'tba_selected_event_name': "",
     }
     
     # Set defaults only if not already in session state
@@ -303,28 +316,28 @@ DEFAULT_STREAMLIT_CONFIG = {
     },
     "detailed_stats": {
         "compare_metrics": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "overall_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
             {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL Avg"},
             {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL Avg"},
             {"type": "rate", "columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate", "format": "percent"}
         ],
         "radar_categories": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "overall_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
             {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
             {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"},
             {"type": "consistency", "label": "Consistency"}
         ],
         "bar_metrics": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "overall_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
             {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL"},
             {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL"}
         ],
         "comparison_table": [
-            {"type": "overall_avg", "label": "Overall Avg"},
-            {"type": "overall_std", "label": "Overall Std"},
+            {"type": "overall_avg", "label": "Points Avg"},
+            {"type": "overall_std", "label": "Points Std"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
             {"type": "avg", "column": "FUEL Scored (Active HUB) (Auto)", "label": "Auto FUEL Avg"},
             {"type": "avg", "column": "FUEL Scored (Active HUB) (Teleop)", "label": "Teleop FUEL Avg"}
@@ -450,9 +463,9 @@ def get_team_stats_dataframe():
         team_rows = team_data_grouped.get(team_key, [])
 
         row = {
-            'Team': str(team_num),
-            'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
-            'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
+            'Team': get_team_display_label(team_num),
+            'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
+            'Points Std': round(team_stat.get('overall_std', 0.0), 2),
             'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
         }
 
@@ -493,7 +506,7 @@ def create_alliance_selector_teams():
         defended_rate = get_rate_from_stat(stat, ("Was Defended Heavily",))
         defense_rate = get_rate_from_stat(stat, ("Played Defense",))
         
-        team_name = f"Team {team_num}"
+        team_name = get_team_display_label(team_num)
 
         teams.append(Team(
             num=team_num,
@@ -584,8 +597,14 @@ def get_mode_from_rows(team_rows, column_name):
 
 
 def get_team_display_label(team_number):
-    """Return formatted team label."""
-    return str(team_number)
+    """Return formatted team label with TBA nickname when available."""
+    num_str = str(team_number)
+    tba = st.session_state.get('tba_manager')
+    if tba:
+        nickname = tba.get_team_nickname(num_str)
+        if nickname and nickname != num_str:
+            return f"{num_str} - {nickname}"
+    return num_str
 
 
 def get_foreshadowing_team_options():
@@ -718,6 +737,89 @@ if st.sidebar.button("🔄 Reload Configurations"):
     st.sidebar.success("Configurations reloaded.")
     st.rerun()
 
+# ── TBA Manager sidebar ─────────────────────────────────────────────────────
+st.sidebar.markdown("---")
+with st.sidebar.expander("🔵 The Blue Alliance", expanded=False):
+    st.markdown("**TBA Team Name Lookup**")
+    tba_use_api = st.toggle(
+        "Use TBA API",
+        value=bool(st.session_state.tba_api_key),
+        key="tba_use_api_toggle"
+    )
+    if tba_use_api:
+        st.session_state.tba_api_key = st.text_input(
+            "TBA Auth Key",
+            value=st.session_state.tba_api_key,
+            type="password",
+            placeholder="Paste your X-TBA-Auth-Key",
+            help="Get your key at thebluealliance.com/account → Read API Keys"
+        )
+        st.session_state.tba_year = int(st.number_input(
+            "Year",
+            min_value=1992,
+            max_value=2099,
+            value=int(st.session_state.tba_year),
+            step=1,
+        ))
+        if st.button("🔌 Connect & Fetch Events", key="tba_connect_btn"):
+            api_key = st.session_state.tba_api_key.strip()
+            if not api_key:
+                st.error("Please enter a TBA API key first.")
+            else:
+                try:
+                    mgr = TBAManager(api_key=api_key, use_api=True)
+                    events = mgr.get_events_for_year(st.session_state.tba_year)
+                    if events:
+                        st.session_state.tba_manager = mgr
+                        st.session_state.tba_events_list = sorted(
+                            events, key=lambda e: e.get("name", "")
+                        )
+                        st.success(f"Connected! {len(events)} events loaded.")
+                    else:
+                        st.warning("No events returned. Check key/year.")
+                except ValueError as e:
+                    st.error(str(e))
+
+        if st.session_state.tba_events_list:
+            event_options = {
+                ev["key"]: ev.get("name", ev["key"])
+                for ev in st.session_state.tba_events_list
+            }
+            sel_key = st.selectbox(
+                "Select Event",
+                options=list(event_options.keys()),
+                format_func=lambda k: event_options[k],
+                key="tba_event_selectbox",
+            )
+            if st.button("📥 Load Teams for Event", key="tba_load_teams_btn"):
+                mgr = st.session_state.tba_manager
+                if mgr:
+                    with st.spinner("Loading teams…"):
+                        teams = mgr.get_teams_for_event(sel_key)
+                    if teams:
+                        st.session_state.tba_event_key = sel_key
+                        st.session_state.tba_selected_event_name = event_options[sel_key]
+                        st.success(f"Loaded {len(teams)} teams.")
+                    else:
+                        st.warning("No teams found for that event.")
+
+        if st.session_state.tba_manager and st.session_state.tba_event_key:
+            st.caption(
+                f"✅ Active event: **{st.session_state.tba_selected_event_name}**"
+            )
+        elif st.session_state.tba_manager:
+            st.caption("Manager connected – select and load an event.")
+    else:
+        # Offline mode: try to load from cached files
+        if st.session_state.tba_event_key:
+            st.caption(f"Offline – cached event: {st.session_state.tba_event_key}")
+        if st.button("🗑️ Clear TBA Manager", key="tba_clear_btn"):
+            st.session_state.tba_manager = None
+            st.session_state.tba_events_list = []
+            st.session_state.tba_event_key = ""
+            st.session_state.tba_selected_event_name = ""
+            st.rerun()
+
 # Main content based on selected page
 if page == "📁 Data Management":
     st.markdown("<div class='main-header'>📁 Data Management</div>", unsafe_allow_html=True)
@@ -779,18 +881,7 @@ if page == "📁 Data Management":
             st.info(f"ℹ️ Place a CSV file at `{default_csv_path}` for auto-loading on startup")
     
     with tab2:
-        st.markdown("### 📷 QR Code Scanner")
-        st.markdown("""
-        Use your webcam to scan QR codes containing scouting data.
-
-        **Quick Start:**
-        1) Click **Check cameras**
-        2) Select your camera index
-        3) Click **Start Scanner**
-        4) Press **Q** in the camera window to stop
-        """)
-
-        # Validate dependencies (opencv-python, pyzbar, numpy) without opening the camera
+        # ── Dependency check ────────────────────────────────────────────────
         deps_ok = True
         deps_error = None
         try:
@@ -798,24 +889,19 @@ if page == "📁 Data Management":
             importlib.import_module("cv2")
             importlib.import_module("pyzbar")
             importlib.import_module("numpy")
-        except Exception as e:
+        except Exception as _e:
             deps_ok = False
-            deps_error = str(e)
+            deps_error = str(_e)
 
         if not deps_ok:
-            st.warning(
-                "⚠️ QR scanner dependencies not installed or not available. "
+            st.error(
+                "⚠️ **QR scanner dependencies missing.**  "
                 "Install with: `pip install opencv-python pyzbar numpy`"
             )
             if deps_error:
-                st.caption(deps_error)
+                st.caption(f"Error detail: {deps_error}")
         else:
-            st.info(
-                "Scanning opens a separate OpenCV window on the same machine running Streamlit. "
-                "To stop scanning, focus that window and press 'q'."
-            )
-
-            # Drain queue items from the scanner thread into session_state.
+            # ── Queue drain helper ───────────────────────────────────────────
             def _drain_qr_queue() -> tuple[int, bool]:
                 drained = 0
                 auto_updated = False
@@ -825,7 +911,6 @@ if page == "📁 Data Management":
                         kind, payload = q.get_nowait()
                     except queue.Empty:
                         break
-
                     if kind == "SCAN":
                         if payload and payload not in st.session_state.qr_scanned_codes:
                             st.session_state.qr_scanned_codes.append(payload)
@@ -833,189 +918,233 @@ if page == "📁 Data Management":
                             st.session_state.analizador.load_qr_data(payload)
                             auto_updated = True
                             st.session_state.qr_last_scan_ts = time.time()
-                            st.session_state.qr_last_scan_preview = payload[:80] + ("..." if len(payload) > 80 else "")
+                            st.session_state.qr_last_scan_preview = (
+                                payload[:80] + ("…" if len(payload) > 80 else "")
+                            )
                     elif kind == "DONE":
                         st.session_state.qr_scanner_running = False
-                        st.session_state.qr_scanner_status = "Scanner stopped."
+                        st.session_state.qr_scanner_status = "stopped"
                         st.session_state.qr_last_scan_ts = 0.0
                     elif kind == "ERROR":
                         st.session_state.qr_scanner_running = False
-                        st.session_state.qr_scanner_status = f"Scanner error: {payload}"
+                        st.session_state.qr_scanner_status = f"error:{payload}"
 
                 t = st.session_state.qr_scanner_thread
                 if st.session_state.qr_scanner_running and t and not t.is_alive():
                     st.session_state.qr_scanner_running = False
                     if not st.session_state.qr_scanner_status:
-                        st.session_state.qr_scanner_status = "Scanner stopped."
-
+                        st.session_state.qr_scanner_status = "stopped"
                 return drained, auto_updated
 
-            _, auto_updated = _drain_qr_queue()
-            if auto_updated:
+            _, _auto_updated = _drain_qr_queue()
+            if _auto_updated:
                 st.rerun()
 
-            st.markdown("#### 🎥 Camera Selection")
-            cam_cols = st.columns([1, 1])
-            with cam_cols[0]:
-                max_probe = st.number_input(
-                    "Max camera index to probe",
-                    min_value=0,
-                    max_value=20,
-                    value=4,
-                    step=1,
-                    help="Checks camera indices 0..N and lists the ones that open successfully."
-                )
-                if st.button("Check cameras"):
-                    available = []
-                    for idx in range(int(max_probe) + 1):
-                        try:
-                            if test_camera(idx):
-                                available.append(idx)
-                        except Exception:
-                            pass
-                    st.session_state.qr_available_cameras = available
-                    if available:
-                        st.session_state.qr_scanner_selected_camera = int(available[0])
-                        st.session_state.qr_scanner_status = f"Detected cameras: {available}"
-                    else:
-                        st.session_state.qr_scanner_status = (
-                            "No cameras detected. Try a different max index or enter one manually."
-                        )
+            # ── Status banner ────────────────────────────────────────────────
+            _is_running = st.session_state.qr_scanner_running
+            _raw_status = st.session_state.qr_scanner_status or ""
+            _is_error = _raw_status.startswith("error:")
 
-            with cam_cols[1]:
-                if st.session_state.qr_available_cameras:
-                    selected = st.selectbox(
-                        "Camera index",
-                        options=st.session_state.qr_available_cameras,
-                        index=st.session_state.qr_available_cameras.index(st.session_state.qr_scanner_selected_camera)
-                        if st.session_state.qr_scanner_selected_camera in st.session_state.qr_available_cameras
-                        else 0
-                    )
-                    st.session_state.qr_scanner_selected_camera = int(selected)
-                else:
-                    st.info("Click 'Check cameras' to list available devices.")
-                    st.session_state.qr_scanner_selected_camera = int(
-                        st.number_input(
-                            "Manual camera index",
-                            min_value=0,
-                            max_value=20,
-                            value=int(st.session_state.qr_scanner_selected_camera),
-                            step=1,
-                            help="If detection doesn't find your camera, enter the index manually."
-                        )
-                    )
-
-            st.session_state.qr_scanner_debounce_seconds = float(
-                st.number_input(
-                    "Debounce seconds",
-                    min_value=0.0,
-                    max_value=10.0,
-                    value=float(st.session_state.qr_scanner_debounce_seconds),
-                    step=0.5,
-                    help="Prevents repeated reads of the same QR code while it stays in view."
-                )
-            )
-            st.session_state.qr_idle_seconds = float(
-                st.number_input(
-                    "Auto-update idle seconds",
-                    min_value=1.0,
-                    max_value=30.0,
-                    value=float(st.session_state.qr_idle_seconds),
-                    step=1.0,
-                    help="Auto-refreshes to apply scans when no new QR codes are detected."
-                )
-            )
-
-            action_cols = st.columns(2)
-            with action_cols[0]:
-                if st.button("🔍 Test Selected Camera"):
-                    with st.spinner("Testing camera..."):
-                        if test_camera(int(st.session_state.qr_scanner_selected_camera)):
-                            st.success("✅ Camera test successful!")
-                        else:
-                            st.error("❌ Camera not available. Please check your webcam.")
-
-            with action_cols[1]:
-                status = st.session_state.qr_scanner_status or (
-                    "Running" if st.session_state.qr_scanner_running else "Idle"
-                )
-                st.write(f"Status: {status}")
+            if _is_running:
+                st.success("🟢 **Scanner is running** — point your QR code at the camera window.")
+            elif _is_error:
+                st.error(f"🔴 **Scanner error:** {_raw_status.removeprefix('error:')}")
+            else:
+                st.info("⚪ **Scanner idle** — configure settings below and press ▶ Start.")
 
             st.markdown("---")
-            st.markdown("#### 🔍 Scanning")
-            start_disabled = bool(st.session_state.qr_scanner_running)
-            scan_cols = st.columns(2)
-            with scan_cols[0]:
-                if st.button("▶️ Start Scanner", disabled=start_disabled):
-                    # Clear any old queue messages
+
+            # ── Section 1: Camera setup ──────────────────────────────────────
+            with st.expander("🎥 Camera Setup", expanded=not _is_running):
+                cfg_col1, cfg_col2 = st.columns([1, 1])
+                with cfg_col1:
+                    max_probe = st.number_input(
+                        "Max index to probe",
+                        min_value=0, max_value=20, value=4, step=1,
+                        help="Checks indices 0 … N and lists those that open successfully.",
+                        key="qr_max_probe"
+                    )
+                    if st.button("🔎 Detect Cameras", key="qr_detect_btn"):
+                        available = []
+                        with st.spinner("Probing cameras…"):
+                            for idx in range(int(max_probe) + 1):
+                                try:
+                                    if test_camera(idx):
+                                        available.append(idx)
+                                except Exception:
+                                    pass
+                        st.session_state.qr_available_cameras = available
+                        if available:
+                            st.session_state.qr_scanner_selected_camera = int(available[0])
+                            st.session_state.qr_scanner_status = ""
+                            st.success(f"Found cameras: {available}")
+                        else:
+                            st.warning("No cameras detected. Try a higher max index or enter one manually.")
+
+                with cfg_col2:
+                    if st.session_state.qr_available_cameras:
+                        _sel = st.selectbox(
+                            "Camera",
+                            options=st.session_state.qr_available_cameras,
+                            index=(
+                                st.session_state.qr_available_cameras.index(
+                                    st.session_state.qr_scanner_selected_camera
+                                )
+                                if st.session_state.qr_scanner_selected_camera
+                                in st.session_state.qr_available_cameras
+                                else 0
+                            ),
+                            key="qr_cam_select"
+                        )
+                        st.session_state.qr_scanner_selected_camera = int(_sel)
+                    else:
+                        st.session_state.qr_scanner_selected_camera = int(
+                            st.number_input(
+                                "Camera index (manual)",
+                                min_value=0, max_value=20,
+                                value=int(st.session_state.qr_scanner_selected_camera),
+                                step=1,
+                                key="qr_cam_manual"
+                            )
+                        )
+                    if st.button("🔬 Test Camera", key="qr_test_btn"):
+                        with st.spinner("Testing…"):
+                            ok = test_camera(int(st.session_state.qr_scanner_selected_camera))
+                        if ok:
+                            st.success("✅ Camera OK")
+                        else:
+                            st.error("❌ Camera not available")
+
+                adv_col1, adv_col2 = st.columns(2)
+                with adv_col1:
+                    st.session_state.qr_scanner_debounce_seconds = float(
+                        st.number_input(
+                            "Debounce (s)",
+                            min_value=0.0, max_value=10.0,
+                            value=float(st.session_state.qr_scanner_debounce_seconds),
+                            step=0.5,
+                            help="Prevents repeated reads while the same code stays in view.",
+                            key="qr_debounce"
+                        )
+                    )
+                with adv_col2:
+                    st.session_state.qr_idle_seconds = float(
+                        st.number_input(
+                            "Auto-update idle (s)",
+                            min_value=1.0, max_value=30.0,
+                            value=float(st.session_state.qr_idle_seconds),
+                            step=1.0,
+                            help="Auto-refreshes the page after this many idle seconds.",
+                            key="qr_idle"
+                        )
+                    )
+
+            # ── Section 2: Controls ──────────────────────────────────────────
+            ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([2, 2, 2])
+            with ctrl_col1:
+                if st.button(
+                    "▶️ Start Scanner",
+                    disabled=_is_running,
+                    use_container_width=True,
+                    type="primary",
+                    key="qr_start_btn"
+                ):
                     q = st.session_state.qr_scanner_queue
                     while True:
                         try:
                             q.get_nowait()
                         except queue.Empty:
                             break
-
                     camera_index = int(st.session_state.qr_scanner_selected_camera)
                     debounce = float(st.session_state.qr_scanner_debounce_seconds)
 
-                    def _worker(out_queue: "queue.Queue", cam_idx: int, debounce_seconds: float):
+                    def _worker(out_queue: "queue.Queue", cam_idx: int, deb: float):
                         try:
                             scanned = scan_qr_codes(
                                 update_callback=lambda data: out_queue.put(("SCAN", data)),
                                 camera_index=cam_idx,
-                                debounce_seconds=debounce_seconds,
+                                debounce_seconds=deb,
                                 show_window=True,
                             )
                             out_queue.put(("DONE", scanned))
-                        except Exception as e:
-                            out_queue.put(("ERROR", str(e)))
+                        except Exception as _ex:
+                            out_queue.put(("ERROR", str(_ex)))
 
                     st.session_state.qr_scanner_running = True
-                    st.session_state.qr_scanner_status = f"Starting scanner on camera {camera_index}..."
+                    st.session_state.qr_scanner_status = ""
                     st.session_state.qr_last_scan_ts = time.time()
-                    t = threading.Thread(
+                    _t = threading.Thread(
                         target=_worker,
                         args=(st.session_state.qr_scanner_queue, camera_index, debounce),
                         daemon=True,
                     )
-                    st.session_state.qr_scanner_thread = t
-                    t.start()
+                    st.session_state.qr_scanner_thread = _t
+                    _t.start()
+                    st.rerun()
 
-            with scan_cols[1]:
-                if st.button("⏹️ Stop Scanner", disabled=not st.session_state.qr_scanner_running):
-                    st.session_state.qr_scanner_status = "To stop the camera, focus the scanner window and press 'q'."
+            with ctrl_col2:
+                if st.button(
+                    "⏹️ Stop Scanner",
+                    disabled=not _is_running,
+                    use_container_width=True,
+                    key="qr_stop_btn"
+                ):
+                    st.session_state.qr_scanner_status = (
+                        "Focus the scanner window and press **Q** to stop."
+                    )
+                    st.rerun()
 
-            refresh_cols = st.columns(2)
-            with refresh_cols[0]:
-                if st.button("Update scanned list"):
-                    added, auto_updated = _drain_qr_queue()
-                    status = f"Updated. Added {added} new code(s)."
-                    if auto_updated:
-                        status += " QR data loaded into raw data."
-                    st.session_state.qr_scanner_status = status
-            with refresh_cols[1]:
-                if st.button("Clear scanned list"):
-                    st.session_state.qr_scanned_codes = []
-                    st.session_state.qr_scanner_status = "Cleared scanned list."
+            with ctrl_col3:
+                if st.button(
+                    "🔄 Refresh",
+                    use_container_width=True,
+                    key="qr_refresh_btn",
+                    help="Pull any newly scanned codes from the background thread."
+                ):
+                    added, _ = _drain_qr_queue()
+                    st.session_state.qr_scanner_status = (
+                        f"Refreshed — {added} new code(s) added." if added else "No new codes."
+                    )
+                    st.rerun()
 
+            # ── Section 3: Results ───────────────────────────────────────────
             st.markdown("---")
-            st.markdown("#### 📋 Results")
-            st.metric("Scanned QR codes", len(st.session_state.qr_scanned_codes))
-            if st.session_state.qr_last_scan_preview:
-                st.caption(f"Last scan: {st.session_state.qr_last_scan_preview}")
+            res_col1, res_col2 = st.columns([3, 1])
+            with res_col1:
+                n_codes = len(st.session_state.qr_scanned_codes)
+                st.metric("QR Codes Scanned", n_codes)
+                if st.session_state.qr_last_scan_preview:
+                    st.caption(f"Last: `{st.session_state.qr_last_scan_preview}`")
+            with res_col2:
+                if st.button(
+                    "🗑️ Clear List",
+                    use_container_width=True,
+                    key="qr_clear_btn",
+                    help="Remove all scanned codes from the session."
+                ):
+                    st.session_state.qr_scanned_codes = []
+                    st.session_state.qr_scanner_status = ""
+                    st.rerun()
+
             if st.session_state.qr_scanned_codes:
-                st.dataframe(pd.DataFrame({"QR Data": st.session_state.qr_scanned_codes}))
+                with st.expander(f"📋 Scanned codes ({n_codes})", expanded=False):
+                    st.dataframe(
+                        pd.DataFrame({"QR Data": st.session_state.qr_scanned_codes}),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
             else:
                 st.caption("No QR codes scanned yet.")
 
-            # Auto-refresh while scanning or after idle to apply updates
-            if st.session_state.qr_scanner_running:
+            # ── Auto-refresh while running ───────────────────────────────────
+            if _is_running:
                 last_scan = st.session_state.qr_last_scan_ts
                 if last_scan and (time.time() - last_scan) >= st.session_state.qr_idle_seconds:
-                    st.session_state.qr_scanner_status = "No new scans detected. Auto-updating..."
+                    st.session_state.qr_scanner_status = ""
                 _safe_autorefresh(interval_ms=1000, key="qr_scanner_autorefresh")
 
             st.markdown("---")
+
             st.markdown("### 🖥️ Headless Mode (Linux)")
             st.markdown("""
             For headless deployments with barcode/QR scanners acting as HID devices:
@@ -1119,10 +1248,10 @@ elif page == "📈 Team Statistics":
         st.info("No team statistics available. Please load data first.")
     else:
         # Create tabs for different views
-        tab1, tab2, tab3 = st.tabs(["Overall Rankings", "Detailed Stats", "Simplified Ranking"])
+        tab1, tab2, tab3 = st.tabs(["📊 Points Rankings", "🔍 Detailed Stats", "📋 Simplified Ranking"])
         
         with tab1:
-            st.markdown("### Overall Team Rankings")
+            st.markdown("### Team Points Rankings")
             
             team_data_grouped = st.session_state.analizador.get_team_data_grouped()
 
@@ -1150,7 +1279,7 @@ elif page == "📈 Team Statistics":
 
             base_columns = [
                 'Rank', 'Team', 'Matches',
-                'Robot Valuation', 'Overall Avg', 'Overall Std'
+                'Robot Valuation', 'Points Avg', 'Points Std'
             ]
             avg_labels = [label for _, label in average_columns]
             rate_labels = [label for _, label in rate_columns]
@@ -1165,11 +1294,11 @@ elif page == "📈 Team Statistics":
                 team_num = team_stat.get('team', 'N/A')
                 row = {
                     'Rank': rank,
-                    'Team': str(team_num),
+                    'Team': get_team_display_label(team_num),
                     'Matches': len(team_data_grouped.get(team_num, [])),
                     'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
-                    'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
-                    'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
+                    'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
+                    'Points Std': round(team_stat.get('overall_std', 0.0), 2),
                 }
 
                 for source_col, label in average_columns:
@@ -1194,12 +1323,12 @@ elif page == "📈 Team Statistics":
                 px, go = _ensure_plotly()
                 fig = px.scatter(
                     df,
-                    x='Overall Avg',
+                    x='Points Avg',
                     y='Robot Valuation',
-                    size='Overall Std',
+                    size='Points Std',
                     hover_data=['Team', 'Rank'],
-                    title='Overall Average vs Robot Valuation (size = std deviation)',
-                    labels={'Overall Avg': 'Overall Average', 'Robot Valuation': 'Robot Valuation'}
+                    title='Points Average vs Robot Valuation (size = std deviation)',
+                    labels={'Points Avg': 'Points Average', 'Robot Valuation': 'Robot Valuation'}
                 )
                 fig.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)',
@@ -2676,9 +2805,114 @@ elif page == "📊 Post-Match":
         "Scored almost all alliance score",
     ]
 
+    # Contribution level numeric weights for mode display
+    _CONTRIB_WEIGHTS = {opt: i for i, opt in enumerate(CONTRIBUTION_OPTIONS)}
+
+    def _contribution_mode(values: list) -> str:
+        """Return the most frequently occurring contribution level."""
+        if not values:
+            return "—"
+        counts = Counter(values)
+        return counts.most_common(1)[0][0]
+
+    # ── Dummy data generator ────────────────────────────────────────────────
+    def _generate_dummy_data() -> list:
+        import random
+        random.seed(_DUMMY_DATA_SEED)
+        dummy = []
+        for m in range(1, 13):
+            r_pts = random.randint(40, 150)
+            b_pts = random.randint(40, 150)
+            contribs = [random.choice(CONTRIBUTION_OPTIONS) for _ in range(6)]
+            dummy.append({
+                "match_number": m,
+                "red_points": r_pts,
+                "blue_points": b_pts,
+                "num_teams": 6,
+                "contributions": contribs,
+            })
+        return dummy
+
     tab_entry, tab_metrics = st.tabs(["📝 Match Entry", "📈 Qualitative Metrics"])
 
     with tab_entry:
+        # ── Top toolbar: Save / Upload / Dummy ─────────────────────────────
+        toolbar_col1, toolbar_col2, toolbar_col3, toolbar_col4 = st.columns([2, 2, 2, 2])
+        with toolbar_col1:
+            # Download as JSON
+            if st.session_state.post_match_data:
+                json_bytes = json.dumps(st.session_state.post_match_data, indent=2).encode("utf-8")
+                st.download_button(
+                    "💾 Save as JSON",
+                    data=json_bytes,
+                    file_name="post_match_data.json",
+                    mime="application/json",
+                    use_container_width=True,
+                    key="pm_download_json",
+                )
+            else:
+                st.button("💾 Save as JSON", disabled=True, use_container_width=True, key="pm_download_json_dis")
+
+        with toolbar_col2:
+            # Download as CSV
+            if st.session_state.post_match_data:
+                csv_rows = []
+                for e in st.session_state.post_match_data:
+                    for i, c in enumerate(e.get("contributions", [])):
+                        alliance = "Red" if i < e.get("num_teams", 6) // 2 else "Blue"
+                        csv_rows.append({
+                            "match_number": e["match_number"],
+                            "red_points": e["red_points"],
+                            "blue_points": e["blue_points"],
+                            "team_slot": i + 1,
+                            "alliance": alliance,
+                            "contribution": c,
+                        })
+                csv_bytes = pd.DataFrame(csv_rows).to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "📄 Save as CSV",
+                    data=csv_bytes,
+                    file_name="post_match_data.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    key="pm_download_csv",
+                )
+            else:
+                st.button("📄 Save as CSV", disabled=True, use_container_width=True, key="pm_download_csv_dis")
+
+        with toolbar_col3:
+            # Upload previously saved JSON
+            pm_upload = st.file_uploader(
+                "📂 Load JSON",
+                type=["json"],
+                key="pm_upload_file",
+                label_visibility="collapsed",
+                help="Upload a previously saved post_match_data.json file"
+            )
+            if pm_upload is not None:
+                try:
+                    raw_bytes = pm_upload.read()
+                    if len(raw_bytes) > _POST_MATCH_UPLOAD_MAX_BYTES:
+                        st.error("File too large (max 2 MB).")
+                    else:
+                        loaded_data = json.loads(raw_bytes.decode("utf-8"))
+                        if isinstance(loaded_data, list):
+                            st.session_state.post_match_data = loaded_data[-_POST_MATCH_MAX_ENTRIES:]
+                            st.success(f"Loaded {len(loaded_data)} matches.")
+                            st.rerun()
+                        else:
+                            st.error("Invalid format: expected a JSON array.")
+                except Exception as _ex:
+                    st.error(f"Error loading file: {_ex}")
+
+        with toolbar_col4:
+            if st.button("🎲 Load Dummy Data", use_container_width=True, key="pm_dummy_btn",
+                         help="Populate with 12 randomised example matches for testing"):
+                st.session_state.post_match_data = _generate_dummy_data()
+                st.success("Dummy data loaded!")
+                st.rerun()
+
+        st.markdown("---")
         st.markdown("### Record Post-Match Data")
 
         with st.form("post_match_form", clear_on_submit=True):
@@ -2721,8 +2955,8 @@ elif page == "📊 Post-Match":
                 existing = [e for e in st.session_state.post_match_data if e["match_number"] != entry["match_number"]]
                 existing.append(entry)
                 existing_sorted = sorted(existing, key=lambda x: x["match_number"])
-                # Cap to 200 matches to prevent unbounded memory growth
-                st.session_state.post_match_data = existing_sorted[-200:]
+                # Cap to max entries to prevent unbounded memory growth
+                st.session_state.post_match_data = existing_sorted[-_POST_MATCH_MAX_ENTRIES:]
                 st.success(f"Match {int(pm_match_number)} saved!")
 
         if st.session_state.post_match_data:
@@ -2746,7 +2980,10 @@ elif page == "📊 Post-Match":
         st.markdown("### 📊 Qualitative Metrics")
         pm_data = st.session_state.post_match_data
         if not pm_data:
-            st.info("No post-match data yet. Record matches in the 'Match Entry' tab first.")
+            st.info(
+                "No post-match data yet. Record matches in the **Match Entry** tab, "
+                "upload a saved file, or click **🎲 Load Dummy Data** to explore."
+            )
         else:
             # Aggregate contribution counts
             all_contributions = []
@@ -2765,23 +3002,62 @@ elif page == "📊 Post-Match":
             avg_total = sum(all_total_points) / total_matches if total_matches else 0
 
             # Summary metrics
-            metric_cols = st.columns(3)
+            metric_cols = st.columns(4)
             with metric_cols[0]:
-                st.metric("Avg Red Alliance Points", f"{avg_red:.1f}")
+                st.metric("Avg Red Alliance Pts", f"{avg_red:.1f}")
             with metric_cols[1]:
-                st.metric("Avg Blue Alliance Points", f"{avg_blue:.1f}")
+                st.metric("Avg Blue Alliance Pts", f"{avg_blue:.1f}")
             with metric_cols[2]:
-                st.metric("Avg Total Points / Match", f"{avg_total:.1f}")
+                st.metric("Avg Total Pts / Match", f"{avg_total:.1f}")
+            with metric_cols[3]:
+                overall_mode = _contribution_mode(all_contributions)
+                st.metric("Most Common Contribution", "")
+                st.caption(overall_mode)
 
             st.markdown("---")
 
-            # Contribution trend breakdown
-            st.markdown("#### Contribution Trend")
+            # ── Contribution Mode per slot ───────────────────────────────────
+            st.markdown("#### 🏅 Contribution Mode by Team Slot")
+            st.caption(
+                "The most frequent contribution level for each team position across all recorded matches."
+            )
+            max_slots = max(len(e.get("contributions", [])) for e in pm_data)
+            slot_rows = []
+            for slot_idx in range(max_slots):
+                slot_values = [
+                    e["contributions"][slot_idx]
+                    for e in pm_data
+                    if slot_idx < len(e.get("contributions", []))
+                ]
+                n_matches = len(slot_values)
+                alliance = "🔴 Red" if slot_idx < 3 else "🔵 Blue"
+                mode_val = _contribution_mode(slot_values)
+                slot_rows.append({
+                    "Slot": f"Team {slot_idx + 1}",
+                    "Alliance": alliance,
+                    "Matches": n_matches,
+                    "Contribution Mode": mode_val,
+                    "Weight": _CONTRIB_WEIGHTS.get(mode_val, 0),
+                })
+            slot_df = pd.DataFrame(slot_rows)
+            # Sort by weight descending so top contributors appear first
+            slot_df_display = (
+                slot_df
+                .sort_values(by="Weight", ascending=False)
+                .drop(columns=["Weight"])
+                .reset_index(drop=True)
+            )
+            st.dataframe(slot_df_display, use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+
+            # Contribution distribution chart
+            st.markdown("#### Contribution Distribution (All Matches)")
             contribution_counts = Counter(all_contributions)
             if contribution_counts:
                 contrib_df = pd.DataFrame(
                     [{"Contribution": k, "Count": v, "Percentage": f"{v / len(all_contributions) * 100:.1f}%"}
-                     for k, v in sorted(contribution_counts.items(), key=lambda x: -x[1])]
+                     for k, v in sorted(contribution_counts.items(), key=lambda x: _CONTRIB_WEIGHTS.get(x[0], 0))]
                 )
                 st.dataframe(contrib_df, use_container_width=True, hide_index=True)
 
@@ -2808,7 +3084,8 @@ elif page == "📊 Post-Match":
             st.markdown("---")
 
             # Points per match trend
-            if px and total_matches > 1:
+            px, go = _ensure_plotly()
+            if go and total_matches > 1:
                 match_nums = [e["match_number"] for e in pm_data]
                 red_pts = [e["red_points"] for e in pm_data]
                 blue_pts = [e["blue_points"] for e in pm_data]
