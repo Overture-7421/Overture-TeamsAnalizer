@@ -312,28 +312,28 @@ DEFAULT_STREAMLIT_CONFIG = {
     },
     "detailed_stats": {
         "compare_metrics": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "points_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
             {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
             {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"},
             {"type": "rate", "columns": ["Died"], "label": "Died Rate", "format": "percent"}
         ],
         "radar_categories": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "points_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
             {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
             {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"},
             {"type": "consistency", "label": "Consistency"}
         ],
         "bar_metrics": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "points_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
             {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
             {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
         ],
         "comparison_table": [
-            {"type": "overall_avg", "label": "Overall Avg"},
-            {"type": "overall_std", "label": "Overall Std"},
+            {"type": "points_avg", "label": "Points Avg"},
+            {"type": "points_std", "label": "Points Std"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
             {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
             {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"}
@@ -373,9 +373,9 @@ def get_streamlit_config() -> dict:
 
 def _metric_value(team_stat: dict, team_rows: list, metric: dict) -> float:
     metric_type = metric.get("type")
-    if metric_type == "overall_avg":
+    if metric_type in ("overall_avg", "points_avg"):
         return float(team_stat.get('overall_avg', 0.0))
-    if metric_type == "overall_std":
+    if metric_type in ("overall_std", "points_std"):
         return float(team_stat.get('overall_std', 0.0))
     if metric_type == "robot_valuation":
         return float(team_stat.get('RobotValuation', 0.0))
@@ -2840,7 +2840,14 @@ elif page == "📊 Post-Match":
         return counts.most_common(1)[0][0]
 
     # ── Dummy data generator ────────────────────────────────────────────────
-    _DUMMY_TEAMS = [254, 1114, 2056, 118, 971, 148, 3538, 2910, 4414, 5940, 7421, 6328]
+    # Team numbers from data/teams_2026mxmo.json (2026 MXMO participants)
+    _DUMMY_TEAMS = [
+        3354, 3472, 3478, 3480, 3522, 3794, 3933, 4010, 4371, 4584,
+        4635, 4723, 4775, 4782, 5133, 5887, 5932, 5959, 6017, 6106,
+        6170, 6200, 6348, 6606, 6652, 6676, 6702, 6832, 7102, 7421,
+        7546, 8740, 8741, 9053, 9060, 9213, 9280, 9282, 10225, 10529,
+        10565, 10931, 11065,
+    ]
 
     def _generate_dummy_data() -> list:
         import random

@@ -86,6 +86,10 @@ class AnalizadorRobot:
         self.robot_valuation_phase_weights: List[float] = robot_config.phase_weights.copy()
         self.robot_valuation_phase_names: List[str] = robot_config.phase_names.copy()
         
+        # Computation cache — cleared whenever sheet_data changes
+        self._team_data_grouped_cache: Optional[Dict[str, List[List[str]]]] = None
+        self._detailed_stats_cache: Optional[List[Dict[str, Any]]] = None
+
         # Hot-reload configuration
         self._csv_file_path: Optional[Path] = None
         self._csv_last_modified: float = 0.0
@@ -773,6 +777,8 @@ class AnalizadorRobot:
                                 row = row[:target_len]
                             self.sheet_data.append(row)
             
+            self._team_data_grouped_cache = None
+            self._detailed_stats_cache = None
             self._update_column_indices()
             self._initialize_selected_columns()
         except FileNotFoundError:
@@ -842,6 +848,8 @@ class AnalizadorRobot:
                 print(f"Row added: {row_data}")
 
         print(f"QR data processed. {new_rows_added} rows added. Total: {len(self.sheet_data)} rows.")
+        self._team_data_grouped_cache = None
+        self._detailed_stats_cache = None
         self._update_column_indices()
         self._initialize_selected_columns()
 
@@ -898,11 +906,15 @@ class AnalizadorRobot:
         if not sheet_data:
             return
         self.sheet_data = sheet_data
+        self._team_data_grouped_cache = None
+        self._detailed_stats_cache = None
         self._update_column_indices()
         self._initialize_selected_columns()
 
     def get_team_data_grouped(self) -> Dict[str, List[List[str]]]:
         """Group rows by team number."""
+        if self._team_data_grouped_cache is not None:
+            return self._team_data_grouped_cache
         if len(self.sheet_data) < 2:
             return {}
         team_number_col_name = "Team Number"
@@ -918,7 +930,8 @@ class AnalizadorRobot:
                 team_number = row[team_col_idx].strip()
                 if team_number:
                     team_rows_map[team_number].append(row)
-        return dict(team_rows_map)
+        self._team_data_grouped_cache = dict(team_rows_map)
+        return self._team_data_grouped_cache
 
     def _generate_stat_key(self, col_name: str, stat_type: str) -> str:
         """Generate a standardized key for statistics."""
@@ -956,6 +969,8 @@ class AnalizadorRobot:
 
     def get_detailed_team_stats(self) -> List[Dict[str, Any]]:
         """Process and return detailed statistics for all teams."""
+        if self._detailed_stats_cache is not None:
+            return self._detailed_stats_cache
         if len(self.sheet_data) < 2:
             return []
         team_data_grouped = self.get_team_data_grouped()
@@ -1160,6 +1175,7 @@ class AnalizadorRobot:
             detailed_stats_list.append(team_stats)
         
         detailed_stats_list.sort(key=lambda x: (x.get('overall_avg', 0.0), -x.get('overall_std', float('inf'))), reverse=True)
+        self._detailed_stats_cache = detailed_stats_list
         return detailed_stats_list
 
     def get_defensive_robot_ranking(self) -> List[Dict[str, Any]]:
@@ -1267,6 +1283,8 @@ class AnalizadorRobot:
         if not self.sheet_data:
             self.sheet_data = [list(self.default_column_names)]
 
+        self._team_data_grouped_cache = None
+        self._detailed_stats_cache = None
         self._update_column_indices()
         self._initialize_selected_columns()
         print("Configuration reloaded successfully.")
