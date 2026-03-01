@@ -3037,7 +3037,6 @@ elif page == "📊 Post-Match":
                 st.rerun()
 
     with tab_metrics:
-        st.markdown("### 📊 Qualitative Metrics")
         pm_data = st.session_state.post_match_data
         if not pm_data:
             st.info(
@@ -3045,94 +3044,105 @@ elif page == "📊 Post-Match":
                 "upload a saved file, or click **🎲 Load Dummy Data** to explore."
             )
         else:
-            # Aggregate contribution counts
-            all_contributions = []
-            all_red_points = []
-            all_blue_points = []
-            all_total_points = []
-            for entry in pm_data:
-                all_contributions.extend(entry.get("contributions", []))
-                all_red_points.append(entry["red_points"])
-                all_blue_points.append(entry["blue_points"])
-                all_total_points.append(entry["red_points"] + entry["blue_points"])
-
-            total_matches = len(pm_data)
-            avg_red = sum(all_red_points) / total_matches if total_matches else 0
-            avg_blue = sum(all_blue_points) / total_matches if total_matches else 0
-            avg_total = sum(all_total_points) / total_matches if total_matches else 0
-
-            # Summary metrics
-            metric_cols = st.columns(4)
-            with metric_cols[0]:
-                st.metric("Avg Red Alliance Pts", f"{avg_red:.1f}")
-            with metric_cols[1]:
-                st.metric("Avg Blue Alliance Pts", f"{avg_blue:.1f}")
-            with metric_cols[2]:
-                st.metric("Avg Total Pts / Match", f"{avg_total:.1f}")
-            with metric_cols[3]:
-                overall_mode = _contribution_mode(all_contributions)
-                st.metric("Most Common Contribution", "")
-                st.caption(overall_mode)
-
-            st.markdown("---")
-
-            # ── Contribution Mode per team ───────────────────────────────────
-            st.markdown("#### 🏅 Contribution Mode by Team")
-            st.caption(
-                "The most frequent contribution level observed for each team across all recorded matches."
-            )
-            # Build a mapping: team_number → list of contributions across all matches
+            # ── Build per-team lookup: team_id → contributions and alliance points ──
             team_contrib_map: dict = {}
+            team_pts_map: dict = {}
             for entry in pm_data:
                 team_nums = entry.get("team_numbers", [])
+                num_teams_entry = entry.get("num_teams", 6)
                 for slot_idx, contrib in enumerate(entry.get("contributions", [])):
                     team_id = (
                         team_nums[slot_idx]
                         if slot_idx < len(team_nums)
                         else f"Slot {slot_idx + 1}"
                     )
+                    alliance_pts = (
+                        entry["red_points"]
+                        if slot_idx < num_teams_entry // 2
+                        else entry["blue_points"]
+                    )
                     team_contrib_map.setdefault(team_id, []).append(contrib)
+                    team_pts_map.setdefault(team_id, []).append(alliance_pts)
 
-            team_mode_rows = []
+            # ── Qualitative Stats table ──────────────────────────────────────────
+            st.markdown("#### 📊 Qualitative Stats")
+
+            def _pts_std(values: list) -> float:
+                """Calculate sample standard deviation using Bessel's correction (n-1 denominator).
+                Returns 0.0 for fewer than 2 values."""
+                if len(values) < 2:
+                    return 0.0
+                n = len(values)
+                mean = sum(values) / n
+                return (sum((v - mean) ** 2 for v in values) / (n - 1)) ** 0.5
+
+            qual_rows = []
             for team_id, contribs in sorted(
                 team_contrib_map.items(),
                 key=lambda x: (0, int(x[0])) if str(x[0]).isdigit() else (1, str(x[0]))
             ):
                 mode_val = _contribution_mode(contribs)
-                team_mode_rows.append({
+                pts = team_pts_map.get(team_id, [])
+                avg_pts = sum(pts) / len(pts) if pts else 0.0
+                std_pts = _pts_std(pts)
+                qual_rows.append({
                     "Team": get_team_display_label(team_id),
                     "Matches": len(contribs),
                     "Contribution Mode": mode_val,
+                    "Pts Avg": round(avg_pts, 2),
+                    "Pts Std": round(std_pts, 2),
                     "Weight": _CONTRIB_WEIGHTS.get(mode_val, 0),
                 })
-            team_mode_df = pd.DataFrame(team_mode_rows)
-            team_mode_display = (
-                team_mode_df
+            qual_df = pd.DataFrame(qual_rows)
+            qual_display = (
+                qual_df
                 .sort_values(by="Weight", ascending=False)
                 .drop(columns=["Weight"])
                 .reset_index(drop=True)
             )
-            st.dataframe(team_mode_display, use_container_width=True, hide_index=True)
+            st.dataframe(qual_display, use_container_width=True, hide_index=True)
 
             st.markdown("---")
 
-            # Contribution distribution chart
-            st.markdown("#### Contribution Distribution (All Matches)")
-            contribution_counts = Counter(all_contributions)
-            if contribution_counts:
-                contrib_df = pd.DataFrame(
-                    [{"Contribution": k, "Count": v, "Percentage": f"{v / len(all_contributions) * 100:.1f}%"}
-                     for k, v in sorted(contribution_counts.items(), key=lambda x: _CONTRIB_WEIGHTS.get(x[0], 0))]
+            # ── Per-team contribution distribution (like Detailed Stats) ─────────
+            st.markdown("#### Contribution Distribution")
+            all_team_ids = sorted(
+                team_contrib_map.keys(),
+                key=lambda x: (0, int(x)) if str(x).isdigit() else (1, str(x))
+            )
+            team_labels = [get_team_display_label(t) for t in all_team_ids]
+            selected_label = st.selectbox(
+                "Select a Team",
+                options=team_labels,
+                key="pm_team_contrib_selector",
+            )
+            if selected_label:
+                sel_idx = team_labels.index(selected_label)
+                sel_team_id = all_team_ids[sel_idx]
+                sel_contribs = team_contrib_map[sel_team_id]
+                sel_counts = Counter(sel_contribs)
+                sel_df = pd.DataFrame(
+                    [
+                        {
+                            "Contribution": k,
+                            "Count": v,
+                            "Percentage": f"{v / len(sel_contribs) * 100:.1f}%",
+                        }
+                        for k, v in sorted(
+                            sel_counts.items(),
+                            key=lambda x: _CONTRIB_WEIGHTS.get(x[0], 0),
+                        )
+                    ]
                 )
-                st.dataframe(contrib_df, use_container_width=True, hide_index=True)
+                st.dataframe(sel_df, use_container_width=True, hide_index=True)
 
                 px, go = _ensure_plotly()
                 if px:
                     fig_bar = px.bar(
-                        contrib_df,
+                        sel_df,
                         x="Contribution",
                         y="Count",
-                        title="Contribution Distribution Across All Matches",
+                        title=f"Contribution Distribution — {selected_label}",
                         color="Count",
                         color_continuous_scale="Purples",
                     )
@@ -3148,7 +3158,8 @@ elif page == "📊 Post-Match":
 
             st.markdown("---")
 
-            # Points per match trend
+            # ── Alliance points trend across matches ─────────────────────────────
+            total_matches = len(pm_data)
             px, go = _ensure_plotly()
             if go and total_matches > 1:
                 match_nums = [e["match_number"] for e in pm_data]
