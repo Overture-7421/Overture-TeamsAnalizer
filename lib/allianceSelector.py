@@ -278,12 +278,10 @@ class AllianceSelector:
         if team_number == picking_alliance.captain:
             raise ValueError(f"Cannot pick team {team_number} - alliance captains cannot pick themselves.")
         
-        # Check if the team is already selected as a pick
+        # Check if the team is already selected as a pick by any slot (allow re-selecting same slot)
         selected = self.get_selected_picks()
-        other_pick = 'pick2' if pick_type == 'pick1' else 'pick1'
-        other_val = getattr(picking_alliance, other_pick, None)
-        already_selected = [t for t in selected if t != other_val or t != getattr(picking_alliance, pick_type, None)]
-        if team_number in selected and getattr(picking_alliance, pick_type, None) != team_number:
+        current_val = getattr(picking_alliance, pick_type, None)
+        if team_number in selected and current_val != team_number:
             raise ValueError(f"Team {team_number} is already selected as a pick.")
         
         # Verify the team exists in our team list

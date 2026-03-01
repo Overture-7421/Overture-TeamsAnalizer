@@ -456,7 +456,7 @@ class MatchSimulator:
             if random.random() < team.p_leave_auto_zone:
                 result['teams_left_auto_zone'] += 1
 
-        # Cap auto Tower Level 1 at 2 robots (rule: max 2 in auto)
+        # Cap auto Tower Level 1 at 2 robots (FRC game rule: max 2 robots can score Tower L1 in auto)
         result['auto_tower_l1_count'] = min(result['auto_tower_l1_count'], 2)
 
         result['auto_points'] = self._calculate_auto_points(result)
