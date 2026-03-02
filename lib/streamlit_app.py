@@ -43,6 +43,7 @@ from exam_integrator import ExamDataIntegrator
 from qr_utils import scan_qr_codes, test_camera
 from config_manager import get_global_config
 from tba_manager import TBAManager
+from ftc_scout_manager import FTCScoutManager
 
 
 APP_DIR = Path(__file__).resolve().parent
@@ -191,6 +192,18 @@ def _init_session_state():
         'tba_event_key': "",
         'tba_events_list': [],
         'tba_selected_event_name': "",
+        # FTC Scout Manager state
+        'ftc_manager': None,
+        'ftc_season': 2025,
+        'ftc_events_list': [],
+        'ftc_selected_event_code': "",
+        'ftc_selected_event_name': "",
+        'ftc_teams_list': [],
+        # System Hub update state
+        '_hub_update_checked': False,
+        '_hub_update_available': False,
+        '_hub_latest_sha': "",
+        '_hub_current_sha': "",
     }
     
     # Set defaults only if not already in session state
@@ -836,6 +849,90 @@ with st.sidebar.expander("🔵 The Blue Alliance", expanded=False):
             st.session_state.tba_event_key = ""
             st.session_state.tba_selected_event_name = ""
             st.rerun()
+
+# ── FTC Scout sidebar ────────────────────────────────────────────────────────
+st.sidebar.markdown("---")
+with st.sidebar.expander("🟠 FTC Scout", expanded=False):
+    st.markdown("**FTC Team & Event Lookup**")
+    st.markdown(
+        "<small>Powered by [ftcscout.org](https://ftcscout.org)</small>",
+        unsafe_allow_html=True,
+    )
+
+    # Season selector
+    st.session_state.ftc_season = int(st.number_input(
+        "FTC Season",
+        min_value=2019,
+        max_value=2099,
+        value=int(st.session_state.ftc_season),
+        step=1,
+        key="ftc_season_input",
+        help="Enter the start year of the FTC season (e.g. 2025 for 2025-26)"
+    ))
+
+    # Optional search filters
+    with st.expander("🔍 Event Search Filters", expanded=False):
+        ftc_search_text = st.text_input("Search text", key="ftc_search_text", placeholder="Event name…")
+        ftc_region = st.text_input("Region", key="ftc_region", placeholder="e.g. USTX")
+        ftc_limit = st.number_input("Max results", min_value=1, max_value=500, value=50, step=10, key="ftc_limit")
+
+    if st.button("🔌 Fetch Events", key="ftc_fetch_events_btn"):
+        if st.session_state.ftc_manager is None:
+            st.session_state.ftc_manager = FTCScoutManager()
+        mgr_ftc = st.session_state.ftc_manager
+        with st.spinner("Fetching FTC events…"):
+            events_ftc = mgr_ftc.search_events(
+                st.session_state.ftc_season,
+                search_text=st.session_state.get("ftc_search_text", "") or None,
+                region=st.session_state.get("ftc_region", "") or None,
+                limit=int(st.session_state.get("ftc_limit", 50)),
+                force_refresh=True,
+            )
+        if events_ftc:
+            st.session_state.ftc_events_list = events_ftc
+            st.success(f"Found {len(events_ftc)} events.")
+        else:
+            st.warning("No events returned. Check season or filters.")
+
+    if st.session_state.ftc_events_list:
+        ftc_event_options = {
+            ev.get("code", ""): ev.get("name", ev.get("code", ""))
+            for ev in st.session_state.ftc_events_list
+            if ev.get("code")
+        }
+        ftc_sel_code = st.selectbox(
+            "Select Event",
+            options=list(ftc_event_options.keys()),
+            format_func=lambda k: ftc_event_options.get(k, k),
+            key="ftc_event_selectbox",
+        )
+        if st.button("📥 Load Teams for Event", key="ftc_load_teams_btn"):
+            if st.session_state.ftc_manager is None:
+                st.session_state.ftc_manager = FTCScoutManager()
+            mgr_ftc2 = st.session_state.ftc_manager
+            with st.spinner("Loading FTC teams…"):
+                teams_ftc = mgr_ftc2.get_teams_for_event(
+                    st.session_state.ftc_season, ftc_sel_code, force_refresh=True
+                )
+            if teams_ftc:
+                st.session_state.ftc_teams_list = teams_ftc
+                st.session_state.ftc_selected_event_code = ftc_sel_code
+                st.session_state.ftc_selected_event_name = ftc_event_options.get(ftc_sel_code, ftc_sel_code)
+                st.success(f"Loaded {len(teams_ftc)} team participations.")
+            else:
+                st.warning("No teams found for that event.")
+
+    if st.session_state.ftc_selected_event_code:
+        st.caption(f"✅ Active: **{st.session_state.ftc_selected_event_name}** "
+                   f"({len(st.session_state.ftc_teams_list)} teams)")
+
+    if st.button("🗑️ Clear FTC Scout", key="ftc_clear_btn"):
+        st.session_state.ftc_manager = None
+        st.session_state.ftc_events_list = []
+        st.session_state.ftc_selected_event_code = ""
+        st.session_state.ftc_selected_event_name = ""
+        st.session_state.ftc_teams_list = []
+        st.rerun()
 
 # Main content based on selected page
 if page == "📁 Data Management":
@@ -3242,8 +3339,8 @@ elif page == "🛠️ System Hub":
         return "🟢 Running" if active else "🔴 Stopped"
 
     # ── Tab layout ─────────────────────────────────────────────────────────
-    hub_tab1, hub_tab2, hub_tab3, hub_tab4 = st.tabs([
-        "⚙️ Services", "💾 Data", "📡 HID Scanner", "📋 Logs"
+    hub_tab1, hub_tab2, hub_tab3, hub_tab4, hub_tab5 = st.tabs([
+        "⚙️ Services", "💾 Data", "📡 HID Scanner", "📋 Logs", "🔄 Updates"
     ])
 
     # ─── Tab 1: Service Status & Control ──────────────────────────────────
@@ -3566,6 +3663,113 @@ elif page == "🛠️ System Hub":
                 st.code(out_clean, language="text")
         else:
             st.info(f"Script not found: `{ctl_script}`")
+
+    # ─── Tab 5: Updates ──────────────────────────────────────────────────────
+    with hub_tab5:
+        st.markdown("### 🔄 Application Updates")
+        st.markdown(
+            "Check whether a newer version is available on the `main` branch "
+            "and apply it with a single button."
+        )
+
+        _HUB_PROJECT_ROOT = _Path(__file__).resolve().parent.parent
+        _GIT_CMD = shutil.which("git")
+        _UPDATE_BRANCH = "main"
+
+        def _current_sha() -> str:
+            """Return the short SHA of the current HEAD commit."""
+            if not _GIT_CMD:
+                return ""
+            rc, out = _run(_GIT_CMD, "-C", str(_HUB_PROJECT_ROOT), "rev-parse", "--short", "HEAD")
+            return out.strip() if rc == 0 else ""
+
+        def _remote_sha(branch: str = _UPDATE_BRANCH) -> str:
+            """Fetch remote refs and return the short SHA of the remote HEAD.
+
+            Returns empty string if fetch or rev-parse fails (e.g. offline).
+            """
+            if not _GIT_CMD:
+                return ""
+            # Refresh remote refs; ignore failure (offline / no remote)
+            rc_fetch, fetch_out = _run(
+                _GIT_CMD, "-C", str(_HUB_PROJECT_ROOT),
+                "fetch", "--quiet", "origin", branch, timeout=20,
+            )
+            if rc_fetch != 0:
+                print(f"[Update] git fetch failed: {fetch_out}")
+                # Fall back to whatever remote ref we have cached locally
+            rc, out = _run(_GIT_CMD, "-C", str(_HUB_PROJECT_ROOT),
+                           "rev-parse", "--short", f"origin/{branch}")
+            return out.strip() if rc == 0 else ""
+
+        # ── One-time check per session ─────────────────────────────────────
+        if not st.session_state._hub_update_checked:
+            with st.spinner("Checking for updates…"):
+                cur = _current_sha()
+                rem = _remote_sha()
+            st.session_state._hub_current_sha = cur
+            st.session_state._hub_latest_sha = rem
+            st.session_state._hub_update_available = bool(rem and cur and rem != cur)
+            st.session_state._hub_update_checked = True
+
+        cur_sha = st.session_state._hub_current_sha
+        rem_sha = st.session_state._hub_latest_sha
+        update_available = st.session_state._hub_update_available
+
+        # Status display
+        info_col1, info_col2 = st.columns(2)
+        with info_col1:
+            st.metric("Current version", cur_sha or "unknown")
+        with info_col2:
+            st.metric("Latest on main", rem_sha or "unknown")
+
+        if not _GIT_CMD:
+            st.warning("`git` not found – update management requires git to be installed.")
+        elif update_available:
+            st.warning(
+                f"⬆️ **A new version is available** (`{rem_sha}`).  "
+                "Update to get the latest features and fixes."
+            )
+            if st.button("⬇️ Update Now (git pull)", key="hub_update_now_btn", type="primary"):
+                with st.spinner("Downloading update…"):
+                    rc_pull, out_pull = _run(
+                        _GIT_CMD, "-C", str(_HUB_PROJECT_ROOT),
+                        "pull", "--ff-only", "origin", _UPDATE_BRANCH,
+                        timeout=120,
+                    )
+                if rc_pull == 0:
+                    st.success(
+                        "✅ Update applied successfully! "
+                        "Restart the app for changes to take effect."
+                    )
+                    # Refresh state
+                    st.session_state._hub_current_sha = _current_sha()
+                    st.session_state._hub_update_available = False
+                    st.rerun()
+                else:
+                    st.error(f"Update failed:\n```\n{out_pull}\n```")
+        else:
+            st.success("✅ You are running the latest version.")
+
+        st.markdown("---")
+        st.markdown("#### Manual Controls")
+        upd_col1, upd_col2 = st.columns(2)
+        with upd_col1:
+            if st.button("🔃 Re-check for updates", key="hub_recheck_btn"):
+                # Reset the one-time flag so the check runs again
+                st.session_state._hub_update_checked = False
+                st.rerun()
+        with upd_col2:
+            if st.button("📋 Show recent commits", key="hub_log_btn"):
+                if _GIT_CMD:
+                    rc_log, out_log = _run(
+                        _GIT_CMD, "-C", str(_HUB_PROJECT_ROOT),
+                        "log", "--oneline", "-10", f"origin/{_UPDATE_BRANCH}",
+                        timeout=15,
+                    )
+                    st.code(out_log, language="text")
+                else:
+                    st.warning("`git` not found.")
 
 
 # Footer - appears on all pages

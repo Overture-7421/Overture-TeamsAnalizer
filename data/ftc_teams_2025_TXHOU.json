@@ -1,0 +1,16 @@
+[
+  {
+    "teamNumber": 7421,
+    "team": {
+      "number": 7421,
+      "name": "Overture"
+    }
+  },
+  {
+    "teamNumber": 9999,
+    "team": {
+      "number": 9999,
+      "name": "Test Team"
+    }
+  }
+]
