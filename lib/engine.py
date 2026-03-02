@@ -6,6 +6,7 @@ QR decoding, and statistical calculations.
 """
 
 import csv
+import io
 import json
 import math
 import os
@@ -785,6 +786,69 @@ class AnalizadorRobot:
             print(f"Error: File not found at {file_path}")
         except Exception as e:
             print(f"Error loading CSV: {e}")
+
+    def load_csv_from_bytes(self, data: bytes, encoding: str = 'utf-8') -> None:
+        """Load CSV data directly from bytes, skipping the disk round-trip.
+
+        Functionally identical to :meth:`load_csv` but accepts a ``bytes``
+        buffer (e.g. from ``st.file_uploader``) so the caller does not need to
+        write a temporary file first.
+
+        Args:
+            data: Raw CSV bytes.
+            encoding: Character encoding of the bytes (default: utf-8).
+        """
+        try:
+            text = data.decode(encoding, errors='replace')
+            reader = csv.reader(io.StringIO(text))
+            csv_rows = [row for row in reader if any(field.strip() for field in row)]
+
+            if not csv_rows:
+                print("CSV data is empty or contains no records.")
+                return
+
+            csv_headers = csv_rows[0]
+
+            detected_format = self.config_manager.detect_csv_format(csv_headers)
+
+            if detected_format == "legacy_format":
+                print("Detected legacy format. Converting to new format...")
+                converted_rows = self.csv_converter.convert_rows_to_new_format(csv_headers, csv_rows[1:])
+                csv_rows = [self.config_manager.get_column_config().headers] + converted_rows
+                print(f"Successfully converted {len(converted_rows)} data rows to new format.")
+            elif detected_format == "unknown_format":
+                print("Warning: Unknown CSV format detected. Loading as-is.")
+
+            if not self.sheet_data or (len(self.sheet_data) == 1 and not any(self.sheet_data[0])):
+                self.sheet_data = csv_rows
+                print(f"CSV data loaded. {len(self.sheet_data)} rows (including header).")
+            else:
+                current_header = self.sheet_data[0]
+                csv_header = csv_rows[0]
+                if current_header == csv_header:
+                    self.sheet_data.extend(csv_rows[1:])
+                    print(f"CSV data appended. Total {len(self.sheet_data)} rows.")
+                else:
+                    expected_header = self.config_manager.get_column_config().headers
+                    if csv_header == expected_header:
+                        self.sheet_data = csv_rows
+                        print("CSV header matches config. Replaced existing data and headers.")
+                    else:
+                        print("Warning: CSV header doesn't match existing data. Appending data rows only.")
+                        target_len = len(current_header)
+                        for row in csv_rows[1:]:
+                            if len(row) < target_len:
+                                row = row + [""] * (target_len - len(row))
+                            elif len(row) > target_len:
+                                row = row[:target_len]
+                            self.sheet_data.append(row)
+
+            self._team_data_grouped_cache = None
+            self._detailed_stats_cache = None
+            self._update_column_indices()
+            self._initialize_selected_columns()
+        except Exception as e:
+            print(f"Error loading CSV from bytes: {e}")
 
     def load_qr_data(self, qr_string_data: str) -> None:
         """

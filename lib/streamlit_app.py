@@ -420,17 +420,12 @@ def load_csv_data(uploaded_file):
     try:
         # Validate file size (limit to 50 MB to prevent memory issues)
         MAX_CSV_BYTES = 50 * 1024 * 1024  # 50 MB
-        file_bytes = uploaded_file.getbuffer()
+        file_bytes = uploaded_file.getvalue()
         if len(file_bytes) > MAX_CSV_BYTES:
             return False, f"File too large ({len(file_bytes) // (1024*1024)} MB). Maximum allowed size is 50 MB."
 
-        # Save uploaded file to a temp location (safe, isolated path)
-        temp_file = APP_DIR / "temp_upload.csv"
-        with temp_file.open("wb") as f:
-            f.write(file_bytes)
-
-        # Load into analyzer
-        st.session_state.analizador.load_csv(str(temp_file))
+        # Parse directly from bytes — no temp-file round-trip needed
+        st.session_state.analizador.load_csv_from_bytes(file_bytes)
         
         return True, "CSV loaded successfully!"
     except Exception as e:
@@ -729,7 +724,7 @@ page = st.sidebar.radio(
     "Select Page",
     ["📁 Data Management", "📈 Team Statistics", 
      "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing",
-     "📊 Post-Match"],
+     "📊 Post-Match", "🛠️ System Hub"],
     label_visibility="collapsed"
 )
 
@@ -3189,6 +3184,388 @@ elif page == "📊 Post-Match":
                     legend=dict(font=dict(color='#f8fafc')),
                 )
                 st.plotly_chart(fig_line, use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# System Hub  (Linux scripts / services visual panel)
+# ─────────────────────────────────────────────────────────────────────────────
+elif page == "🛠️ System Hub":
+    import re as _re
+    import shutil
+    import subprocess
+    import time as _time
+    from pathlib import Path as _Path
+
+    st.markdown("<div class='main-header'>🛠️ System Hub</div>", unsafe_allow_html=True)
+    st.markdown("Visual control panel for Overture Linux services and scripts.")
+
+    _SCRIPTS_DIR = _Path(__file__).resolve().parent.parent / "scripts"
+    _DATA_DIR = _Path(__file__).resolve().parent.parent / "data"
+    _BACKUP_DIR = _Path(__file__).resolve().parent.parent / "backups"
+    _DEFAULT_CSV = _DATA_DIR / "default_scouting.csv"
+
+    _APP_SERVICE  = "overture-app.service"
+    _HID_SERVICE  = "overture-hid.service"
+
+    _SYSTEMCTL = shutil.which("systemctl")
+    _JOURNALCTL = shutil.which("journalctl")
+    _HAS_SYSTEMD = _SYSTEMCTL is not None
+
+    def _run(*args, timeout: int = 5) -> tuple[int, str]:
+        """Run a command safely, returning (returncode, stdout+stderr)."""
+        try:
+            result = subprocess.run(
+                list(args), capture_output=True, text=True,
+                timeout=timeout, check=False
+            )
+            return result.returncode, (result.stdout + result.stderr).strip()
+        except Exception as exc:
+            return -1, str(exc)
+
+    def _service_active(service: str) -> bool:
+        if not _HAS_SYSTEMD:
+            return False
+        rc, _ = _run(_SYSTEMCTL, "is-active", "--quiet", service)
+        return rc == 0
+
+    def _service_enabled(service: str) -> bool:
+        if not _HAS_SYSTEMD:
+            return False
+        rc, _ = _run(_SYSTEMCTL, "is-enabled", "--quiet", service)
+        return rc == 0
+
+    def _process_running(pattern: str) -> bool:
+        rc, _ = _run("pgrep", "-f", pattern)
+        return rc == 0
+
+    def _status_badge(active: bool) -> str:
+        return "🟢 Running" if active else "🔴 Stopped"
+
+    # ── Tab layout ─────────────────────────────────────────────────────────
+    hub_tab1, hub_tab2, hub_tab3, hub_tab4 = st.tabs([
+        "⚙️ Services", "💾 Data", "📡 HID Scanner", "📋 Logs"
+    ])
+
+    # ─── Tab 1: Service Status & Control ──────────────────────────────────
+    with hub_tab1:
+        st.markdown("### Service Status & Control")
+
+        if not _HAS_SYSTEMD:
+            st.warning(
+                "⚠️ `systemctl` not found — service control requires a Linux system "
+                "with systemd. Service status is based on running processes only."
+            )
+
+        st.markdown("#### Systemd Services")
+        col_a, col_b = st.columns(2)
+
+        with col_a:
+            app_active = _service_active(_APP_SERVICE)
+            app_enabled = _service_enabled(_APP_SERVICE)
+            st.markdown(f"**Web App** (`{_APP_SERVICE}`)")
+            st.markdown(_status_badge(app_active))
+            if app_enabled:
+                st.caption("Auto-start: enabled")
+            else:
+                st.caption("Auto-start: disabled / not installed")
+
+            btn_col1, btn_col2, btn_col3 = st.columns(3)
+            with btn_col1:
+                if st.button("▶ Start", key="app_start", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "start", _APP_SERVICE)
+                        st.toast(f"start: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+            with btn_col2:
+                if st.button("⏹ Stop", key="app_stop", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "stop", _APP_SERVICE)
+                        st.toast(f"stop: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+            with btn_col3:
+                if st.button("🔄 Restart", key="app_restart", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "restart", _APP_SERVICE)
+                        st.toast(f"restart: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+
+        with col_b:
+            hid_active = _service_active(_HID_SERVICE)
+            hid_enabled = _service_enabled(_HID_SERVICE)
+            st.markdown(f"**HID Scanner** (`{_HID_SERVICE}`)")
+            st.markdown(_status_badge(hid_active))
+            if hid_enabled:
+                st.caption("Auto-start: enabled")
+            else:
+                st.caption("Auto-start: disabled / not installed")
+
+            btn_col4, btn_col5, btn_col6 = st.columns(3)
+            with btn_col4:
+                if st.button("▶ Start", key="hid_start_svc", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "start", _HID_SERVICE)
+                        st.toast(f"start: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+            with btn_col5:
+                if st.button("⏹ Stop", key="hid_stop_svc", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "stop", _HID_SERVICE)
+                        st.toast(f"stop: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+            with btn_col6:
+                if st.button("🔄 Restart", key="hid_restart_svc", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "restart", _HID_SERVICE)
+                        st.toast(f"restart: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+
+        st.markdown("---")
+        st.markdown("#### Running Processes")
+        proc_col1, proc_col2 = st.columns(2)
+        with proc_col1:
+            streamlit_running = _process_running(r"streamlit.*streamlit_app\.py")
+            st.markdown(f"**Streamlit web process**  \n{_status_badge(streamlit_running)}")
+        with proc_col2:
+            hid_proc_running = _process_running("headless_interceptor.py")
+            st.markdown(f"**HID capture process**  \n{_status_badge(hid_proc_running)}")
+
+        st.markdown("---")
+        st.markdown("#### Auto-start Management")
+        en_col1, en_col2 = st.columns(2)
+        with en_col1:
+            if st.button("✅ Enable Web App auto-start", use_container_width=True, key="app_enable"):
+                if _HAS_SYSTEMD:
+                    rc, out = _run("sudo", _SYSTEMCTL, "enable", _APP_SERVICE)
+                    st.toast("Enabled" if rc == 0 else f"Error: {out}")
+                else:
+                    st.warning("systemctl not available.")
+            if st.button("❌ Disable Web App auto-start", use_container_width=True, key="app_disable"):
+                if _HAS_SYSTEMD:
+                    rc, out = _run("sudo", _SYSTEMCTL, "disable", _APP_SERVICE)
+                    st.toast("Disabled" if rc == 0 else f"Error: {out}")
+                else:
+                    st.warning("systemctl not available.")
+        with en_col2:
+            if st.button("✅ Enable HID auto-start", use_container_width=True, key="hid_enable"):
+                if _HAS_SYSTEMD:
+                    rc, out = _run("sudo", _SYSTEMCTL, "enable", _HID_SERVICE)
+                    st.toast("Enabled" if rc == 0 else f"Error: {out}")
+                else:
+                    st.warning("systemctl not available.")
+            if st.button("❌ Disable HID auto-start", use_container_width=True, key="hid_disable"):
+                if _HAS_SYSTEMD:
+                    rc, out = _run("sudo", _SYSTEMCTL, "disable", _HID_SERVICE)
+                    st.toast("Disabled" if rc == 0 else f"Error: {out}")
+                else:
+                    st.warning("systemctl not available.")
+
+        if st.button("🔃 Refresh Status", key="refresh_status", use_container_width=False):
+            st.rerun()
+
+    # ─── Tab 2: Data Management ─────────────────────────────────────────────
+    with hub_tab2:
+        st.markdown("### Data Management")
+
+        # Current data stats
+        if _DEFAULT_CSV.exists():
+            try:
+                lines = sum(1 for _ in open(_DEFAULT_CSV, encoding='utf-8')) - 1
+            except Exception:
+                lines = 0
+            st.success(f"✅ Scouting CSV: **{max(0, lines)} records**  \n`{_DEFAULT_CSV}`")
+        else:
+            st.info(f"ℹ️ No scouting data file at `{_DEFAULT_CSV}`")
+            lines = 0
+
+        st.markdown("---")
+        st.markdown("#### Backup")
+        backup_name_input = st.text_input(
+            "Backup name (optional)", placeholder="e.g. match_day_1",
+            key="backup_name_input"
+        )
+        if st.button("💾 Create Backup", use_container_width=False, key="do_backup"):
+            if not _DEFAULT_CSV.exists() or lines <= 0:
+                st.warning("No scouting data to backup.")
+            else:
+                _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+                ts = _time.strftime("%Y%m%d_%H%M%S")
+                safe_name = "".join(c for c in backup_name_input.strip() if c.isalnum() or c in "_-")
+                fname = f"{safe_name}_{ts}.csv" if safe_name else f"scouting_backup_{ts}.csv"
+                dest = _BACKUP_DIR / fname
+                shutil.copy2(_DEFAULT_CSV, dest)
+                st.success(f"Backup created: `{dest.name}`")
+
+        st.markdown("---")
+        st.markdown("#### Available Backups")
+        if _BACKUP_DIR.exists():
+            backup_files = sorted(_BACKUP_DIR.glob("*.csv"), reverse=True)
+            if backup_files:
+                rows_bk = []
+                for bf in backup_files:
+                    try:
+                        n = sum(1 for _ in open(bf, encoding='utf-8')) - 1
+                    except Exception:
+                        n = 0
+                    rows_bk.append({"File": bf.name, "Records": max(0, n), "Size": f"{bf.stat().st_size // 1024} KB"})
+                st.dataframe(rows_bk, use_container_width=True)
+
+                restore_choice = st.selectbox(
+                    "Select backup to restore",
+                    options=[bf.name for bf in backup_files],
+                    key="restore_choice"
+                )
+                if st.button("♻️ Restore selected backup", use_container_width=False, key="do_restore"):
+                    src = _BACKUP_DIR / restore_choice
+                    if src.exists():
+                        _DATA_DIR.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(src, _DEFAULT_CSV)
+                        st.success(f"Restored `{restore_choice}` → `{_DEFAULT_CSV.name}`")
+                        if 'analizador' in st.session_state:
+                            st.session_state.analizador.reload_csv()
+                        st.rerun()
+                    else:
+                        st.error("Backup file not found.")
+            else:
+                st.info("No backup files found.")
+        else:
+            st.info("Backup directory does not exist yet.")
+
+        st.markdown("---")
+        st.markdown("#### Clear Scouting Data")
+        st.warning("⚠️ This removes all scouting records. A backup will be created automatically.")
+        if st.button("🗑️ Clear All Data", type="primary", key="clear_data_btn"):
+            st.session_state["_hub_clear_confirm"] = True
+
+        if st.session_state.get("_hub_clear_confirm"):
+            st.error("**Are you sure?** This cannot be undone (a backup is created first).")
+            conf_col1, conf_col2 = st.columns(2)
+            with conf_col1:
+                if st.button("✅ Yes, clear data", key="clear_confirm_yes"):
+                    if _DEFAULT_CSV.exists() and lines > 0:
+                        _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+                        ts2 = _time.strftime("%Y%m%d_%H%M%S")
+                        shutil.copy2(_DEFAULT_CSV, _BACKUP_DIR / f"pre_clear_{ts2}.csv")
+                    if _DEFAULT_CSV.exists():
+                        # Keep header row only
+                        with open(_DEFAULT_CSV, encoding='utf-8') as fh:
+                            header = fh.readline()
+                        with open(_DEFAULT_CSV, 'w', encoding='utf-8') as fh:
+                            fh.write(header)
+                    if 'analizador' in st.session_state:
+                        st.session_state.analizador.reload_csv()
+                    st.session_state["_hub_clear_confirm"] = False
+                    st.success("Data cleared. Header preserved, backup created.")
+                    st.rerun()
+            with conf_col2:
+                if st.button("❌ Cancel", key="clear_confirm_no"):
+                    st.session_state["_hub_clear_confirm"] = False
+                    st.rerun()
+
+    # ─── Tab 3: HID Scanner ──────────────────────────────────────────────────
+    with hub_tab3:
+        st.markdown("### HID Scanner")
+
+        hid_col1, hid_col2 = st.columns(2)
+        with hid_col1:
+            hid_running = _process_running("headless_interceptor.py")
+            st.markdown(f"**Interceptor process:** {_status_badge(hid_running)}")
+
+        st.markdown("---")
+        st.markdown("#### Available HID Devices")
+        if st.button("🔍 List HID Devices", key="hid_list_btn", use_container_width=False):
+            venv_python = _Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python"
+            python_cmd = str(venv_python) if venv_python.exists() else "python3"
+            interceptor = _Path(__file__).resolve().parent / "headless_interceptor.py"
+            if interceptor.exists():
+                rc, out = _run(python_cmd, str(interceptor), "--list", timeout=10)
+                if out:
+                    st.code(out, language="text")
+                else:
+                    st.info("No output from interceptor list command.")
+            else:
+                st.error(f"Interceptor script not found: {interceptor}")
+
+        st.markdown("---")
+        st.markdown("#### Start / Stop Interceptor")
+
+        hid_start_col, hid_stop_col = st.columns(2)
+        with hid_start_col:
+            if st.button("▶ Start HID Interceptor", key="hid_start_proc", use_container_width=True):
+                if _HAS_SYSTEMD and hid_enabled:
+                    rc, out = _run("sudo", _SYSTEMCTL, "start", _HID_SERVICE)
+                    st.toast("Started via systemd" if rc == 0 else f"Error: {out}")
+                else:
+                    venv_python2 = _Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python"
+                    python_cmd2 = str(venv_python2) if venv_python2.exists() else "python3"
+                    interceptor2 = _Path(__file__).resolve().parent / "headless_interceptor.py"
+                    cfg = _Path(__file__).resolve().parent / "config" / "columns.json"
+                    if interceptor2.exists():
+                        _hid_log = _Path(__file__).resolve().parent.parent / "data" / "hid_interceptor.log"
+                        _hid_log.parent.mkdir(parents=True, exist_ok=True)
+                        _hid_log_fh = open(_hid_log, "a", encoding="utf-8")
+                        subprocess.Popen(
+                            [python_cmd2, str(interceptor2),
+                             "--config", str(cfg), "--output", str(_DEFAULT_CSV)],
+                            stdout=_hid_log_fh, stderr=_hid_log_fh,
+                            start_new_session=True
+                        )
+                        st.toast(f"HID interceptor started. Logs: {_hid_log.name}")
+                    else:
+                        st.error("Interceptor script not found.")
+        with hid_stop_col:
+            if st.button("⏹ Stop HID Interceptor", key="hid_stop_proc", use_container_width=True):
+                if _HAS_SYSTEMD and hid_enabled:
+                    rc, out = _run("sudo", _SYSTEMCTL, "stop", _HID_SERVICE)
+                    st.toast("Stopped via systemd" if rc == 0 else f"Error: {out}")
+                else:
+                    rc, out = _run("pkill", "-f", "headless_interceptor.py")
+                    st.toast("Stopped" if rc == 0 else "Process not running or pkill failed.")
+
+    # ─── Tab 4: Logs ────────────────────────────────────────────────────────
+    with hub_tab4:
+        st.markdown("### Service Logs")
+
+        log_service_choice = st.selectbox(
+            "Select service",
+            options=["Web App (overture-app)", "HID Scanner (overture-hid)"],
+            key="log_service_choice"
+        )
+        log_lines = st.slider("Lines to show", min_value=20, max_value=500, value=60, step=20, key="log_lines_slider")
+
+        if st.button("📋 Fetch Logs", key="fetch_logs_btn", use_container_width=False):
+            if not _JOURNALCTL:
+                st.warning("`journalctl` not available on this system.")
+            else:
+                service_unit = _APP_SERVICE if "Web App" in log_service_choice else _HID_SERVICE
+                rc, out = _run(
+                    _JOURNALCTL, "-u", service_unit,
+                    "--no-pager", f"-n{log_lines}", "--output=short",
+                    timeout=10
+                )
+                if out.strip():
+                    st.code(out, language="text")
+                else:
+                    st.info(f"No log output for `{service_unit}`. "
+                            "The service may not be installed or has no recent entries.")
+
+        st.markdown("---")
+        st.markdown("#### Script Reference")
+        ctl_script = _SCRIPTS_DIR / "overture-ctl.sh"
+        if ctl_script.exists():
+            st.code(f"# Run from project root:\nbash scripts/overture-ctl.sh help", language="bash")
+            with st.expander("📄 View overture-ctl.sh help output"):
+                rc_h, out_h = _run("bash", str(ctl_script), "help", timeout=5)
+                # Strip ANSI colour codes for clean display
+                out_clean = _re.sub(r'\x1b\[[0-9;]*m', '', out_h)
+                st.code(out_clean, language="text")
+        else:
+            st.info(f"Script not found: `{ctl_script}`")
 
 
 # Footer - appears on all pages
