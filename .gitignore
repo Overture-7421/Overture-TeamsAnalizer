@@ -76,3 +76,9 @@ test_data_new_format.csv
 # Data directory (user scouting data - keep .gitkeep)
 data/*.csv
 !data/.gitkeep
+data/ftc_events_*.json
+data/ftc_teams_*.json
+data/tba_teams_*.json
+data/events_*.json
+data/teams_*.json
+data/hid_interceptor.log
