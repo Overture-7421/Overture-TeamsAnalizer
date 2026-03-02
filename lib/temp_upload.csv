@@ -1,41 +1,203 @@
-Scouter Name,Match Number,Robot Position,Team Number,Starting Side (Relative),No Show,Left Launch Line (LEAVE),Artifacts Scored (CLASSIFIED) (Auto),Artifacts Scored (OVERFLOW) (Auto),Artifacts Placed in Depot (Auto),Pattern Matches at End of Auto (0-9),Auto Strategy,Died/Stopped Moving in Auto,Artifacts Scored (CLASSIFIED) (Teleop),Artifacts Scored (OVERFLOW) (Teleop),Artifacts Placed in Depot (Teleop),How many artifacts failed to score?,Pattern Matches at End of Match (0-9),Cycle Focus,Played Defense,Was Defended Heavily,Died/Stopped Moving in Teleop,Returned to Base,Climbed On Top of Another Robot,Tipped/Fell Over,Broke / Major Failure,Card
-AM,1,Red-1,23619,LEFT,No,Yes,3,2,1,4,Top-side cycles,No,12,6,4,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,1,Red-2,7421,RIGHT,No,Yes,2,1,2,3,Safe auto,No,10,4,3,0,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,1,Blue-1,9876,LEFT,No,No,1,0,1,2,Defensive auto,Yes,8,3,2,2,5,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,1,Blue-2,13579,RIGHT,No,Yes,2,2,0,3,Center cycles,No,11,5,3,1,6,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,2,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,13,7,5,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,2,Red-2,7421,LEFT,No,Yes,2,2,1,4,Safe auto,No,9,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,2,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,4,3,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
-DS,2,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,3,Red-1,23619,LEFT,No,Yes,3,3,2,4,Top-side cycles,No,14,6,5,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,3,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,3,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,3,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Red
-DS,3,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,4,Red-1,23619,RIGHT,No,Yes,4,2,2,5,Top-side cycles,No,15,7,6,1,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,4,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,0,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,4,Blue-1,9876,RIGHT,No,No,1,0,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,4,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,5,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,5,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,5,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,5,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,6,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,6,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,6,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
-DS,6,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,7,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,7,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,7,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,7,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,8,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,8,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,8,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
-DS,8,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,9,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,9,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,9,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,9,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,10,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,10,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,10,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
-DS,10,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
+﻿Scouter Name,Match Number,Robot Position,Team Number,Starting Side (Relative),No Show,Left Launch Line (LEAVE),Artifacts Scored (CLASSIFIED) (Auto),Artifacts Scored (OVERFLOW) (Auto),Pattern Made in Auto,Auto Strategy,Died/Stopped Moving in Auto,How many artifacts failed to score?,Artifacts Scored (CLASSIFIED) (Teleop),Artifacts Scored (OVERFLOW) (Teleop),Pattern Made in TeleOp,Cycle Focus,Played Defense,Was Defended Heavily,Died/Stopped Moving in Teleop,Returned to Base,Climbed On Top of Another Robot,Broke / Major Failure,Card
+Max,1,Blue 2,26961,Audience - Center,No,No,0,0,No,None/Dead,No,5,1,0,No,None/Dead,No,No,Yes,Not Returned,NOT Attempted,Yes,
+Max,2,Blue 2,24234,Goal Side,No,Yes,0,0,No,Score Goal,No,0,0,0,No,None/Dead,No,No,Yes,Not Returned,NOT Attempted,Yes,
+Max,3,Blue 2,15912,Goal Side,No,Yes,5,0,No,Score Goal,No,8,5,1,No,,No,No,No,Partially Returned,NOT Attempted,No,
+Max,4,Blue 2,23758,Goal Side,No,No,0,0,No,None/Dead,Yes,5,9,0,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+Max,5,Blue 2,16388,Audience - Center,No,Yes,0,0,No,None/Dead,Yes,3,10,0,No,,No,No,No,Partially Returned,NOT Attempted,No,
+Max,6,Blue 2,31546,Goal Side,No,Yes,4,0,No,Score Goal,No,2,11,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Max,7,Blue 2,25915,Goal Side,No,Yes,2,0,No,Score Goal,No,2,12,1,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Max,8,Blue 2,23481,Goal Side,No,No,6,0,No,Score Goal,No,9,10,3,No,,No,No,No,Fully Returned,NOT Attempted,No,
+Max,9,Blue 2,6584,Audience - Left,No,Yes,5,0,No,Score Goal,No,3,5,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gaona,1,Red 2,16818,Audience - Right,No,Yes,6,0,No,Score Goal,No,1,23,2,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Gaona,2,Red 2,15600,Obelisk Side,No,No,9,0,No,Score Goal,No,5,30,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Gaona,3,Red 2,15600,Audience - Left,No,No,0,0,No,,Yes,0,0,0,No,Mixed,Yes,No,No,Not Returned,NOT Attempted,No,None
+Gaona,4,Red 1,23619,Obelisk Side,No,No,11,0,Yes,Score Goal,No,11,32,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gaona,5,Red 2,17755,,No,Yes,9,2,Yes,Score Goal,No,4,38,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gaona,6,Red 2,16254,Obelisk Side,No,Yes,6,2,No,Score Goal,No,7,16,0,No,,No,No,Yes,Not Returned,NOT Attempted,No,None
+Gaona,7,Red 2,17627,Obelisk Side,No,No,8,0,No,Score Goal,No,11,17,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Gaona,8,Red 2,23899,Audience - Center,No,Yes,0,0,No,,Yes,7,5,0,No,Goal Scoring,No,Yes,No,Fully Returned,NOT Attempted,No,None
+Gaona,9,Red 2,51909,Obelisk Side,No,No,9,0,Yes,Score Goal,No,3,29,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,1,Red 1,24976,Audience - Right,No,Yes,4,0,Yes,Score Goal,No,7,18,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,2,Red 1,24356,Audience - Right,No,Yes,0,0,No,None/Dead,No,3,20,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,3,Red 1,24831,Audience - Right,No,Yes,0,0,No,None/Dead,No,7,12,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,4,Red 1,28326,Audience - Right,No,Yes,0,0,No,None/Dead,No,5,3,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,5,Red 1,18562,Audience - Right,No,Yes,0,0,No,None/Dead,No,6,2,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,6,Red 1,23651,Audience - Right,No,Yes,3,0,Yes,Score Goal,No,5,20,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,7,Red 1,28255,Audience - Right,No,Yes,0,0,No,None/Dead,No,2,9,0,No,,No,No,No,Not Returned,NOT Attempted,No,None
+Andrﾃｩ,8,Red 1,16508,Goal Side,No,Yes,8,0,Yes,Score Goal,No,8,13,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,9,Red 1,28076,Audience - Right,No,Yes,0,0,No,None/Dead,No,1,8,0,Yes,Mixed,No,No,No,Fully Returned,NOT Attempted,No,None
+Gaona,10,Red 2,21704,Audience - Center,No,No,3,0,No,Score Goal,Yes,19,9,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,10,Red 1,26333,Goal Side,No,Yes,3,0,No,Score Goal,No,3,17,0,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,1,Blue 1,30813,Goal Side,No,No,0,0,No,None/Dead,Yes,3,1,0,No,Goal Scoring,No,No,Yes,Not Returned,NOT Attempted,Yes,None
+Patricio,2,Blue 1,24198,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,4,5,0,No,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,None
+Patricio,3,Blue 1,25951,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,9,9,1,No,Goal Scoring,No,Yes,No,Partially Returned,NOT Attempted,No,None
+Patricio,4,Blue 1,17625,Goal Side,No,Yes,0,0,No,None/Dead,Yes,5,22,1,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Patricio,5,Blue 1,17614,Goal Side,No,Yes,1,0,No,Score Goal,No,11,6,0,No,Goal Scoring,No,Yes,Yes,Not Returned,NOT Attempted,Yes,None
+Patricio,6,Blue 1,31661,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,6,2,0,No,Goal Scoring,No,No,Yes,Not Returned,NOT Attempted,Yes,None
+Patricio,7,Blue 1,23897,Obelisk Side,No,No,0,0,No,None/Dead,Yes,7,6,0,Yes,Pattern Building,No,No,No,Partially Returned,NOT Attempted,No,None
+Patricio,8,Blue 1,21612,Obelisk Side,No,Yes,4,0,No,Score Goal,No,1,8,0,No,Goal Scoring,No,No,Yes,Not Returned,NOT Attempted,Yes,None
+Patricio,9,Blue 1,23837,Goal Side,No,No,0,0,No,None/Dead,Yes,0,0,0,No,None/Dead,No,No,Yes,Not Returned,NOT Attempted,Yes,None
+914836,,,,,,,,,,,,,,,,,,,,,,,
+Patricio,10,Blue 1,17632,Goal Side,No,Yes,7,0,No,Score Goal,No,6,14,2,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Max,10,Blue 2,21735,Audience - Left,No,Yes,0,0,No,None/Dead,Yes,4,3,2,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+Patricio,11,Blue 1,8327,Goal Side,No,Yes,2,0,No,Score Goal,No,6,1,0,No,Pattern Building,No,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,12,Blue 1,12887,Goal Side,No,No,8,0,No,Score Goal,No,2,6,0,No,Mixed,Yes,No,No,Fully Returned,NOT Attempted,Yes,None
+Max,12,Blue 2,23660,Audience - Left,No,Yes,1,0,No,Score Goal,Yes,14,9,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Andrﾃｩ,11,Red 1,30311,Goal Side,No,Yes,2,0,No,Score Goal,No,4,11,2,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,12,Red 1,21802,Goal Side,No,Yes,7,0,Yes,Score Goal,No,10,19,0,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Gaona,11,Red 2,30670,Audience - Center,No,Yes,0,0,No,,Yes,9,10,3,No,Goal Scoring,No,No,No,Fully Returned,Attempted - Successful,No,None
+Gaona,12,Red 2,28254,Audience - Center,No,No,0,0,No,,Yes,5,8,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Max,13,Blue 2,17626,Audience - Left,No,Yes,0,0,No,None/Dead,Yes,4,16,3,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Andrﾃｩ,13,Red 1,27788,Goal Side,No,Yes,1,0,No,Score Goal,No,6,12,0,Yes,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,None
+Gaona,13,Red 2,22413,Audience - Center,No,No,0,0,No,,Yes,5,3,0,No,Goal Scoring,No,Yes,No,Not Returned,NOT Attempted,No,None
+Patricio,13,Blue 1,22571,Goal Side,No,Yes,5,0,No,Score Goal,No,8,12,2,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,14,Red 1,23897,Goal Side,No,Yes,4,0,Yes,Score Goal,No,7,5,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Gaona,14,Red 2,31661,Audience - Center,No,Yes,0,0,No,,Yes,4,5,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Max,14,Blue 2,24198,Goal Side,No,Yes,3,0,No,Score Goal,No,1,6,2,No,,No,No,No,Partially Returned,NOT Attempted,No,
+Patricio,14,Blue 1,16388,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,4,12,0,No,Goal Scoring,No,No,Yes,Not Returned,NOT Attempted,No,None
+Raquel,16,Red 1,0,,No,No,0,0,No,,No,0,0,0,No,,No,No,No,,,No,
+Raquel,18,Red 1,21704,Audience - Center,No,Yes,4,0,No,Score Goal,No,6,13,0,No,Goal Scoring,No,No,No,Not Returned,Attempted - Failed,No,
+Dani T,17,Blue 2,30813,Audience - Center,No,No,0,0,No,,No,8,13,0,Yes,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,None
+Gina,16,Blue 1,6584,Audience - Center,No,Yes,3,0,No,Score Goal,No,7,7,0,No,,No,No,No,Fully Returned,Attempted - Successful,No,None
+Gina,16,Blue 1,25915,Obelisk Side,No,Yes,0,0,No,Build Pattern,Yes,9,5,0,Yes,Mixed,No,No,No,Not Returned,NOT Attempted,No,None
+Andrﾃｩ,15,Red 1,15600,Goal Side,No,No,7,0,Yes,Score Goal,No,5,25,0,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,15,Blue 1,16225,Goal Side,No,No,8,0,No,Score Goal,No,17,8,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gina,18,Blue 1,15909,Goal Side,No,Yes,9,0,Yes,Build Pattern,No,0,3,0,No,Pattern Building,Yes,Yes,No,Partially Returned,NOT Attempted,No,None
+Max,15,Blue 2,26961,Audience - Left,No,No,0,0,No,None/Dead,Yes,0,3,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Dani T,18,Blue 2,17614,Audience - Center,No,No,0,0,No,,No,7,14,1,Yes,Mixed,No,No,No,Fully Returned,NOT Attempted,No,None
+Raquel,19,Red 1,23837,Audience - Center,No,Yes,0,0,No,None/Dead,Yes,0,0,0,No,None/Dead,No,No,Yes,Not Returned,NOT Attempted,Yes,
+NIko,20,Red 2,16818,Goal Side,No,No,1,0,No,Score Goal,Yes,1,19,2,No,Mixed,Yes,No,No,Fully Returned,NOT Attempted,No,
+Raquel,20,Red 1,24234,Goal Side,No,Yes,3,0,No,Score Goal,No,2,7,2,No,Goal Scoring,No,No,Yes,Not Returned,NOT Attempted,Yes,
+Dani T,19,Blue 2,24,Audience - Center,No,Yes,0,0,No,Score Goal,No,5,13,2,Yes,Goal Scoring,No,Yes,No,Not Returned,NOT Attempted,No,None
+Gina,19,Blue 1,28255,Audience - Center,No,Yes,0,0,Yes,Build Pattern,No,3,9,0,Yes,Mixed,No,No,No,Fully Returned,NOT Attempted,No,None
+NIko,21,Red 2,30311,Audience - Center,No,No,0,0,No,,Yes,4,10,0,No,Mixed,Yes,No,No,Fully Returned,NOT Attempted,No,
+Dani T,20,Blue 2,16508,Goal Side,No,Yes,6,0,No,Score Goal,No,5,12,2,Yes,Mixed,Yes,Yes,No,Fully Returned,NOT Attempted,No,Yellow Card
+Raquel,21,Red 1,23481,Goal Side,No,No,5,0,No,,No,2,14,2,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+NIko,21,Red 2,28326,Audience - Right,No,Yes,0,0,No,None/Dead,No,3,0,0,No,Mixed,Yes,No,No,Partially Returned,NOT Attempted,No,None
+Dani T,21,Blue 2,17626,Goal Side,No,Yes,3,0,No,Score Goal,No,4,24,5,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+NIko,22,Red 2,23758,Audience - Center,No,Yes,0,0,No,Score Goal,Yes,0,0,0,No,None/Dead,No,No,No,Partially Returned,NOT Attempted,No,
+Raquel,23,Red 1,23619,Audience - Center,No,No,6,0,No,Score Goal,No,13,30,4,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Gina,20,Blue 1,21735,Audience - Left,No,No,0,0,No,,Yes,9,2,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gina,21,Blue 1,23651,Audience - Right,No,Yes,2,0,No,Build Pattern,Yes,4,16,0,Yes,Mixed,No,No,No,Fully Returned,NOT Attempted,No,None
+Gina,22,Blue 1,27788,Goal Side,No,Yes,4,0,No,Score Goal,Yes,4,17,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Gina,23,Blue 1,17627,Goal Side,No,No,8,0,Yes,Mixed,No,6,21,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Gina,24,Blue 1,23660,Audience - Left,No,Yes,1,0,Yes,Build Pattern,Yes,13,8,0,Yes,Mixed,No,No,No,Fully Returned,NOT Attempted,No,None
+Raquel,22,Red 1,28254,Audience - Left,No,No,0,0,No,,No,0,0,0,No,,Yes,No,No,Fully Returned,NOT Attempted,No,None
+Raquel,24,Red 1,15912,Audience - Center,No,No,2,0,No,Score Goal,No,5,15,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Dani T,22,Blue 2,24976,Goal Side,No,Yes,3,0,No,Score Goal,No,5,16,1,Yes,Goal Scoring,No,Yes,No,Not Returned,NOT Attempted,No,None
+Dani T,24,Blue 2,26333,Goal Side,No,Yes,4,0,No,Score Goal,No,4,20,1,Yes,Goal Scoring,Yes,No,No,Fully Returned,NOT Attempted,No,None
+Dani T,24,Blue 2,12887,Goal Side,No,Yes,10,0,No,Score Goal,No,7,20,0,Yes,Goal Scoring,Yes,No,No,Fully Returned,NOT Attempted,No,None
+Dani T,25,Blue 2,21808,Audience - Center,No,Yes,0,0,No,Score Goal,No,9,18,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gina,25,Blue 1,31546,Audience - Left,No,Yes,1,0,No,Score Goal,Yes,2,5,0,No,Goal Scoring,Yes,Yes,Yes,Not Returned,NOT Attempted,No,None
+Gina,26,Blue 1,32867,Audience - Left,No,Yes,0,0,No,None/Dead,Yes,3,17,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Raquel,26,Red 1,22571,Audience - Center,No,No,0,0,No,,No,4,10,3,Yes,Goal Scoring,No,No,Yes,Fully Returned,NOT Attempted,No,None
+Dani T,26,Blue 2,24198,Goal Side,No,Yes,9,0,Yes,Score Goal,No,3,2,0,No,Goal Scoring,No,No,Yes,Fully Returned,NOT Attempted,No,None
+Dani T,28,Blue 2,31661,Audience - Center,No,Yes,0,0,No,None/Dead,No,1,2,0,No,None/Dead,Yes,No,Yes,Partially Returned,NOT Attempted,Yes,None
+Dani T,29,Blue 2,17755,Goal Side,No,Yes,9,0,No,Score Goal,No,5,31,2,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gina,27,Blue 1,15909,,No,No,3,0,Yes,Build Pattern,No,6,15,0,Yes,Mixed,No,No,No,Partially Returned,NOT Attempted,No,
+Gina,28,Blue 1,15600,Goal Side,No,Yes,8,0,No,Score Goal,No,11,10,0,Yes,Mixed,No,No,No,Partially Returned,NOT Attempted,No,
+Gina,29,Blue 1,23758,Audience - Left,No,Yes,2,1,No,Score Goal,No,7,9,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+Gina,30,Blue 1,16818,Goal Side,No,Yes,6,0,No,Score Goal,No,2,17,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+Patricio,32,Blue 1,24831,Obelisk Side,No,Yes,1,0,No,Score Goal,No,5,7,0,No,Pattern Building,No,No,No,Not Returned,NOT Attempted,No,None
+Max,32,Blue 2,21612,Goal Side,No,Yes,6,0,No,Score Goal,No,4,17,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Andrﾃｩ,32,Red 1,24234,Audience - Center,No,No,0,0,No,,No,5,13,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,Yellow Card
+Raquel,28,Red 1,6584,Audience - Center,No,No,6,0,Yes,Score Goal,No,1,2,0,No,None/Dead,No,No,Yes,Not Returned,NOT Attempted,No,None
+Raquel,29,Red 1,17626,Audience - Center,No,No,4,0,No,Score Goal,No,4,19,0,Yes,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,None
+Raquel,30,Red 1,21735,Audience - Center,No,No,0,0,No,,No,9,5,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Max,33,Blue 2,16255,Goal Side,No,Yes,2,0,No,Score Goal,Yes,1,9,0,No,,No,No,No,Partially Returned,NOT Attempted,No,
+Patricio,33,Blue 1,32867,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,9,13,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,33,Red 1,30813,Obelisk Side,No,No,0,0,No,,No,11,8,3,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,31,Blue 1,30670,Goal Side,No,Yes,2,0,No,Score Goal,No,6,7,0,No,,No,No,No,Fully Returned,Attempted - Successful,No,None
+Max,31,Blue 2,18562,Audience - Left,No,Yes,0,0,No,,No,1,3,0,No,,No,No,No,Partially Returned,Attempted - Successful,No,
+Max,34,Blue 2,21704,Audience - Left,No,No,1,0,No,Score Goal,No,3,9,0,No,,No,No,No,Partially Returned,NOT Attempted,No,
+Patricio,34,Blue 1,23619,Goal Side,No,Yes,10,0,No,Score Goal,No,3,26,0,No,Goal Scoring,No,Yes,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,31,Red 1,13531,Goal Side,No,Yes,6,0,Yes,Score Goal,No,13,8,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,34,Red 1,28076,Goal Side,No,No,0,0,No,,No,0,0,0,No,Pattern Building,Yes,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,35,Blue 1,24976,Obelisk Side,No,No,3,0,No,Score Goal,No,0,6,0,No,Goal Scoring,No,No,Yes,Not Returned,NOT Attempted,Yes,None
+Max,35,Blue 2,16508,Audience - Left,No,Yes,3,0,No,,No,3,15,0,No,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,
+681838,,,,,,,,,,,,,,,,,,,,,,,
+Andrﾃｩ,35,Red 1,26333,Audience - Center,No,Yes,3,0,Yes,Build Pattern,No,2,7,0,Yes,Pattern Building,Yes,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,36,Blue 1,30311,Obelisk Side,No,Yes,1,0,No,Score Goal,No,3,8,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Max,36,Blue 2,23481,Goal Side,No,No,5,0,No,,No,3,16,2,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Max,37,Blue 2,24356,Audience - Left,No,Yes,3,0,No,,No,0,5,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Patricio,37,Blue 1,21802,Goal Side,No,Yes,6,1,No,Score Goal,No,3,15,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,38,Blue 1,17632,Goal Side,No,Yes,7,0,Yes,Score Goal,No,8,21,1,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Max,38,Blue 2,23837,Audience - Left,No,Yes,0,0,No,None/Dead,No,0,2,0,No,,No,No,No,Not Returned,NOT Attempted,No,
+Max,39,Blue 2,28254,Audience - Left,No,Yes,0,0,No,None/Dead,Yes,5,6,0,No,,No,No,No,Not Returned,NOT Attempted,No,
+Patricio,39,Blue 1,22571,Goal Side,No,Yes,6,0,No,Score Goal,No,8,7,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,40,Blue 1,24234,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,4,9,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Max,40,Blue 2,30670,Goal Side,No,Yes,6,0,No,,No,2,8,0,No,Goal Scoring,No,No,No,Partially Returned,Attempted - Failed,No,
+Patricio,41,Blue 1,28255,Obelisk Side,No,Yes,3,0,No,Score Goal,Yes,6,3,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Patricio,42,Blue 1,23660,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,3,16,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Max,42,Blue 2,27788,,No,No,6,0,No,Score Goal,No,0,6,0,No,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,
+Andrﾃｩ,41,Red 1,17755,Obelisk Side,No,No,9,3,Yes,Score Goal,No,2,24,5,No,Goal Scoring,Yes,Yes,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,36,Red 1,12887,Obelisk Side,No,Yes,14,0,Yes,Score Goal,No,0,14,0,Yes,Goal Scoring,Yes,Yes,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,37,Red 1,22413,Obelisk Side,No,Yes,2,0,No,None/Dead,Yes,8,5,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,38,Red 1,23899,Audience - Center,No,No,0,0,No,None/Dead,Yes,1,14,0,Yes,Goal Scoring,No,Yes,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,39,Red 1,17614,Audience - Center,No,Yes,4,0,Yes,Score Goal,No,6,12,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,40,Red 1,23758,Obelisk Side,No,Yes,5,0,Yes,Score Goal,No,4,2,0,No,Goal Scoring,No,No,Yes,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,41,Red 1,17626,Goal Side,No,Yes,3,0,Yes,Score Goal,No,8,10,1,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Max,43,Blue 2,16818,Goal Side,No,No,7,0,No,Score Goal,No,2,15,2,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Patricio,43,Blue 1,31661,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,6,0,0,No,None/Dead,No,No,No,Partially Returned,NOT Attempted,No,None
+Patricio,44,Blue 1,23619,Goal Side,No,Yes,11,3,No,Score Goal,No,5,21,4,No,Goal Scoring,No,Yes,No,Partially Returned,NOT Attempted,No,None
+Patricio,45,Blue 1,25951,Goal Side,No,Yes,3,0,No,Score Goal,Yes,8,10,0,No,Goal Scoring,No,Yes,No,Partially Returned,NOT Attempted,No,None
+Max,45,Blue 2,16388,Audience - Left,No,No,0,0,No,None/Dead,No,2,10,0,No,Goal Scoring,No,No,Yes,Not Returned,NOT Attempted,Yes,
+Andrﾃｩ,42,Red 1,12887,Obelisk Side,No,Yes,7,0,Yes,Score Goal,No,3,22,1,Yes,Goal Scoring,No,Yes,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,44,Red 1,24198,Audience - Center,No,No,0,0,No,None/Dead,No,0,0,0,No,Pattern Building,Yes,No,No,Fully Returned,NOT Attempted,No,None
+Andrﾃｩ,44,Red 1,21612,Obelisk Side,No,Yes,9,0,Yes,Score Goal,No,3,3,0,No,None/Dead,No,No,Yes,Fully Returned,NOT Attempted,Yes,None
+Andrﾃｩ,46,Red 1,17632,Audience - Right,No,No,0,0,No,None/Dead,Yes,7,5,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,47,Red 1,24831,Audience - Left,No,No,2,0,No,Score Goal,No,0,3,0,No,Goal Scoring,Yes,No,No,Partially Returned,NOT Attempted,No,None
+Andrﾃｩ,48,Red 1,8327,Obelisk Side,No,No,2,0,No,Score Goal,Yes,2,9,0,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Patricio,49,Blue 1,15912,Obelisk Side,No,Yes,0,0,No,None/Dead,Yes,6,6,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Max,49,Blue 2,15909,Goal Side,No,Yes,9,0,No,Build Pattern,No,4,16,0,No,Pattern Building,No,No,No,Partially Returned,NOT Attempted,No,
+Max,50,Blue 2,17614,Goal Side,No,Yes,3,0,No,Score Goal,No,3,13,1,No,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,
+Patricio,50,Blue 1,13531,Obelisk Side,No,Yes,5,0,No,Score Goal,Yes,5,16,2,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Dani T,51,Blue 2,31456,Goal Side,No,No,2,0,No,Score Goal,No,6,8,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+NIko,16,Red 2,6584,Goal Side,No,Yes,3,0,No,Score Goal,No,4,2,0,No,Goal Scoring,No,No,No,Fully Returned,Attempted - Successful,No,None
+NIko,17,Red 2,22571,Goal Side,No,Yes,0,0,No,None/Dead,Yes,2,12,3,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Dani T,51,Blue 2,31546,,No,Yes,3,0,No,Score Goal,No,12,13,2,No,Goal Scoring,Yes,Yes,No,Partially Returned,NOT Attempted,No,Yellow Card
+Dani T,52,Blue 2,23899,Audience - Center,No,Yes,0,0,No,Score Goal,No,3,10,0,No,Goal Scoring,No,No,Yes,Partially Returned,NOT Attempted,No,None
+Gina,51,Blue 1,28326,Audience - Left,No,Yes,0,0,No,None/Dead,Yes,9,8,1,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Gina,52,Blue 1,17625,Goal Side,No,No,5,0,No,,No,14,15,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+NIko,18,Red 2,27788,Obelisk Side,No,Yes,3,0,No,Score Goal,No,5,10,3,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Dani T,53,Blue 2,21612,Audience - Left,No,No,3,0,No,,No,7,11,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Dani T,53,Blue 2,21612,Audience - Center,No,Yes,1,0,No,Score Goal,No,10,13,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gina,53,Blue 1,15600,Goal Side,No,No,9,0,No,Score Goal,No,3,3,0,No,Goal Scoring,Yes,Yes,No,Fully Returned,NOT Attempted,No,
+Dani T,54,Blue 2,26333,Audience - Left,No,No,0,0,No,,No,2,6,0,No,,No,No,No,Partially Returned,NOT Attempted,No,
+Dani T,54,Blue 2,26333,Audience - Center,No,Yes,0,0,No,None/Dead,No,7,21,2,No,Goal Scoring,Yes,No,No,Partially Returned,NOT Attempted,No,None
+Gina,54,Blue 1,17626,Goal Side,No,Yes,4,0,No,Score Goal,No,5,16,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Dani T,55,Blue 2,23651,Audience - Left,No,Yes,3,0,No,Score Goal,No,2,15,2,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+Dani T,55,Blue 2,23651,Audience - Center,No,Yes,4,0,No,Score Goal,No,9,22,5,Yes,Goal Scoring,Yes,No,No,Partially Returned,NOT Attempted,No,None
+Gina,55,Blue 1,30813,Goal Side,No,No,0,0,No,None/Dead,Yes,5,22,0,No,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,
+Dani T,56,Blue 2,23619,Goal Side,No,Yes,9,0,No,Score Goal,No,12,25,3,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Dani T,57,Blue 2,22413,Audience - Left,No,Yes,0,0,No,,No,2,3,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Dani T,58,Blue 2,28076,Goal Side,No,Yes,0,0,No,,No,3,7,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+NIko,58,Red 2,13531,Obelisk Side,No,Yes,5,1,No,Score Goal,No,11,10,3,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+NIko,59,Red 2,24234,Goal Side,No,No,3,0,No,Score Goal,No,2,6,1,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Gina,56,Blue 1,18562,Audience - Left,No,Yes,1,0,No,Score Goal,Yes,3,3,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+Gina,57,Blue 1,25951,Goal Side,No,Yes,0,0,No,None/Dead,Yes,1,4,0,No,Goal Scoring,No,No,Yes,Partially Returned,NOT Attempted,Yes,
+Gina,58,Blue 1,16388,Audience - Left,No,No,0,0,No,None/Dead,Yes,2,16,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+Gina,59,Blue 1,16818,Goal Side,No,No,2,0,No,,No,3,25,0,Yes,Mixed,No,No,No,Fully Returned,NOT Attempted,No,
+Gina,60,Blue 1,23897,Goal Side,No,Yes,2,0,No,Score Goal,No,4,6,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+Gina,61,Blue 1,24356,Goal Side,No,No,1,0,No,Score Goal,Yes,4,9,0,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+Gina,62,Blue 1,16255,Audience - Left,No,Yes,4,0,No,Score Goal,No,15,9,0,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Dani T,57,Blue 2,22413,Audience - Center,No,Yes,0,0,No,None/Dead,No,15,1,0,No,Goal Scoring,No,Yes,No,Fully Returned,NOT Attempted,No,None
+Dani T,58,Blue 2,28076,Goal Side,No,Yes,2,0,No,Score Goal,No,5,14,0,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Dani T,59,Blue 2,21704,Audience - Center,No,Yes,4,0,No,Score Goal,No,18,17,0,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,None
+Dani T,61,Blue 2,24976,Audience - Center,No,Yes,7,0,No,Score Goal,No,6,24,0,Yes,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,None
+Dani T,62,Blue 2,17755,Goal Side,No,Yes,7,5,Yes,Score Goal,No,5,27,8,No,Goal Scoring,Yes,No,No,Fully Returned,NOT Attempted,No,None
+NIko,25,Red 2,28076,Goal Side,No,Yes,2,0,No,Score Goal,No,2,3,0,No,Mixed,Yes,No,No,Partially Returned,NOT Attempted,No,
+NIko,26,Red 2,17632,Goal Side,No,Yes,6,0,No,Score Goal,No,6,18,4,Yes,Goal Scoring,No,No,No,Not Returned,NOT Attempted,No,
+NIko,27,Red 2,28255,Audience - Center,No,Yes,2,0,No,,Yes,7,3,0,No,,No,No,No,Partially Returned,NOT Attempted,No,
+NIko,28,Red 2,25915,Goal Side,No,No,5,0,No,Score Goal,No,10,10,0,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+NIko,29,Red 2,23890,Goal Side,No,Yes,5,0,No,Score Goal,No,2,10,2,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+NIko,30,Red 2,27788,Goal Side,No,Yes,4,0,No,Score Goal,No,6,13,1,No,Goal Scoring,No,No,No,Partially Returned,NOT Attempted,No,
+NIko,53,Red 2,27788,Audience - Center,No,Yes,3,0,No,Score Goal,No,8,11,1,Yes,Mixed,No,No,No,Partially Returned,NOT Attempted,No,
+NIko,54,Red 2,24198,Goal Side,No,No,3,0,No,Score Goal,No,1,6,3,No,Goal Scoring,No,No,No,Partially Returned,Attempted - Failed,No,
+NIko,55,Red 2,8327,Goal Side,No,Yes,3,0,No,Score Goal,No,8,2,0,No,,No,No,No,Partially Returned,NOT Attempted,No,
+NIko,56,Red 2,32867,Audience - Center,No,Yes,0,0,No,None/Dead,Yes,3,10,2,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+NIko,57,Red 2,28255,Audience - Center,No,No,0,0,No,Score Goal,No,2,0,0,No,Mixed,Yes,No,No,Partially Returned,NOT Attempted,No,
+NIko,58,Red 2,13531,Audience - Center,No,No,6,0,Yes,Score Goal,No,9,17,2,Yes,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+NIko,60,Red 2,12887,Goal Side,No,No,9,0,No,Score Goal,No,4,25,3,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+NIko,61,Red 2,21735,,No,Yes,0,0,No,None/Dead,No,6,6,1,No,Goal Scoring,No,No,No,Fully Returned,NOT Attempted,No,
+NIko,62,Red 2,15909,Audience - Center,No,No,7,0,Yes,Score Goal,No,4,11,1,Yes,Goal Scoring,No,No,Yes,Fully Returned,,No,
