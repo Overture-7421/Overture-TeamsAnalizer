@@ -204,6 +204,11 @@ def _init_session_state():
         '_hub_update_available': False,
         '_hub_latest_sha': "",
         '_hub_current_sha': "",
+        # Computation result caches (keyed by engine._data_version)
+        '_cached_team_stats_df': None,
+        '_cached_team_stats_df_version': -1,
+        '_cached_alliance_teams': None,
+        '_cached_alliance_teams_version': -1,
     }
     
     # Set defaults only if not already in session state
@@ -445,7 +450,12 @@ def load_csv_data(uploaded_file):
         return False, f"Error loading CSV: {str(e)}"
 
 def get_team_stats_dataframe():
-    """Get team statistics as a pandas DataFrame"""
+    """Get team statistics as a pandas DataFrame (cached by data version)."""
+    version = st.session_state.analizador._data_version
+    if (st.session_state._cached_team_stats_df is not None
+            and st.session_state._cached_team_stats_df_version == version):
+        return st.session_state._cached_team_stats_df
+
     stats = st.session_state.analizador.get_detailed_team_stats()
     if not stats:
         return None
@@ -487,11 +497,19 @@ def get_team_stats_dataframe():
             row[label] = get_mode_from_rows(team_rows, column)
 
         df_data.append(row)
-    
-    return pd.DataFrame(df_data)
+
+    result = pd.DataFrame(df_data)
+    st.session_state._cached_team_stats_df = result
+    st.session_state._cached_team_stats_df_version = version
+    return result
 
 def create_alliance_selector_teams():
-    """Create Team objects for alliance selector from current stats"""
+    """Create Team objects for alliance selector from current stats (cached by data version)."""
+    version = st.session_state.analizador._data_version
+    if (st.session_state._cached_alliance_teams is not None
+            and st.session_state._cached_alliance_teams_version == version):
+        return st.session_state._cached_alliance_teams
+
     stats = st.session_state.analizador.get_detailed_team_stats()
     if not stats:
         return []
@@ -527,7 +545,9 @@ def create_alliance_selector_teams():
             defense_rate=defense_rate,
             algae_score=0.0
         ))
-    
+
+    st.session_state._cached_alliance_teams = teams
+    st.session_state._cached_alliance_teams_version = version
     return teams
 
 def compute_numeric_average(team_rows, column_name):

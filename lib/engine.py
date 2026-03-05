@@ -90,6 +90,10 @@ class AnalizadorRobot:
         # Computation cache — cleared whenever sheet_data changes
         self._team_data_grouped_cache: Optional[Dict[str, List[List[str]]]] = None
         self._detailed_stats_cache: Optional[List[Dict[str, Any]]] = None
+        self._endgame_bonus_cache: Optional[Dict[int, float]] = None
+        self._decode_column_lookup_cache: Dict[tuple, Optional[str]] = {}
+        self._has_decode_columns_cache: Optional[bool] = None
+        self._data_version: int = 0
 
         # Hot-reload configuration
         self._csv_file_path: Optional[Path] = None
@@ -102,9 +106,30 @@ class AnalizadorRobot:
         if auto_load_default:
             self._try_load_default_csv()
 
+    def _invalidate_caches(self) -> None:
+        """Clear all computation caches and bump the data version counter."""
+        self._team_data_grouped_cache = None
+        self._detailed_stats_cache = None
+        self._endgame_bonus_cache = None
+        self._decode_column_lookup_cache.clear()
+        self._has_decode_columns_cache = None
+        self._data_version += 1
+
+    def _get_cached_endgame_bonus(self) -> Dict[int, float]:
+        """Return endgame bonus dict, computing and caching on first call."""
+        if self._endgame_bonus_cache is not None:
+            return self._endgame_bonus_cache
+        all_rows = self.sheet_data[1:] if len(self.sheet_data) > 1 else []
+        self._endgame_bonus_cache = self._decode_endgame_bonus_by_row_id(all_rows)
+        return self._endgame_bonus_cache
+
     def _update_column_indices(self) -> None:
         """Update the column name to index mapping."""
         self._column_indices.clear()
+        # Column-dependent caches must be reset when headers change
+        self._decode_column_lookup_cache.clear()
+        self._has_decode_columns_cache = None
+
         if not self.sheet_data or not self.sheet_data[0]:
             if self.default_column_names:
                 for i, col_name in enumerate(self.default_column_names):
@@ -114,7 +139,7 @@ class AnalizadorRobot:
         header = self.sheet_data[0]
         for i, col_name in enumerate(header):
             self._column_indices[col_name.strip()] = i
-        
+
         # Auto-detect game phase columns if not configured
         if not self._autonomous_columns or not self._teleop_columns or not self._endgame_columns:
             self._auto_detect_game_phase_columns()
@@ -350,10 +375,7 @@ class AnalizadorRobot:
         # FTC DECODE scoring path (only enabled when the sheet contains DECODE-style columns).
         if self._has_decode_columns():
             phase_totals = {"autonomous": 0.0, "teleop": 0.0, "endgame": 0.0}
-            # Endgame bonus is alliance-level (+10 if both robots fully returned), so compute
-            # from the entire sheet (not just this team).
-            all_rows = self.sheet_data[1:] if len(self.sheet_data) > 1 else []
-            endgame_bonus_by_row = self._decode_endgame_bonus_by_row_id(all_rows)
+            endgame_bonus_by_row = self._get_cached_endgame_bonus()
             for row in team_data:
                 score = self._decode_score_row(row, endgame_bonus=endgame_bonus_by_row.get(id(row), 0.0))
                 phase_totals["autonomous"] += score["autonomous"]
@@ -420,7 +442,11 @@ class AnalizadorRobot:
         This is intentionally heuristic so the engine can support multiple schemas
         without hard coupling to one JSON config.
         """
+        if self._has_decode_columns_cache is not None:
+            return self._has_decode_columns_cache
+
         if not self.sheet_data or not self.sheet_data[0]:
+            self._has_decode_columns_cache = False
             return False
 
         header_lower = [str(h).strip().lower() for h in self.sheet_data[0]]
@@ -435,25 +461,36 @@ class AnalizadorRobot:
             "partially returned",
         )
         if any(any(marker in h for marker in decode_markers) for h in header_lower):
+            self._has_decode_columns_cache = True
             return True
 
         # FRC REBUILT QRS schema markers ("HP Scored" columns + "Climb")
         qrs_markers = ("hp scored", "shoot time", "pass time", "penalty counter")
         qrs_matches = sum(1 for h in header_lower if any(m in h for m in qrs_markers))
-        return qrs_matches >= 2
+        result = qrs_matches >= 2
+        self._has_decode_columns_cache = result
+        return result
 
     def _decode_find_column(self, *, keywords: List[str]) -> Optional[str]:
         """Find the first column whose name contains all keywords (case-insensitive)."""
+        cache_key = tuple(keywords)
+        if cache_key in self._decode_column_lookup_cache:
+            return self._decode_column_lookup_cache[cache_key]
+
         if not self.sheet_data or not self.sheet_data[0]:
+            self._decode_column_lookup_cache[cache_key] = None
             return None
         keywords_lower = [k.strip().lower() for k in keywords if k and str(k).strip()]
         if not keywords_lower:
+            self._decode_column_lookup_cache[cache_key] = None
             return None
         for col in self.sheet_data[0]:
             name = str(col).strip()
             name_lower = name.lower()
             if all(k in name_lower for k in keywords_lower):
+                self._decode_column_lookup_cache[cache_key] = name
                 return name
+        self._decode_column_lookup_cache[cache_key] = None
         return None
 
     def _decode_get_cell(self, row: List[str], col_name: Optional[str]) -> Any:
@@ -778,8 +815,7 @@ class AnalizadorRobot:
                                 row = row[:target_len]
                             self.sheet_data.append(row)
             
-            self._team_data_grouped_cache = None
-            self._detailed_stats_cache = None
+            self._invalidate_caches()
             self._update_column_indices()
             self._initialize_selected_columns()
         except FileNotFoundError:
@@ -843,8 +879,7 @@ class AnalizadorRobot:
                                 row = row[:target_len]
                             self.sheet_data.append(row)
 
-            self._team_data_grouped_cache = None
-            self._detailed_stats_cache = None
+            self._invalidate_caches()
             self._update_column_indices()
             self._initialize_selected_columns()
         except Exception as e:
@@ -912,8 +947,7 @@ class AnalizadorRobot:
                 print(f"Row added: {row_data}")
 
         print(f"QR data processed. {new_rows_added} rows added. Total: {len(self.sheet_data)} rows.")
-        self._team_data_grouped_cache = None
-        self._detailed_stats_cache = None
+        self._invalidate_caches()
         self._update_column_indices()
         self._initialize_selected_columns()
 
@@ -970,8 +1004,7 @@ class AnalizadorRobot:
         if not sheet_data:
             return
         self.sheet_data = sheet_data
-        self._team_data_grouped_cache = None
-        self._detailed_stats_cache = None
+        self._invalidate_caches()
         self._update_column_indices()
         self._initialize_selected_columns()
 
@@ -1125,7 +1158,7 @@ class AnalizadorRobot:
 
             decode_bonus_by_row_id: Dict[int, float] = {}
             if self._has_decode_columns():
-                decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
+                decode_bonus_by_row_id = self._get_cached_endgame_bonus()
 
             for row in rows:
                 match_score = 0.0
@@ -1347,8 +1380,7 @@ class AnalizadorRobot:
         if not self.sheet_data:
             self.sheet_data = [list(self.default_column_names)]
 
-        self._team_data_grouped_cache = None
-        self._detailed_stats_cache = None
+        self._invalidate_caches()
         self._update_column_indices()
         self._initialize_selected_columns()
         print("Configuration reloaded successfully.")
@@ -1401,8 +1433,8 @@ class AnalizadorRobot:
             return 0.0
 
         decode_bonus_by_row_id: Dict[int, float] = {}
-        if self._has_decode_columns() and len(self.sheet_data) > 1:
-            decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
+        if self._has_decode_columns():
+            decode_bonus_by_row_id = self._get_cached_endgame_bonus()
         
         phases = self._split_rows_into_phases(rows)
         phase_weights = self.robot_valuation_phase_weights
@@ -1539,8 +1571,8 @@ class AnalizadorRobot:
         
         perf: Dict[str, List[tuple]] = {}
         decode_bonus_by_row_id: Dict[int, float] = {}
-        if self._has_decode_columns() and len(self.sheet_data) > 1:
-            decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
+        if self._has_decode_columns():
+            decode_bonus_by_row_id = self._get_cached_endgame_bonus()
         for row in self.sheet_data[1:]:
             if team_col >= len(row) or match_col >= len(row):
                 continue
