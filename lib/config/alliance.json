@@ -1,10 +1,10 @@
 {
-    "version": "1.0",
-    "description": "Alliance selection configuration for AllianceSelector",
+    "version": "2.0",
+    "description": "Alliance selection configuration for FRC REBUILT 2026 AllianceSelector",
     "draft_parameters": {
         "max_alliances": 8,
-        "teams_per_alliance": 2,
-        "min_teams_per_alliance_for_calc": 2
+        "teams_per_alliance": 3,
+        "min_teams_per_alliance_for_calc": 3
     },
     "scoring_weights": {
         "auto": 1.5,
@@ -17,6 +17,6 @@
     "pick2_priorities": [],
     "recommendation_logic": {
         "pick1": "captain_sniping",
-        "pick2": "disabled"
+        "pick2": "best_available"
     }
 }

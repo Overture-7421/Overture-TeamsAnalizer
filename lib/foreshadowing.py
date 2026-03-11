@@ -90,17 +90,11 @@ def _get_foreshadowing_columns() -> Dict[str, str]:
         return _foreshadowing_columns_cache
     
     defaults = {
-        "auto_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
-        "auto_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
-        "auto_depot": "Artifacts Placed in Depot (Auto)",
-        "auto_pattern": "Pattern Matches at End of Auto (0-9)",
-        "teleop_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
-        "teleop_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
-        "teleop_depot": "Artifacts Placed in Depot (Teleop)",
-        "teleop_failed": "How many artifacts failed to score?",
-        "teleop_pattern": "Pattern Matches at End of Match (0-9)",
+        "auto_fuel": "FUEL Scored (Active HUB) (Auto)",
         "auto_leave": "Left Launch Line (LEAVE)",
-        "endgame_returned": "Returned to Base"
+        "auto_tower_l1": "Tower Level 1 - Auto",
+        "teleop_fuel": "FUEL Scored (Active HUB) (Teleop)",
+        "endgame_tower_climb": "Tower Climb Level"
     }
     data = _load_columns_config_from_json() or {}
     overrides = data.get("foreshadowing_columns", {}) or {}
@@ -112,7 +106,7 @@ def _get_foreshadowing_columns() -> Dict[str, str]:
 
 @dataclass
 class GameConfig:
-    """Configuración de puntos del juego FTC DECODE 2026.
+    """Configuración de puntos del juego FRC REBUILT 2026.
     
     Supports JSON-driven configuration for easy updates between game seasons.
     Falls back to hardcoded defaults if JSON configuration is not available.
@@ -120,24 +114,19 @@ class GameConfig:
 
     auto_points: Dict[str, int] = field(default_factory=lambda: {
         "leave": 3,
-        "artifact": 3,
-        "overflow": 1,
-        "depot": 1,
-        "pattern_match": 2
+        "fuel": 1,
+        "tower_level1_auto": 15
     })
     teleop_points: Dict[str, int] = field(default_factory=lambda: {
-        "artifact": 3,
-        "overflow": 1,
-        "depot": 1,
-        "pattern_match": 2
+        "fuel": 1
     })
     endgame_points: Dict[str, int] = field(default_factory=lambda: {
-        "park_partial": 5,
-        "park_full": 10,
-        "double_park_bonus": 10
+        "tower_level1": 10,
+        "tower_level2": 20,
+        "tower_level3": 30
     })
     ranking_points: Dict[str, int] = field(default_factory=lambda: {
-        "win": 2,
+        "win": 3,
         "tie": 1,
         "loss": 0
     })
@@ -160,25 +149,20 @@ class GameConfig:
         return cls(
             auto_points={
                 "leave": auto.get("leave", 3),
-                "artifact": auto.get("artifact", 3),
-                "overflow": auto.get("overflow", 1),
-                "depot": auto.get("depot", 1),
-                "pattern_match": auto.get("pattern_match", 2)
+                "fuel": auto.get("fuel", 1),
+                "tower_level1_auto": auto.get("tower_level1_auto", 15)
             },
             teleop_points={
-                "artifact": teleop.get("artifact", 3),
-                "overflow": teleop.get("overflow", 1),
-                "depot": teleop.get("depot", 1),
-                "pattern_match": teleop.get("pattern_match", 2)
+                "fuel": teleop.get("fuel", 1)
             },
             endgame_points={
-                "park_partial": endgame.get("park_partial", 5),
-                "park_full": endgame.get("park_full", 10),
-                "double_park_bonus": endgame.get("double_park_bonus", 10)
+                "tower_level1": endgame.get("tower_level1", 10),
+                "tower_level2": endgame.get("tower_level2", 20),
+                "tower_level3": endgame.get("tower_level3", 30)
             },
             ranking_points={
-                "win": ranking_points.get("win", 2),
-                "tie": ranking_points.get("tie", 1),
+                "win": ranking_points.get("win_rp", ranking_points.get("win", 3)),
+                "tie": ranking_points.get("tie_rp", ranking_points.get("tie", 1)),
                 "loss": ranking_points.get("loss", 0)
             }
         )
@@ -188,43 +172,35 @@ class GameConfig:
 
 @dataclass
 class TeamPerformance:
-    """Rendimiento estadístico de un equipo"""
+    """Rendimiento estadístico de un equipo - FRC REBUILT 2026"""
     team_number: str
 
-    # Autonomous artifacts (average per match)
-    auto_classified: float = 0.0
-    auto_overflow: float = 0.0
-    auto_depot: float = 0.0
-    auto_pattern: float = 0.0
+    # Autonomous (average per match)
+    auto_fuel: float = 0.0
+    p_auto_tower_l1: float = 0.0  # probability of scoring Tower Level 1 in auto
 
-    # Teleop artifacts (average per match)
-    teleop_classified: float = 0.0
-    teleop_overflow: float = 0.0
-    teleop_depot: float = 0.0
-    teleop_failed: float = 0.0
-    teleop_pattern: float = 0.0
+    # Teleop (average per match)
+    teleop_fuel: float = 0.0
 
     # Probabilities
     p_leave_auto_zone: float = 0.5
 
-    # Endgame return distribution
-    return_distribution: Dict[str, float] = field(default_factory=lambda: {
-        "none": 0.4, "partial": 0.3, "full": 0.3
+    # Endgame tower climb distribution
+    climb_distribution: Dict[str, float] = field(default_factory=lambda: {
+        "none": 0.5, "level1": 0.3, "level2": 0.15, "level3": 0.05
     })
 
-    def total_artifacts_per_match(self) -> float:
-        """Total de artefactos promedio por match"""
-        return (
-            self.auto_classified + self.auto_overflow + self.auto_depot +
-            self.teleop_classified + self.teleop_overflow + self.teleop_depot
-        )
+    def total_fuel_per_match(self) -> float:
+        """Total FUEL scored per match"""
+        return self.auto_fuel + self.teleop_fuel
 
     def expected_endgame_points(self) -> float:
-        """Puntos esperados de endgame"""
+        """Expected endgame points from tower climb"""
         config = GameConfig()
         return (
-            self.return_distribution.get("partial", 0.0) * config.endgame_points.get("park_partial", 0) +
-            self.return_distribution.get("full", 0.0) * config.endgame_points.get("park_full", 0)
+            self.climb_distribution.get("level1", 0.0) * config.endgame_points.get("tower_level1", 0) +
+            self.climb_distribution.get("level2", 0.0) * config.endgame_points.get("tower_level2", 0) +
+            self.climb_distribution.get("level3", 0.0) * config.endgame_points.get("tower_level3", 0)
         )
 
 
@@ -323,19 +299,14 @@ class TeamStatsExtractor:
                 values.append(1.0 if _parse_bool(row[col_idx]) else 0.0)
             return sum(values) / len(values) if values else 0.0
 
-        perf.auto_classified = _avg_numeric(self.columns_map["auto_classified"])
-        perf.auto_overflow = _avg_numeric(self.columns_map["auto_overflow"])
-        perf.auto_depot = _avg_numeric(self.columns_map["auto_depot"])
-        perf.auto_pattern = _avg_numeric(self.columns_map["auto_pattern"])
+        perf.auto_fuel = _avg_numeric(self.columns_map.get("auto_fuel", "HP Scored (Auto)"))
+        p_tower_l1_col = self.columns_map.get("auto_tower_l1", "")
+        perf.p_auto_tower_l1 = _rate_bool(p_tower_l1_col) if p_tower_l1_col else 0.0
 
-        perf.teleop_classified = _avg_numeric(self.columns_map["teleop_classified"])
-        perf.teleop_overflow = _avg_numeric(self.columns_map["teleop_overflow"])
-        perf.teleop_depot = _avg_numeric(self.columns_map["teleop_depot"])
-        perf.teleop_failed = _avg_numeric(self.columns_map["teleop_failed"])
-        perf.teleop_pattern = _avg_numeric(self.columns_map["teleop_pattern"])
+        perf.teleop_fuel = _avg_numeric(self.columns_map.get("teleop_fuel", "HP Scored (Teleop)"))
 
-        perf.p_leave_auto_zone = _rate_bool(self.columns_map["auto_leave"]) or 0.5
-        perf.return_distribution = self._extract_return_distribution(team_rows)
+        perf.p_leave_auto_zone = _rate_bool(self.columns_map.get("auto_leave", "")) or 0.5
+        perf.climb_distribution = self._extract_climb_distribution(team_rows)
 
         return perf
     
@@ -351,33 +322,32 @@ class TeamStatsExtractor:
             print(f"Error obteniendo estadísticas para equipo {team_number}: {e}")
             return None
     
-    def _extract_return_distribution(self, team_rows: List[List[str]]) -> Dict[str, float]:
-        """Extrae la distribución de retorno a base del equipo"""
-        col_idx = self.analizador._column_indices.get(self.columns_map["endgame_returned"])
+    def _extract_climb_distribution(self, team_rows: List[List[str]]) -> Dict[str, float]:
+        """Extract tower climb level distribution for a team."""
+        climb_col = self.columns_map.get("endgame_tower_climb", "Climb")
+        col_idx = self.analizador._column_indices.get(climb_col)
         if col_idx is None:
-            return {"none": 0.4, "partial": 0.3, "full": 0.3}
+            return {"none": 0.5, "level1": 0.3, "level2": 0.15, "level3": 0.05}
 
-        counts = {"none": 0, "partial": 0, "full": 0}
+        counts = {"none": 0, "level1": 0, "level2": 0, "level3": 0}
         for row in team_rows:
             if col_idx >= len(row):
                 continue
             value = str(row[col_idx]).strip().lower()
-            if "fully" in value:
-                counts["full"] += 1
-            elif "partial" in value:
-                counts["partial"] += 1
+            if value == "l3" or "level 3" in value or "level3" in value:
+                counts["level3"] += 1
+            elif value == "l2" or "level 2" in value or "level2" in value:
+                counts["level2"] += 1
+            elif value == "l1" or "level 1" in value or "level1" in value:
+                counts["level1"] += 1
             else:
                 counts["none"] += 1
 
         total = sum(counts.values())
         if total == 0:
-            return {"none": 0.4, "partial": 0.3, "full": 0.3}
+            return {"none": 0.5, "level1": 0.3, "level2": 0.15, "level3": 0.05}
 
-        return {
-            "none": counts["none"] / total,
-            "partial": counts["partial"] / total,
-            "full": counts["full"] / total
-        }
+        return {k: v / total for k, v in counts.items()}
 
 
 # ============================= SIMULADOR DE MATCHES ============================= #
@@ -443,94 +413,70 @@ class MatchSimulator:
         )
     
     def _simulate_alliance(self, teams: List[TeamPerformance]) -> Dict:
-        """Simula el rendimiento de una alianza"""
+        """Simula el rendimiento de una alianza - FRC REBUILT 2026"""
         result = {
-            'auto_artifacts': {
-                'classified': 0,
-                'overflow': 0,
-                'depot': 0,
-                'pattern': 0
-            },
-            'teleop_artifacts': {
-                'classified': 0,
-                'overflow': 0,
-                'depot': 0,
-                'failed': 0,
-                'pattern': 0
-            },
-            'endgame_returns': {'none': 0, 'partial': 0, 'full': 0},
+            'auto_fuel': 0,
+            'auto_tower_l1_count': 0,
+            'teleop_fuel': 0,
+            'endgame_climbs': {'none': 0, 'level1': 0, 'level2': 0, 'level3': 0},
             'endgame_scores': [],
             'auto_points': 0,
             'teleop_points': 0,
             'endgame_points': 0,
-            'double_park_bonus': 0,
             'total_score': 0,
             'teams_left_auto_zone': 0
         }
         
-        # Simular cada equipo
+        # Simulate each team
         for team in teams:
-            # Auto artifacts
-            result['auto_artifacts']['classified'] += self._poisson_sample(team.auto_classified)
-            result['auto_artifacts']['overflow'] += self._poisson_sample(team.auto_overflow)
-            result['auto_artifacts']['depot'] += self._poisson_sample(team.auto_depot)
-            result['auto_artifacts']['pattern'] += self._poisson_sample(team.auto_pattern)
+            # Auto FUEL
+            result['auto_fuel'] += self._poisson_sample(team.auto_fuel)
 
-            # Teleop artifacts
-            result['teleop_artifacts']['classified'] += self._poisson_sample(team.teleop_classified)
-            result['teleop_artifacts']['overflow'] += self._poisson_sample(team.teleop_overflow)
-            result['teleop_artifacts']['depot'] += self._poisson_sample(team.teleop_depot)
-            result['teleop_artifacts']['failed'] += self._poisson_sample(team.teleop_failed)
-            result['teleop_artifacts']['pattern'] += self._poisson_sample(team.teleop_pattern)
+            # Auto Tower Level 1 (probability-based)
+            if random.random() < team.p_auto_tower_l1:
+                result['auto_tower_l1_count'] += 1
 
-            # Endgame return
-            return_type = self._sample_return(team.return_distribution)
+            # Teleop FUEL
+            result['teleop_fuel'] += self._poisson_sample(team.teleop_fuel)
+
+            # Endgame tower climb
+            climb_type = self._sample_climb(team.climb_distribution)
             points = 0
-            if return_type == "partial":
-                points = self.config.endgame_points.get("park_partial", 0)
-            elif return_type == "full":
-                points = self.config.endgame_points.get("park_full", 0)
-            result['endgame_returns'][return_type] += 1
-            result['endgame_scores'].append((team.team_number, return_type, points))
+            if climb_type == "level3":
+                points = self.config.endgame_points.get("tower_level3", 0)
+            elif climb_type == "level2":
+                points = self.config.endgame_points.get("tower_level2", 0)
+            elif climb_type == "level1":
+                points = self.config.endgame_points.get("tower_level1", 0)
+            result['endgame_climbs'][climb_type] += 1
+            result['endgame_scores'].append((team.team_number, climb_type, points))
             result['endgame_points'] += points
             
-            # Autonomous zone
+            # Autonomous zone leave
             if random.random() < team.p_leave_auto_zone:
                 result['teams_left_auto_zone'] += 1
 
-        # Calcular puntos
+        # Cap auto Tower Level 1 at 2 robots (FRC game rule: max 2 robots can score Tower L1 in auto)
+        result['auto_tower_l1_count'] = min(result['auto_tower_l1_count'], 2)
+
         result['auto_points'] = self._calculate_auto_points(result)
         result['teleop_points'] = self._calculate_teleop_points(result)
-
-        # Double park bonus (both robots fully returned)
-        if result['endgame_returns']['full'] >= len(teams):
-            bonus = self.config.endgame_points.get("double_park_bonus", 0)
-            result['double_park_bonus'] = bonus
-            result['endgame_points'] += bonus
-
         result['total_score'] = result['auto_points'] + result['teleop_points'] + result['endgame_points']
         
         return result
 
     def _calculate_auto_points(self, alliance_result: Dict) -> int:
-        """Calcula puntos de autonomous"""
+        """Calcula puntos de autonomous - FRC REBUILT 2026"""
         points = 0
-        auto = alliance_result['auto_artifacts']
         points += alliance_result['teams_left_auto_zone'] * self.config.auto_points.get("leave", 0)
-        points += auto['classified'] * self.config.auto_points.get("artifact", 0)
-        points += auto['overflow'] * self.config.auto_points.get("overflow", 0)
-        points += auto['depot'] * self.config.auto_points.get("depot", 0)
-        points += auto['pattern'] * self.config.auto_points.get("pattern_match", 0)
+        points += alliance_result['auto_fuel'] * self.config.auto_points.get("fuel", 0)
+        points += alliance_result['auto_tower_l1_count'] * self.config.auto_points.get("tower_level1_auto", 0)
         return points
 
     def _calculate_teleop_points(self, alliance_result: Dict) -> int:
-        """Calcula puntos de teleop"""
+        """Calcula puntos de teleop - FRC REBUILT 2026"""
         points = 0
-        teleop = alliance_result['teleop_artifacts']
-        points += teleop['classified'] * self.config.teleop_points.get("artifact", 0)
-        points += teleop['overflow'] * self.config.teleop_points.get("overflow", 0)
-        points += teleop['depot'] * self.config.teleop_points.get("depot", 0)
-        points += teleop['pattern'] * self.config.teleop_points.get("pattern_match", 0)
+        points += alliance_result['teleop_fuel'] * self.config.teleop_points.get("fuel", 0)
         return points
     
     def _calculate_ranking_points(self, red_result: Dict, blue_result: Dict,
@@ -559,6 +505,16 @@ class MatchSimulator:
             return 0
         return max(0, int(random.gammavariate(mean, 1) + 0.5))
     
+    def _sample_climb(self, distribution: Dict[str, float]) -> str:
+        """Sample tower climb level from distribution."""
+        rand = random.random()
+        cumulative = 0
+        for level, prob in distribution.items():
+            cumulative += prob
+            if rand <= cumulative:
+                return level
+        return "none"
+
     def _sample_return(self, distribution: Dict[str, float]) -> str:
         """Muestra tipo de retorno según distribución"""
         rand = random.random()

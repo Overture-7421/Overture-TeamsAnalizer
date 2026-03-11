@@ -295,7 +295,6 @@ def export_simplified_ranking(analizador: Any,
 
 def generate_tierlist_txt(school_system: Any,
                           analizador: Any,
-                          toa_manager: Optional[Any] = None,
                           images_folder: Optional[str] = None) -> str:
     """
     Generate a plain text file in the TierList Maker format.
@@ -303,7 +302,6 @@ def generate_tierlist_txt(school_system: Any,
     Args:
         school_system: TeamScoring instance
         analizador: AnalizadorRobot instance
-        toa_manager: Optional TOA manager for team names
         images_folder: Optional folder path for team images
         
     Returns:

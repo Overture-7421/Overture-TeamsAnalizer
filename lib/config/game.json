@@ -1,26 +1,28 @@
 {
-    "version": "1.0",
-    "description": "Game configuration for FTC DECODE 2026",
-    "game_name": "DECODE 2026",
+    "version": "2.0",
+    "description": "Game configuration for FRC REBUILT 2026",
+    "game_name": "REBUILT 2026",
     "points": {
         "autonomous": {
             "leave": 3,
-            "artifact": 3,
-            "overflow": 1,
-            "depot": 1,
-            "pattern_match": 2
+            "fuel": 1,
+            "tower_level1_auto": 15
         },
         "teleop": {
-            "artifact": 3,
-            "overflow": 1,
-            "depot": 1,
-            "pattern_match": 2
+            "fuel": 1
         },
         "endgame": {
-            "park_partial": 5,
-            "park_full": 10,
-            "double_park_bonus": 10
+            "tower_level1": 10,
+            "tower_level2": 20,
+            "tower_level3": 30
         }
+    },
+    "ranking_points": {
+        "energized_rp_threshold": 100,
+        "supercharged_rp_threshold": 360,
+        "traversal_rp_tower_threshold": 50,
+        "win_rp": 3,
+        "tie_rp": 1
     },
     "robot_valuation": {
         "phase_weights": [0.2, 0.3, 0.5],

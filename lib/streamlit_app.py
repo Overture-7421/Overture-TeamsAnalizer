@@ -37,16 +37,22 @@ from collections import Counter
 from engine import AnalizadorRobot
 from allianceSelector import AllianceSelector, Team
 from school_system import TeamScoring, BehaviorReportType
-from toa_manager import TOAManager
 from default_robot_image import load_team_image
 from foreshadowing import TeamStatsExtractor, MatchSimulator
 from exam_integrator import ExamDataIntegrator
 from qr_utils import scan_qr_codes, test_camera
 from config_manager import get_global_config
+from tba_manager import TBAManager
+from ftc_scout_manager import FTCScoutManager
 
 
 APP_DIR = Path(__file__).resolve().parent
 ROOT_DIR = APP_DIR.parent
+
+# ── Module-level constants ──────────────────────────────────────────────────
+_POST_MATCH_MAX_ENTRIES = 200       # Hard cap for post-match session state list
+_POST_MATCH_UPLOAD_MAX_BYTES = 2 * 1024 * 1024  # 2 MB upload guard
+_DUMMY_DATA_SEED = 42               # Random seed for repeatable dummy data
 
 
 def load_app_config():
@@ -78,7 +84,7 @@ def load_app_config():
             "app": {
                 "title": "Alliance Simulator - Overture 7421",
                 "icon": "🤖",
-                "subtitle": "FTC DECODE 2026",
+                "subtitle": "FRC REBUILT 2026",
                 "team_name": "Team Overture 7421"
             },
             "scoring_weights": {
@@ -87,30 +93,25 @@ def load_app_config():
                 "during_event": 20
             },
             "game": {
-                "name": "DECODE 2026",
+                "name": "REBUILT 2026",
                 "autonomous": {
                     "leave": 3,
-                    "artifact": 3,
-                    "overflow": 1,
-                    "depot": 1,
-                    "pattern_match": 2
+                    "fuel": 1,
+                    "tower_level1_auto": 15
                 },
                 "teleop": {
-                    "artifact": 3,
-                    "overflow": 1,
-                    "depot": 1,
-                    "pattern_match": 2
+                    "fuel": 1
                 },
                 "endgame": {
-                    "park_partial": 5,
-                    "park_full": 10,
-                    "double_park_bonus": 10
+                    "tower_level1": 10,
+                    "tower_level2": 20,
+                    "tower_level3": 30
                 }
             },
             "metrics": {
                 "game_phases": ["autonomous", "teleop", "endgame"],
-                "endgame_states": ["park_partial", "park_full"],
-                "match_items": ["artifact", "overflow", "depot", "pattern_match"]
+                "endgame_states": ["tower_level1", "tower_level2", "tower_level3"],
+                "match_items": ["fuel", "tower_level1_auto"]
             }
         }
     
@@ -147,7 +148,7 @@ st.set_page_config(
     layout=app_config.get("layout", "wide"),
     initial_sidebar_state=app_config.get("initial_sidebar_state", "expanded"),
     menu_items={
-        'About': f"{app_config.get('title', 'Alliance Simulator')} | {app_config.get('subtitle', 'FTC DECODE 2026')}"
+        'About': f"{app_config.get('title', 'Alliance Simulator')} | {app_config.get('subtitle', 'FRC REBUILT 2026')}"
     }
 )
 
@@ -160,13 +161,6 @@ def _init_session_state():
     defaults = {
         'auto_decode_reset_done': False,
         'alliance_selector': None,
-        'toa_manager': None,
-        'toa_api_key': "",
-        'toa_application_origin': "",
-        'toa_use_api': True,
-        'toa_event_key': "",
-        'events_list': [],
-        'selected_event_name': "",
         'foreshadowing_prediction': None,
         'foreshadowing_mode': None,
         'foreshadowing_last_iterations': 0,
@@ -190,6 +184,31 @@ def _init_session_state():
         'qr_last_scan_preview': "",
         'raw_data_last_edit_ts': 0.0,
         'raw_data_last_saved_hash': "",
+        'post_match_data': [],
+        # TBA Manager state
+        'tba_manager': None,
+        'tba_api_key': "",
+        'tba_year': 2026,
+        'tba_event_key': "",
+        'tba_events_list': [],
+        'tba_selected_event_name': "",
+        # FTC Scout Manager state
+        'ftc_manager': None,
+        'ftc_season': 2025,
+        'ftc_events_list': [],
+        'ftc_selected_event_code': "",
+        'ftc_selected_event_name': "",
+        'ftc_teams_list': [],
+        # System Hub update state
+        '_hub_update_checked': False,
+        '_hub_update_available': False,
+        '_hub_latest_sha': "",
+        '_hub_current_sha': "",
+        # Computation result caches (keyed by engine._data_version)
+        '_cached_team_stats_df': None,
+        '_cached_team_stats_df_version': -1,
+        '_cached_alliance_teams': None,
+        '_cached_alliance_teams_version': -1,
     }
     
     # Set defaults only if not already in session state
@@ -205,17 +224,17 @@ def _init_session_state():
     if 'analizador' not in st.session_state:
         st.session_state.analizador = AnalizadorRobot()
     
-    # Auto-detect and reset FRC to DECODE data if needed
+    # Auto-detect and reset old FTC data if current config is FRC
     if not st.session_state.auto_decode_reset_done:
         try:
             raw_data = st.session_state.analizador.get_raw_data()
             if raw_data and raw_data[0]:
                 header = raw_data[0]
-                has_frc_columns = any("Coral" in col or "Algae" in col for col in header)
-                decode_header = st.session_state.analizador.config_manager.get_column_config().headers
-                has_decode_columns = any("Artifacts Scored" in col for col in decode_header)
-                if has_frc_columns and has_decode_columns:
-                    st.session_state.analizador.set_raw_data([decode_header])
+                has_old_columns = any("FUEL Scored" in col or "Tower Climb Level" in col or "Left Launch Line" in col for col in header)
+                current_header = st.session_state.analizador.config_manager.get_column_config().headers
+                has_new_columns = any("HP Scored" in col for col in current_header)
+                if has_old_columns and has_new_columns:
+                    st.session_state.analizador.set_raw_data([current_header])
                     st.session_state.auto_decode_reset_done = True
         except Exception:
             st.session_state.auto_decode_reset_done = True
@@ -287,84 +306,66 @@ section[data-testid="stSidebar"] .stRadio label{color:white !important;font-weig
 DEFAULT_STREAMLIT_CONFIG = {
     "overall_rankings": {
         "average_columns": [
-            {"column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-            {"column": "Artifacts Scored (OVERFLOW) (Auto)", "label": "Auto Overflow"},
-            {"column": "Artifacts Placed in Depot (Auto)", "label": "Auto Depot"},
-            {"column": "Pattern Matches at End of Auto (0-9)", "label": "Auto Pattern Matches"},
-            {"column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
-            {"column": "Artifacts Scored (OVERFLOW) (Teleop)", "label": "Teleop Overflow"},
-            {"column": "Artifacts Placed in Depot (Teleop)", "label": "Teleop Depot"},
-            {"column": "How many artifacts failed to score?", "label": "Teleop Failed"},
-            {"column": "Pattern Matches at End of Match (0-9)", "label": "Teleop Pattern Matches"}
+            {"column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+            {"column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
         ],
         "rate_columns": [
-            {"columns": ["No Show"], "label": "No Show Rate (%)"},
-            {"columns": ["Left Launch Line (LEAVE)"], "label": "Leave Rate (%)"},
-            {"columns": ["Played Defense"], "label": "Played Defense Rate (%)"},
-            {"columns": ["Was Defended Heavily"], "label": "Defended Heavily Rate (%)"},
-            {"columns": ["Died/Stopped Moving in Auto"], "label": "Auto Died Rate (%)"},
-            {"columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate (%)"},
-            {"columns": ["Returned to Base"], "label": "Returned to Base Rate (%)"},
-            {"columns": ["Climbed On Top of Another Robot"], "label": "Climb On Top Rate (%)"},
-            {"columns": ["Tipped/Fell Over"], "label": "Tip/Fall Rate (%)"},
-            {"columns": ["Broke / Major Failure"], "label": "Broke Rate (%)"}
+            {"columns": ["Is HP True to your team?"], "label": "HP True Rate (%)"},
+            {"columns": ["If climbed, Got stuck in Tower? (Auto)"], "label": "Auto Stuck Rate (%)"},
+            {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"},
+            {"columns": ["Died"], "label": "Died Rate (%)"},
+            {"columns": ["Do you want it on our alliance?"], "label": "Alliance Preference Rate (%)"}
         ]
     },
     "simplified_ranking": {
         "rate_columns": [
-            {"columns": ["Played Defense"], "label": "Defense Rate (%)"},
-            {"columns": ["Died/Stopped Moving in Teleop"], "label": "Died Rate (%)"}
+            {"columns": ["Died"], "label": "Died Rate (%)"},
+            {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"}
         ],
         "mode_columns": [
-            {"column": "Cycle Focus", "label": "Cycle Focus"},
-            {"column": "Climbed On Top of Another Robot", "label": "Climb On Top Mode"}
+            {"column": "Auton Quality", "label": "Auton Quality"},
+            {"column": "Driver Quality", "label": "Driver Quality"},
+            {"column": "Climb", "label": "Climb Mode"}
         ]
     },
     "detailed_stats": {
         "compare_metrics": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "points_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"},
-            {"type": "rate", "columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate", "format": "percent"}
+            {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
+            {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"},
+            {"type": "rate", "columns": ["Died"], "label": "Died Rate", "format": "percent"}
         ],
         "radar_categories": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "points_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
+            {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+            {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"},
             {"type": "consistency", "label": "Consistency"}
         ],
         "bar_metrics": [
-            {"type": "overall_avg", "label": "Overall Avg"},
+            {"type": "points_avg", "label": "Points Avg"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"}
+            {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+            {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
         ],
         "comparison_table": [
-            {"type": "overall_avg", "label": "Overall Avg"},
-            {"type": "overall_std", "label": "Overall Std"},
+            {"type": "points_avg", "label": "Points Avg"},
+            {"type": "points_std", "label": "Points Std"},
             {"type": "robot_valuation", "label": "Robot Valuation"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
-            {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"}
+            {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
+            {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"}
         ]
     },
     "match_trend": {
         "auto": {
-            "leave": "Left Launch Line (LEAVE)",
-            "artifact_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
-            "artifact_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
-            "depot": "Artifacts Placed in Depot (Auto)",
-            "pattern": "Pattern Matches at End of Auto (0-9)"
+            "hp_scored": "HP Scored (Auto)"
         },
         "teleop": {
-            "artifact_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
-            "artifact_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
-            "depot": "Artifacts Placed in Depot (Teleop)",
-            "pattern": "Pattern Matches at End of Match (0-9)"
+            "hp_scored": "HP Scored (Teleop)"
         },
         "endgame": {
-            "returned": "Returned to Base"
+            "tower_climb": "Climb"
         }
     }
 }
@@ -390,9 +391,9 @@ def get_streamlit_config() -> dict:
 
 def _metric_value(team_stat: dict, team_rows: list, metric: dict) -> float:
     metric_type = metric.get("type")
-    if metric_type == "overall_avg":
+    if metric_type in ("overall_avg", "points_avg"):
         return float(team_stat.get('overall_avg', 0.0))
-    if metric_type == "overall_std":
+    if metric_type in ("overall_std", "points_std"):
         return float(team_stat.get('overall_std', 0.0))
     if metric_type == "robot_valuation":
         return float(team_stat.get('RobotValuation', 0.0))
@@ -430,27 +431,35 @@ def _safe_autorefresh(interval_ms: int, key: str) -> None:
 
 # Helper functions
 def load_csv_data(uploaded_file):
-    """Load CSV data into the analyzer"""
+    """Load CSV data into the analyzer with basic validation.
+    
+    Limits: maximum 50 MB file size to prevent memory exhaustion.
+    """
     try:
-        # Save uploaded file temporarily
-        temp_file = APP_DIR / "temp_upload.csv"
-        with temp_file.open("wb") as f:
-            f.write(uploaded_file.getbuffer())
+        # Validate file size (limit to 50 MB to prevent memory issues)
+        MAX_CSV_BYTES = 50 * 1024 * 1024  # 50 MB
+        file_bytes = uploaded_file.getvalue()
+        if len(file_bytes) > MAX_CSV_BYTES:
+            return False, f"File too large ({len(file_bytes) // (1024*1024)} MB). Maximum allowed size is 50 MB."
 
-        # Load into analyzer
-        st.session_state.analizador.load_csv(str(temp_file))
+        # Parse directly from bytes — no temp-file round-trip needed
+        st.session_state.analizador.load_csv_from_bytes(file_bytes)
         
         return True, "CSV loaded successfully!"
     except Exception as e:
         return False, f"Error loading CSV: {str(e)}"
 
 def get_team_stats_dataframe():
-    """Get team statistics as a pandas DataFrame"""
+    """Get team statistics as a pandas DataFrame (cached by data version)."""
+    version = st.session_state.analizador._data_version
+    if (st.session_state._cached_team_stats_df is not None
+            and st.session_state._cached_team_stats_df_version == version):
+        return st.session_state._cached_team_stats_df
+
     stats = st.session_state.analizador.get_detailed_team_stats()
     if not stats:
         return None
     
-    toa_manager = st.session_state.toa_manager
     team_data_grouped = st.session_state.analizador.get_team_data_grouped()
     
     streamlit_cfg = get_streamlit_config()
@@ -462,14 +471,13 @@ def get_team_stats_dataframe():
     df_data = []
     for team_stat in stats:
         team_num = team_stat.get('team', 'N/A')
-        team_name = toa_manager.get_team_nickname(team_num) if toa_manager else team_num
         team_key = str(team_num)
         team_rows = team_data_grouped.get(team_key, [])
 
         row = {
-            'Team': f"{team_num} - {team_name}",
-            'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
-            'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
+            'Team': get_team_display_label(team_num),
+            'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
+            'Points Std': round(team_stat.get('overall_std', 0.0), 2),
             'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
         }
 
@@ -489,11 +497,19 @@ def get_team_stats_dataframe():
             row[label] = get_mode_from_rows(team_rows, column)
 
         df_data.append(row)
-    
-    return pd.DataFrame(df_data)
+
+    result = pd.DataFrame(df_data)
+    st.session_state._cached_team_stats_df = result
+    st.session_state._cached_team_stats_df_version = version
+    return result
 
 def create_alliance_selector_teams():
-    """Create Team objects for alliance selector from current stats"""
+    """Create Team objects for alliance selector from current stats (cached by data version)."""
+    version = st.session_state.analizador._data_version
+    if (st.session_state._cached_alliance_teams is not None
+            and st.session_state._cached_alliance_teams_version == version):
+        return st.session_state._cached_alliance_teams
+
     stats = st.session_state.analizador.get_detailed_team_stats()
     if not stats:
         return []
@@ -510,7 +526,7 @@ def create_alliance_selector_teams():
         defended_rate = get_rate_from_stat(stat, ("Was Defended Heavily",))
         defense_rate = get_rate_from_stat(stat, ("Played Defense",))
         
-        team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else f"Team {team_num}"
+        team_name = get_team_display_label(team_num)
 
         teams.append(Team(
             num=team_num,
@@ -529,7 +545,9 @@ def create_alliance_selector_teams():
             defense_rate=defense_rate,
             algae_score=0.0
         ))
-    
+
+    st.session_state._cached_alliance_teams = teams
+    st.session_state._cached_alliance_teams_version = version
     return teams
 
 def compute_numeric_average(team_rows, column_name):
@@ -601,12 +619,42 @@ def get_mode_from_rows(team_rows, column_name):
 
 
 def get_team_display_label(team_number):
-    """Return formatted team label with nickname when available."""
+    """Return formatted team label with TBA nickname when available."""
     num_str = str(team_number)
-    nickname = None
-    if st.session_state.toa_manager:
-        nickname = st.session_state.toa_manager.get_team_nickname(num_str)
-    return f"{num_str} - {nickname}" if nickname else num_str
+    tba = st.session_state.get('tba_manager')
+    if tba:
+        nickname = tba.get_team_nickname(num_str)
+        if nickname and nickname != num_str:
+            return f"{num_str} - {nickname}"
+    return num_str
+
+
+def get_pm_contribution_mode(team_number) -> str:
+    """Return the mode contribution label for a given team from post-match data.
+
+    Looks up ``st.session_state.post_match_data`` and aggregates every
+    contribution entry whose ``team_numbers`` slot matches *team_number*.
+    Returns the most frequent label, or an empty string when no data exist.
+    """
+    pm_data = st.session_state.get("post_match_data", [])
+    if not pm_data:
+        return ""
+    try:
+        target = int(team_number)
+    except (TypeError, ValueError):
+        return ""
+    if target == 0:
+        return ""
+    contribs = []
+    for entry in pm_data:
+        team_nums = entry.get("team_numbers", [])
+        for slot_idx, contrib in enumerate(entry.get("contributions", [])):
+            slot_team = team_nums[slot_idx] if slot_idx < len(team_nums) else None
+            if slot_team is not None and int(slot_team) == target:
+                contribs.append(contrib)
+    if not contribs:
+        return ""
+    return Counter(contribs).most_common(1)[0][0]
 
 
 def get_foreshadowing_team_options():
@@ -626,8 +674,8 @@ def get_foreshadowing_team_options():
 
 def validate_alliance_selection(red, blue):
     """Validate alliance inputs before running simulations."""
-    if len(red) != 2 or len(blue) != 2:
-        return False, "Select exactly 2 teams for each alliance."
+    if len(red) != 3 or len(blue) != 3:
+        return False, "Select exactly 3 teams for each alliance."
 
     combined = red + blue
     if len(set(combined)) != len(combined):
@@ -640,38 +688,37 @@ def build_coral_breakdown_df(breakdown):
     data = [
         {
             'Phase': 'Auto',
-            'Classified': breakdown['auto_artifacts']['classified'],
-            'Overflow': breakdown['auto_artifacts']['overflow'],
-            'Depot': breakdown['auto_artifacts']['depot'],
-            'Pattern Matches': breakdown['auto_artifacts']['pattern']
+            'FUEL': breakdown.get('auto_fuel', 0),
+            'Tower L1': breakdown.get('auto_tower_l1_count', 0),
+            'Leave': breakdown.get('teams_left_auto_zone', 0)
         },
         {
             'Phase': 'Teleop',
-            'Classified': breakdown['teleop_artifacts']['classified'],
-            'Overflow': breakdown['teleop_artifacts']['overflow'],
-            'Depot': breakdown['teleop_artifacts']['depot'],
-            'Failed': breakdown['teleop_artifacts']['failed'],
-            'Pattern Matches': breakdown['teleop_artifacts']['pattern']
+            'FUEL': breakdown.get('teleop_fuel', 0),
+            'Tower L1': breakdown.get('endgame_climbs', {}).get('level1', 0),
+            'Tower L2': breakdown.get('endgame_climbs', {}).get('level2', 0),
+            'Tower L3': breakdown.get('endgame_climbs', {}).get('level3', 0)
         }
     ]
     return pd.DataFrame(data)
 
 
 def build_algae_summary_df(breakdown):
+    climbs = breakdown.get('endgame_climbs', {})
     return pd.DataFrame([
-        {'Return': 'None', 'Teams': breakdown['endgame_returns']['none']},
-        {'Return': 'Partial', 'Teams': breakdown['endgame_returns']['partial']},
-        {'Return': 'Full', 'Teams': breakdown['endgame_returns']['full']},
-        {'Return': 'Double Park Bonus', 'Teams': 1 if breakdown.get('double_park_bonus', 0) else 0}
+        {'Climb Level': 'Did Not Climb', 'Teams': climbs.get('none', 0)},
+        {'Climb Level': 'Level 1 (10 pts)', 'Teams': climbs.get('level1', 0)},
+        {'Climb Level': 'Level 2 (20 pts)', 'Teams': climbs.get('level2', 0)},
+        {'Climb Level': 'Level 3 (30 pts)', 'Teams': climbs.get('level3', 0)},
     ])
 
 
 def build_climb_breakdown_df(breakdown):
     rows = []
-    for team, return_type, points in breakdown['endgame_scores']:
+    for team, climb_type, points in breakdown.get('endgame_scores', []):
         rows.append({
             'Team': get_team_display_label(team),
-            'Return': return_type.capitalize(),
+            'Climb Level': climb_type.replace('level', 'Level ').replace('none', 'Did Not Climb').capitalize(),
             'Points': points
         })
     return pd.DataFrame(rows)
@@ -682,15 +729,9 @@ def build_team_performance_df(team_performances):
     for perf in team_performances:
         rows.append({
             'Team': get_team_display_label(perf.team_number),
-            'Auto Classified': round(perf.auto_classified, 2),
-            'Auto Overflow': round(perf.auto_overflow, 2),
-            'Auto Depot': round(perf.auto_depot, 2),
-            'Auto Pattern': round(perf.auto_pattern, 2),
-            'Teleop Classified': round(perf.teleop_classified, 2),
-            'Teleop Overflow': round(perf.teleop_overflow, 2),
-            'Teleop Depot': round(perf.teleop_depot, 2),
-            'Teleop Failed': round(perf.teleop_failed, 2),
-            'Teleop Pattern': round(perf.teleop_pattern, 2),
+            'Auto FUEL': round(perf.auto_fuel, 2),
+            'Auto Tower L1 %': round(getattr(perf, 'p_auto_tower_l1', 0) * 100, 1),
+            'Teleop FUEL': round(perf.teleop_fuel, 2),
             'Auto Leave %': round(perf.p_leave_auto_zone * 100, 1),
             'Expected Endgame': round(perf.expected_endgame_points(), 2)
         })
@@ -704,7 +745,7 @@ st.sidebar.markdown(f"""
     <h1 style='color: white; font-size: 2.5rem; margin: 0;'>{sidebar_config.get('icon', '🤖')}</h1>
     <h2 style='color: white; font-weight: 700; margin: 0.5rem 0;'>Alliance Simulator</h2>
     <p style='color: rgba(255,255,255,0.8); font-size: 0.9rem; margin: 0;'>{sidebar_config.get('team_name', 'Team Overture 7421')}</p>
-    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>{game_config.get('name', 'FTC DECODE 2026')}</p>
+    <p style='color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0.2rem 0;'>{game_config.get('name', 'FRC REBUILT 2026')}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -715,7 +756,8 @@ st.sidebar.markdown("### 📍 Navigation")
 page = st.sidebar.radio(
     "Select Page",
     ["📁 Data Management", "📈 Team Statistics", 
-     "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing", "⚙️ TOA Settings"],
+     "🤝 Alliance Selector", "🏆 Honor Roll System", "🔮 Foreshadowing",
+     "📊 Post-Match", "🛠️ System Hub"],
     label_visibility="collapsed"
 )
 
@@ -744,6 +786,173 @@ if st.sidebar.button("🔄 Reload Configurations"):
     st.session_state.alliance_selector = None
     st.sidebar.success("Configurations reloaded.")
     st.rerun()
+
+# ── TBA Manager sidebar ─────────────────────────────────────────────────────
+st.sidebar.markdown("---")
+with st.sidebar.expander("🔵 The Blue Alliance", expanded=False):
+    st.markdown("**TBA Team Name Lookup**")
+    tba_use_api = st.toggle(
+        "Use TBA API",
+        value=bool(st.session_state.tba_api_key),
+        key="tba_use_api_toggle"
+    )
+    if tba_use_api:
+        st.session_state.tba_api_key = st.text_input(
+            "TBA Auth Key",
+            value=st.session_state.tba_api_key,
+            type="password",
+            placeholder="Paste your X-TBA-Auth-Key",
+            help="Get your key at thebluealliance.com/account → Read API Keys"
+        )
+        st.session_state.tba_year = int(st.number_input(
+            "Year",
+            min_value=1992,
+            max_value=2099,
+            value=int(st.session_state.tba_year),
+            step=1,
+        ))
+        if st.button("🔌 Connect & Fetch Events", key="tba_connect_btn"):
+            api_key = st.session_state.tba_api_key.strip()
+            if not api_key:
+                st.error("Please enter a TBA API key first.")
+            else:
+                try:
+                    mgr = TBAManager(api_key=api_key, use_api=True)
+                    events = mgr.get_events_for_year(st.session_state.tba_year)
+                    if events:
+                        st.session_state.tba_manager = mgr
+                        st.session_state.tba_events_list = sorted(
+                            events, key=lambda e: e.get("name", "")
+                        )
+                        st.success(f"Connected! {len(events)} events loaded.")
+                    else:
+                        st.warning("No events returned. Check key/year.")
+                except ValueError as e:
+                    st.error(str(e))
+
+        if st.session_state.tba_events_list:
+            event_options = {
+                ev["key"]: ev.get("name", ev["key"])
+                for ev in st.session_state.tba_events_list
+            }
+            sel_key = st.selectbox(
+                "Select Event",
+                options=list(event_options.keys()),
+                format_func=lambda k: event_options[k],
+                key="tba_event_selectbox",
+            )
+            if st.button("📥 Load Teams for Event", key="tba_load_teams_btn"):
+                mgr = st.session_state.tba_manager
+                if mgr:
+                    with st.spinner("Loading teams…"):
+                        teams = mgr.get_teams_for_event(sel_key)
+                    if teams:
+                        st.session_state.tba_event_key = sel_key
+                        st.session_state.tba_selected_event_name = event_options[sel_key]
+                        st.success(f"Loaded {len(teams)} teams.")
+                    else:
+                        st.warning("No teams found for that event.")
+
+        if st.session_state.tba_manager and st.session_state.tba_event_key:
+            st.caption(
+                f"✅ Active event: **{st.session_state.tba_selected_event_name}**"
+            )
+        elif st.session_state.tba_manager:
+            st.caption("Manager connected – select and load an event.")
+    else:
+        # Offline mode: try to load from cached files
+        if st.session_state.tba_event_key:
+            st.caption(f"Offline – cached event: {st.session_state.tba_event_key}")
+        if st.button("🗑️ Clear TBA Manager", key="tba_clear_btn"):
+            st.session_state.tba_manager = None
+            st.session_state.tba_events_list = []
+            st.session_state.tba_event_key = ""
+            st.session_state.tba_selected_event_name = ""
+            st.rerun()
+
+# ── FTC Scout sidebar ────────────────────────────────────────────────────────
+st.sidebar.markdown("---")
+with st.sidebar.expander("🟠 FTC Scout", expanded=False):
+    st.markdown("**FTC Team & Event Lookup**")
+    st.markdown(
+        "<small>Powered by [ftcscout.org](https://ftcscout.org)</small>",
+        unsafe_allow_html=True,
+    )
+
+    # Season selector
+    st.session_state.ftc_season = int(st.number_input(
+        "FTC Season",
+        min_value=2019,
+        max_value=2099,
+        value=int(st.session_state.ftc_season),
+        step=1,
+        key="ftc_season_input",
+        help="Enter the start year of the FTC season (e.g. 2025 for 2025-26)"
+    ))
+
+    # Optional search filters
+    with st.expander("🔍 Event Search Filters", expanded=False):
+        ftc_search_text = st.text_input("Search text", key="ftc_search_text", placeholder="Event name…")
+        ftc_region = st.text_input("Region", key="ftc_region", placeholder="e.g. USTX")
+        ftc_limit = st.number_input("Max results", min_value=1, max_value=500, value=50, step=10, key="ftc_limit")
+
+    if st.button("🔌 Fetch Events", key="ftc_fetch_events_btn"):
+        if st.session_state.ftc_manager is None:
+            st.session_state.ftc_manager = FTCScoutManager()
+        mgr_ftc = st.session_state.ftc_manager
+        with st.spinner("Fetching FTC events…"):
+            events_ftc = mgr_ftc.search_events(
+                st.session_state.ftc_season,
+                search_text=st.session_state.get("ftc_search_text", "") or None,
+                region=st.session_state.get("ftc_region", "") or None,
+                limit=int(st.session_state.get("ftc_limit", 50)),
+                force_refresh=True,
+            )
+        if events_ftc:
+            st.session_state.ftc_events_list = events_ftc
+            st.success(f"Found {len(events_ftc)} events.")
+        else:
+            st.warning("No events returned. Check season or filters.")
+
+    if st.session_state.ftc_events_list:
+        ftc_event_options = {
+            ev.get("code", ""): ev.get("name", ev.get("code", ""))
+            for ev in st.session_state.ftc_events_list
+            if ev.get("code")
+        }
+        ftc_sel_code = st.selectbox(
+            "Select Event",
+            options=list(ftc_event_options.keys()),
+            format_func=lambda k: ftc_event_options.get(k, k),
+            key="ftc_event_selectbox",
+        )
+        if st.button("📥 Load Teams for Event", key="ftc_load_teams_btn"):
+            if st.session_state.ftc_manager is None:
+                st.session_state.ftc_manager = FTCScoutManager()
+            mgr_ftc2 = st.session_state.ftc_manager
+            with st.spinner("Loading FTC teams…"):
+                teams_ftc = mgr_ftc2.get_teams_for_event(
+                    st.session_state.ftc_season, ftc_sel_code, force_refresh=True
+                )
+            if teams_ftc:
+                st.session_state.ftc_teams_list = teams_ftc
+                st.session_state.ftc_selected_event_code = ftc_sel_code
+                st.session_state.ftc_selected_event_name = ftc_event_options.get(ftc_sel_code, ftc_sel_code)
+                st.success(f"Loaded {len(teams_ftc)} team participations.")
+            else:
+                st.warning("No teams found for that event.")
+
+    if st.session_state.ftc_selected_event_code:
+        st.caption(f"✅ Active: **{st.session_state.ftc_selected_event_name}** "
+                   f"({len(st.session_state.ftc_teams_list)} teams)")
+
+    if st.button("🗑️ Clear FTC Scout", key="ftc_clear_btn"):
+        st.session_state.ftc_manager = None
+        st.session_state.ftc_events_list = []
+        st.session_state.ftc_selected_event_code = ""
+        st.session_state.ftc_selected_event_name = ""
+        st.session_state.ftc_teams_list = []
+        st.rerun()
 
 # Main content based on selected page
 if page == "📁 Data Management":
@@ -806,18 +1015,7 @@ if page == "📁 Data Management":
             st.info(f"ℹ️ Place a CSV file at `{default_csv_path}` for auto-loading on startup")
     
     with tab2:
-        st.markdown("### 📷 QR Code Scanner")
-        st.markdown("""
-        Use your webcam to scan QR codes containing scouting data.
-
-        **Quick Start:**
-        1) Click **Check cameras**
-        2) Select your camera index
-        3) Click **Start Scanner**
-        4) Press **Q** in the camera window to stop
-        """)
-
-        # Validate dependencies (opencv-python, pyzbar, numpy) without opening the camera
+        # ── Dependency check ────────────────────────────────────────────────
         deps_ok = True
         deps_error = None
         try:
@@ -825,24 +1023,19 @@ if page == "📁 Data Management":
             importlib.import_module("cv2")
             importlib.import_module("pyzbar")
             importlib.import_module("numpy")
-        except Exception as e:
+        except Exception as _e:
             deps_ok = False
-            deps_error = str(e)
+            deps_error = str(_e)
 
         if not deps_ok:
-            st.warning(
-                "⚠️ QR scanner dependencies not installed or not available. "
+            st.error(
+                "⚠️ **QR scanner dependencies missing.**  "
                 "Install with: `pip install opencv-python pyzbar numpy`"
             )
             if deps_error:
-                st.caption(deps_error)
+                st.caption(f"Error detail: {deps_error}")
         else:
-            st.info(
-                "Scanning opens a separate OpenCV window on the same machine running Streamlit. "
-                "To stop scanning, focus that window and press 'q'."
-            )
-
-            # Drain queue items from the scanner thread into session_state.
+            # ── Queue drain helper ───────────────────────────────────────────
             def _drain_qr_queue() -> tuple[int, bool]:
                 drained = 0
                 auto_updated = False
@@ -852,7 +1045,6 @@ if page == "📁 Data Management":
                         kind, payload = q.get_nowait()
                     except queue.Empty:
                         break
-
                     if kind == "SCAN":
                         if payload and payload not in st.session_state.qr_scanned_codes:
                             st.session_state.qr_scanned_codes.append(payload)
@@ -860,189 +1052,233 @@ if page == "📁 Data Management":
                             st.session_state.analizador.load_qr_data(payload)
                             auto_updated = True
                             st.session_state.qr_last_scan_ts = time.time()
-                            st.session_state.qr_last_scan_preview = payload[:80] + ("..." if len(payload) > 80 else "")
+                            st.session_state.qr_last_scan_preview = (
+                                payload[:80] + ("…" if len(payload) > 80 else "")
+                            )
                     elif kind == "DONE":
                         st.session_state.qr_scanner_running = False
-                        st.session_state.qr_scanner_status = "Scanner stopped."
+                        st.session_state.qr_scanner_status = "stopped"
                         st.session_state.qr_last_scan_ts = 0.0
                     elif kind == "ERROR":
                         st.session_state.qr_scanner_running = False
-                        st.session_state.qr_scanner_status = f"Scanner error: {payload}"
+                        st.session_state.qr_scanner_status = f"error:{payload}"
 
                 t = st.session_state.qr_scanner_thread
                 if st.session_state.qr_scanner_running and t and not t.is_alive():
                     st.session_state.qr_scanner_running = False
                     if not st.session_state.qr_scanner_status:
-                        st.session_state.qr_scanner_status = "Scanner stopped."
-
+                        st.session_state.qr_scanner_status = "stopped"
                 return drained, auto_updated
 
-            _, auto_updated = _drain_qr_queue()
-            if auto_updated:
+            _, _auto_updated = _drain_qr_queue()
+            if _auto_updated:
                 st.rerun()
 
-            st.markdown("#### 🎥 Camera Selection")
-            cam_cols = st.columns([1, 1])
-            with cam_cols[0]:
-                max_probe = st.number_input(
-                    "Max camera index to probe",
-                    min_value=0,
-                    max_value=20,
-                    value=4,
-                    step=1,
-                    help="Checks camera indices 0..N and lists the ones that open successfully."
-                )
-                if st.button("Check cameras"):
-                    available = []
-                    for idx in range(int(max_probe) + 1):
-                        try:
-                            if test_camera(idx):
-                                available.append(idx)
-                        except Exception:
-                            pass
-                    st.session_state.qr_available_cameras = available
-                    if available:
-                        st.session_state.qr_scanner_selected_camera = int(available[0])
-                        st.session_state.qr_scanner_status = f"Detected cameras: {available}"
-                    else:
-                        st.session_state.qr_scanner_status = (
-                            "No cameras detected. Try a different max index or enter one manually."
-                        )
+            # ── Status banner ────────────────────────────────────────────────
+            _is_running = st.session_state.qr_scanner_running
+            _raw_status = st.session_state.qr_scanner_status or ""
+            _is_error = _raw_status.startswith("error:")
 
-            with cam_cols[1]:
-                if st.session_state.qr_available_cameras:
-                    selected = st.selectbox(
-                        "Camera index",
-                        options=st.session_state.qr_available_cameras,
-                        index=st.session_state.qr_available_cameras.index(st.session_state.qr_scanner_selected_camera)
-                        if st.session_state.qr_scanner_selected_camera in st.session_state.qr_available_cameras
-                        else 0
-                    )
-                    st.session_state.qr_scanner_selected_camera = int(selected)
-                else:
-                    st.info("Click 'Check cameras' to list available devices.")
-                    st.session_state.qr_scanner_selected_camera = int(
-                        st.number_input(
-                            "Manual camera index",
-                            min_value=0,
-                            max_value=20,
-                            value=int(st.session_state.qr_scanner_selected_camera),
-                            step=1,
-                            help="If detection doesn't find your camera, enter the index manually."
-                        )
-                    )
-
-            st.session_state.qr_scanner_debounce_seconds = float(
-                st.number_input(
-                    "Debounce seconds",
-                    min_value=0.0,
-                    max_value=10.0,
-                    value=float(st.session_state.qr_scanner_debounce_seconds),
-                    step=0.5,
-                    help="Prevents repeated reads of the same QR code while it stays in view."
-                )
-            )
-            st.session_state.qr_idle_seconds = float(
-                st.number_input(
-                    "Auto-update idle seconds",
-                    min_value=1.0,
-                    max_value=30.0,
-                    value=float(st.session_state.qr_idle_seconds),
-                    step=1.0,
-                    help="Auto-refreshes to apply scans when no new QR codes are detected."
-                )
-            )
-
-            action_cols = st.columns(2)
-            with action_cols[0]:
-                if st.button("🔍 Test Selected Camera"):
-                    with st.spinner("Testing camera..."):
-                        if test_camera(int(st.session_state.qr_scanner_selected_camera)):
-                            st.success("✅ Camera test successful!")
-                        else:
-                            st.error("❌ Camera not available. Please check your webcam.")
-
-            with action_cols[1]:
-                status = st.session_state.qr_scanner_status or (
-                    "Running" if st.session_state.qr_scanner_running else "Idle"
-                )
-                st.write(f"Status: {status}")
+            if _is_running:
+                st.success("🟢 **Scanner is running** — point your QR code at the camera window.")
+            elif _is_error:
+                st.error(f"🔴 **Scanner error:** {_raw_status.removeprefix('error:')}")
+            else:
+                st.info("⚪ **Scanner idle** — configure settings below and press ▶ Start.")
 
             st.markdown("---")
-            st.markdown("#### 🔍 Scanning")
-            start_disabled = bool(st.session_state.qr_scanner_running)
-            scan_cols = st.columns(2)
-            with scan_cols[0]:
-                if st.button("▶️ Start Scanner", disabled=start_disabled):
-                    # Clear any old queue messages
+
+            # ── Section 1: Camera setup ──────────────────────────────────────
+            with st.expander("🎥 Camera Setup", expanded=not _is_running):
+                cfg_col1, cfg_col2 = st.columns([1, 1])
+                with cfg_col1:
+                    max_probe = st.number_input(
+                        "Max index to probe",
+                        min_value=0, max_value=20, value=4, step=1,
+                        help="Checks indices 0 … N and lists those that open successfully.",
+                        key="qr_max_probe"
+                    )
+                    if st.button("🔎 Detect Cameras", key="qr_detect_btn"):
+                        available = []
+                        with st.spinner("Probing cameras…"):
+                            for idx in range(int(max_probe) + 1):
+                                try:
+                                    if test_camera(idx):
+                                        available.append(idx)
+                                except Exception:
+                                    pass
+                        st.session_state.qr_available_cameras = available
+                        if available:
+                            st.session_state.qr_scanner_selected_camera = int(available[0])
+                            st.session_state.qr_scanner_status = ""
+                            st.success(f"Found cameras: {available}")
+                        else:
+                            st.warning("No cameras detected. Try a higher max index or enter one manually.")
+
+                with cfg_col2:
+                    if st.session_state.qr_available_cameras:
+                        _sel = st.selectbox(
+                            "Camera",
+                            options=st.session_state.qr_available_cameras,
+                            index=(
+                                st.session_state.qr_available_cameras.index(
+                                    st.session_state.qr_scanner_selected_camera
+                                )
+                                if st.session_state.qr_scanner_selected_camera
+                                in st.session_state.qr_available_cameras
+                                else 0
+                            ),
+                            key="qr_cam_select"
+                        )
+                        st.session_state.qr_scanner_selected_camera = int(_sel)
+                    else:
+                        st.session_state.qr_scanner_selected_camera = int(
+                            st.number_input(
+                                "Camera index (manual)",
+                                min_value=0, max_value=20,
+                                value=int(st.session_state.qr_scanner_selected_camera),
+                                step=1,
+                                key="qr_cam_manual"
+                            )
+                        )
+                    if st.button("🔬 Test Camera", key="qr_test_btn"):
+                        with st.spinner("Testing…"):
+                            ok = test_camera(int(st.session_state.qr_scanner_selected_camera))
+                        if ok:
+                            st.success("✅ Camera OK")
+                        else:
+                            st.error("❌ Camera not available")
+
+                adv_col1, adv_col2 = st.columns(2)
+                with adv_col1:
+                    st.session_state.qr_scanner_debounce_seconds = float(
+                        st.number_input(
+                            "Debounce (s)",
+                            min_value=0.0, max_value=10.0,
+                            value=float(st.session_state.qr_scanner_debounce_seconds),
+                            step=0.5,
+                            help="Prevents repeated reads while the same code stays in view.",
+                            key="qr_debounce"
+                        )
+                    )
+                with adv_col2:
+                    st.session_state.qr_idle_seconds = float(
+                        st.number_input(
+                            "Auto-update idle (s)",
+                            min_value=1.0, max_value=30.0,
+                            value=float(st.session_state.qr_idle_seconds),
+                            step=1.0,
+                            help="Auto-refreshes the page after this many idle seconds.",
+                            key="qr_idle"
+                        )
+                    )
+
+            # ── Section 2: Controls ──────────────────────────────────────────
+            ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([2, 2, 2])
+            with ctrl_col1:
+                if st.button(
+                    "▶️ Start Scanner",
+                    disabled=_is_running,
+                    use_container_width=True,
+                    type="primary",
+                    key="qr_start_btn"
+                ):
                     q = st.session_state.qr_scanner_queue
                     while True:
                         try:
                             q.get_nowait()
                         except queue.Empty:
                             break
-
                     camera_index = int(st.session_state.qr_scanner_selected_camera)
                     debounce = float(st.session_state.qr_scanner_debounce_seconds)
 
-                    def _worker(out_queue: "queue.Queue", cam_idx: int, debounce_seconds: float):
+                    def _worker(out_queue: "queue.Queue", cam_idx: int, deb: float):
                         try:
                             scanned = scan_qr_codes(
                                 update_callback=lambda data: out_queue.put(("SCAN", data)),
                                 camera_index=cam_idx,
-                                debounce_seconds=debounce_seconds,
+                                debounce_seconds=deb,
                                 show_window=True,
                             )
                             out_queue.put(("DONE", scanned))
-                        except Exception as e:
-                            out_queue.put(("ERROR", str(e)))
+                        except Exception as _ex:
+                            out_queue.put(("ERROR", str(_ex)))
 
                     st.session_state.qr_scanner_running = True
-                    st.session_state.qr_scanner_status = f"Starting scanner on camera {camera_index}..."
+                    st.session_state.qr_scanner_status = ""
                     st.session_state.qr_last_scan_ts = time.time()
-                    t = threading.Thread(
+                    _t = threading.Thread(
                         target=_worker,
                         args=(st.session_state.qr_scanner_queue, camera_index, debounce),
                         daemon=True,
                     )
-                    st.session_state.qr_scanner_thread = t
-                    t.start()
+                    st.session_state.qr_scanner_thread = _t
+                    _t.start()
+                    st.rerun()
 
-            with scan_cols[1]:
-                if st.button("⏹️ Stop Scanner", disabled=not st.session_state.qr_scanner_running):
-                    st.session_state.qr_scanner_status = "To stop the camera, focus the scanner window and press 'q'."
+            with ctrl_col2:
+                if st.button(
+                    "⏹️ Stop Scanner",
+                    disabled=not _is_running,
+                    use_container_width=True,
+                    key="qr_stop_btn"
+                ):
+                    st.session_state.qr_scanner_status = (
+                        "Focus the scanner window and press **Q** to stop."
+                    )
+                    st.rerun()
 
-            refresh_cols = st.columns(2)
-            with refresh_cols[0]:
-                if st.button("Update scanned list"):
-                    added, auto_updated = _drain_qr_queue()
-                    status = f"Updated. Added {added} new code(s)."
-                    if auto_updated:
-                        status += " QR data loaded into raw data."
-                    st.session_state.qr_scanner_status = status
-            with refresh_cols[1]:
-                if st.button("Clear scanned list"):
-                    st.session_state.qr_scanned_codes = []
-                    st.session_state.qr_scanner_status = "Cleared scanned list."
+            with ctrl_col3:
+                if st.button(
+                    "🔄 Refresh",
+                    use_container_width=True,
+                    key="qr_refresh_btn",
+                    help="Pull any newly scanned codes from the background thread."
+                ):
+                    added, _ = _drain_qr_queue()
+                    st.session_state.qr_scanner_status = (
+                        f"Refreshed — {added} new code(s) added." if added else "No new codes."
+                    )
+                    st.rerun()
 
+            # ── Section 3: Results ───────────────────────────────────────────
             st.markdown("---")
-            st.markdown("#### 📋 Results")
-            st.metric("Scanned QR codes", len(st.session_state.qr_scanned_codes))
-            if st.session_state.qr_last_scan_preview:
-                st.caption(f"Last scan: {st.session_state.qr_last_scan_preview}")
+            res_col1, res_col2 = st.columns([3, 1])
+            with res_col1:
+                n_codes = len(st.session_state.qr_scanned_codes)
+                st.metric("QR Codes Scanned", n_codes)
+                if st.session_state.qr_last_scan_preview:
+                    st.caption(f"Last: `{st.session_state.qr_last_scan_preview}`")
+            with res_col2:
+                if st.button(
+                    "🗑️ Clear List",
+                    use_container_width=True,
+                    key="qr_clear_btn",
+                    help="Remove all scanned codes from the session."
+                ):
+                    st.session_state.qr_scanned_codes = []
+                    st.session_state.qr_scanner_status = ""
+                    st.rerun()
+
             if st.session_state.qr_scanned_codes:
-                st.dataframe(pd.DataFrame({"QR Data": st.session_state.qr_scanned_codes}))
+                with st.expander(f"📋 Scanned codes ({n_codes})", expanded=False):
+                    st.dataframe(
+                        pd.DataFrame({"QR Data": st.session_state.qr_scanned_codes}),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
             else:
                 st.caption("No QR codes scanned yet.")
 
-            # Auto-refresh while scanning or after idle to apply updates
-            if st.session_state.qr_scanner_running:
+            # ── Auto-refresh while running ───────────────────────────────────
+            if _is_running:
                 last_scan = st.session_state.qr_last_scan_ts
                 if last_scan and (time.time() - last_scan) >= st.session_state.qr_idle_seconds:
-                    st.session_state.qr_scanner_status = "No new scans detected. Auto-updating..."
+                    st.session_state.qr_scanner_status = ""
                 _safe_autorefresh(interval_ms=1000, key="qr_scanner_autorefresh")
 
             st.markdown("---")
+
             st.markdown("### 🖥️ Headless Mode (Linux)")
             st.markdown("""
             For headless deployments with barcode/QR scanners acting as HID devices:
@@ -1146,10 +1382,10 @@ elif page == "📈 Team Statistics":
         st.info("No team statistics available. Please load data first.")
     else:
         # Create tabs for different views
-        tab1, tab2, tab3 = st.tabs(["Overall Rankings", "Detailed Stats", "Simplified Ranking"])
+        tab1, tab2, tab3 = st.tabs(["📊 Points Rankings", "🔍 Detailed Stats", "📋 Simplified Ranking"])
         
         with tab1:
-            st.markdown("### Overall Team Rankings")
+            st.markdown("### Team Points Rankings")
             
             team_data_grouped = st.session_state.analizador.get_team_data_grouped()
 
@@ -1177,7 +1413,7 @@ elif page == "📈 Team Statistics":
 
             base_columns = [
                 'Rank', 'Team', 'Matches',
-                'Robot Valuation', 'Overall Avg', 'Overall Std'
+                'Robot Valuation', 'Contribution Mode', 'Points Avg', 'Points Std'
             ]
             avg_labels = [label for _, label in average_columns]
             rate_labels = [label for _, label in rate_columns]
@@ -1190,14 +1426,14 @@ elif page == "📈 Team Statistics":
             df_rows = []
             for rank, team_stat in enumerate(stats, 1):
                 team_num = team_stat.get('team', 'N/A')
-                team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else team_num
                 row = {
                     'Rank': rank,
-                    'Team': f"{team_num} - {team_name}",
+                    'Team': get_team_display_label(team_num),
                     'Matches': len(team_data_grouped.get(team_num, [])),
                     'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
-                    'Overall Avg': round(team_stat.get('overall_avg', 0.0), 2),
-                    'Overall Std': round(team_stat.get('overall_std', 0.0), 2),
+                    'Contribution Mode': get_pm_contribution_mode(team_num),
+                    'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
+                    'Points Std': round(team_stat.get('overall_std', 0.0), 2),
                 }
 
                 for source_col, label in average_columns:
@@ -1213,7 +1449,8 @@ elif page == "📈 Team Statistics":
 
             if not df.empty:
                 df = df[columns_order]
-                float_columns = [col for col in columns_order if col not in ['Rank', 'Team', 'Matches']]
+                _non_float_cols = {'Rank', 'Team', 'Matches', 'Contribution Mode'}
+                float_columns = [col for col in columns_order if col not in _non_float_cols]
                 styled_df = df.style.format({col: "{:.2f}" for col in float_columns})
                 st.dataframe(styled_df, use_container_width=True, height=520)
 
@@ -1222,12 +1459,12 @@ elif page == "📈 Team Statistics":
                 px, go = _ensure_plotly()
                 fig = px.scatter(
                     df,
-                    x='Overall Avg',
+                    x='Points Avg',
                     y='Robot Valuation',
-                    size='Overall Std',
+                    size='Points Std',
                     hover_data=['Team', 'Rank'],
-                    title='Overall Average vs Robot Valuation (size = std deviation)',
-                    labels={'Overall Avg': 'Overall Average', 'Robot Valuation': 'Robot Valuation'}
+                    title='Points Average vs Robot Valuation (size = std deviation)',
+                    labels={'Points Avg': 'Points Average', 'Robot Valuation': 'Robot Valuation'}
                 )
                 fig.update_layout(
                     plot_bgcolor='rgba(0,0,0,0)',
@@ -1261,23 +1498,11 @@ elif page == "📈 Team Statistics":
                 # Multi-team comparison mode
                 st.markdown("#### Multi-Team Comparison")
                 
-                if st.session_state.toa_manager:
-                    team_options = {
-                        team: f"{team} - {st.session_state.toa_manager.get_team_nickname(team)}"
-                        for team in all_teams
-                    }
-                    selected_teams = st.multiselect(
-                        "Select Teams to Compare (2 or more)",
-                        options=list(team_options.keys()),
-                        format_func=lambda x: team_options[x],
-                        default=list(team_options.keys())[:2] if len(team_options) >= 2 else []
-                    )
-                else:
-                    selected_teams = st.multiselect(
-                        "Select Teams to Compare (2 or more)",
-                        options=all_teams,
-                        default=all_teams[:2] if len(all_teams) >= 2 else []
-                    )
+                selected_teams = st.multiselect(
+                    "Select Teams to Compare (2 or more)",
+                    options=all_teams,
+                    default=all_teams[:2] if len(all_teams) >= 2 else []
+                )
                 
                 if len(selected_teams) >= 2:
                     # Get stats for selected teams
@@ -1298,9 +1523,7 @@ elif page == "📈 Team Statistics":
                         team_stat = next((s for s in stats if s.get('team') == team_num), None)
                         if team_stat:
                             with cols[idx]:
-                                team_name = team_num
-                                if st.session_state.toa_manager:
-                                    team_name = f"{team_num} - {st.session_state.toa_manager.get_team_nickname(team_num)}"
+                                team_name = str(team_num)
                                 team_rows = team_data_grouped.get(team_num, [])
                                 st.markdown(f"**{team_name}**")
                                 for metric in compare_metrics:
@@ -1416,18 +1639,7 @@ elif page == "📈 Team Statistics":
             
             else:
                 # Single team selection mode (original behavior)
-                if st.session_state.toa_manager:
-                    team_options = {
-                        team: f"{team} - {st.session_state.toa_manager.get_team_nickname(team)}"
-                        for team in all_teams
-                    }
-                    selected_team_num = st.selectbox(
-                        "Select a Team",
-                        options=list(team_options.keys()),
-                        format_func=lambda x: team_options[x]
-                    )
-                else:
-                    selected_team_num = st.selectbox("Select a Team", options=all_teams)
+                selected_team_num = st.selectbox("Select a Team", options=all_teams)
 
                 
                 if selected_team_num:
@@ -1516,18 +1728,13 @@ elif page == "📈 Team Statistics":
                             teleop_cols = match_cfg.get("teleop", {}) or {}
                             endgame_cols = match_cfg.get("endgame", {}) or {}
 
-                            leave_col = auto_cols.get("leave", "Left Launch Line (LEAVE)")
-                            auto_classified_col = auto_cols.get("artifact_classified", "Artifacts Scored (CLASSIFIED) (Auto)")
-                            auto_overflow_col = auto_cols.get("artifact_overflow", "Artifacts Scored (OVERFLOW) (Auto)")
-                            auto_depot_col = auto_cols.get("depot", "Artifacts Placed in Depot (Auto)")
-                            auto_pattern_col = auto_cols.get("pattern", "Pattern Matches at End of Auto (0-9)")
+                            leave_col = auto_cols.get("leave", "")
+                            auto_hp_col = auto_cols.get("hp_scored", auto_cols.get("fuel", "HP Scored (Auto)"))
+                            auto_tower_l1_col = auto_cols.get("tower_l1", "")
 
-                            teleop_classified_col = teleop_cols.get("artifact_classified", "Artifacts Scored (CLASSIFIED) (Teleop)")
-                            teleop_overflow_col = teleop_cols.get("artifact_overflow", "Artifacts Scored (OVERFLOW) (Teleop)")
-                            teleop_depot_col = teleop_cols.get("depot", "Artifacts Placed in Depot (Teleop)")
-                            teleop_pattern_col = teleop_cols.get("pattern", "Pattern Matches at End of Match (0-9)")
+                            teleop_hp_col = teleop_cols.get("hp_scored", teleop_cols.get("fuel", "HP Scored (Teleop)"))
 
-                            returned_col = endgame_cols.get("returned", "Returned to Base")
+                            tower_climb_col = endgame_cols.get("tower_climb", "Climb")
 
                             def _get_value(row, col_name):
                                 col_idx = analyzer._column_indices.get(col_name)
@@ -1545,14 +1752,14 @@ elif page == "📈 Team Statistics":
                                 return ""
                             return str(v).strip().lower()
 
-                        def _normalize_returned(value: str) -> str:
+                        def _normalize_tower_climb(value: str) -> str:
                             v = (value or "").strip().lower()
-                            if not v:
-                                return "none"
-                            if "fully" in v:
-                                return "full"
-                            if "partial" in v:
-                                return "partial"
+                            if v == "l3" or "level 3" in v or "level3" in v:
+                                return "level3"
+                            if v == "l2" or "level 2" in v or "level2" in v:
+                                return "level2"
+                            if v == "l1" or "level 1" in v or "level1" in v:
+                                return "level1"
                             return "none"
 
                         def _row_match_points(row) -> float:
@@ -1563,32 +1770,26 @@ elif page == "📈 Team Statistics":
                             if leave:
                                 points += float(auto_points.get("leave", 0))
 
-                            auto_classified = _get_num(row, auto_classified_col)
-                            auto_overflow = _get_num(row, auto_overflow_col)
-                            auto_depot = _get_num(row, auto_depot_col)
-                            auto_pattern = _get_num(row, auto_pattern_col)
-                            points += auto_classified * float(auto_points.get("artifact", 0))
-                            points += auto_overflow * float(auto_points.get("overflow", 0))
-                            points += auto_depot * float(auto_points.get("depot", 0))
-                            points += auto_pattern * float(auto_points.get("pattern_match", 0))
+                            auto_hp = _get_num(row, auto_hp_col)
+                            points += auto_hp * float(auto_points.get("fuel", 0))
+
+                            auto_tower_l1 = _parse_bool(_get_value(row, auto_tower_l1_col))
+                            if auto_tower_l1:
+                                points += float(auto_points.get("tower_level1_auto", 0))
 
                             # Teleop scoring
-                            teleop_classified = _get_num(row, teleop_classified_col)
-                            teleop_overflow = _get_num(row, teleop_overflow_col)
-                            teleop_depot = _get_num(row, teleop_depot_col)
-                            teleop_pattern = _get_num(row, teleop_pattern_col)
-                            points += teleop_classified * float(teleop_points.get("artifact", 0))
-                            points += teleop_overflow * float(teleop_points.get("overflow", 0))
-                            points += teleop_depot * float(teleop_points.get("depot", 0))
-                            points += teleop_pattern * float(teleop_points.get("pattern_match", 0))
+                            teleop_hp = _get_num(row, teleop_hp_col)
+                            points += teleop_hp * float(teleop_points.get("fuel", 0))
 
-                            # Endgame scoring (per-robot)
-                            returned_val = _get_text(row, returned_col)
-                            return_key = _normalize_returned(returned_val)
-                            if return_key == "partial":
-                                points += float(endgame_points.get("park_partial", 0))
-                            elif return_key == "full":
-                                points += float(endgame_points.get("park_full", 0))
+                            # Endgame scoring (tower climb level)
+                            climb_val = _get_text(row, tower_climb_col)
+                            climb_key = _normalize_tower_climb(climb_val)
+                            if climb_key == "level3":
+                                points += float(endgame_points.get("tower_level3", 0))
+                            elif climb_key == "level2":
+                                points += float(endgame_points.get("tower_level2", 0))
+                            elif climb_key == "level1":
+                                points += float(endgame_points.get("tower_level1", 0))
 
                             return points
 
@@ -1674,15 +1875,6 @@ elif page == "🤝 Alliance Selector":
             st.markdown("### Alliance Selections")
             alliance_table_data = selector.get_alliance_table()
             
-            # Replace team numbers with names
-            if st.session_state.toa_manager:
-                for row in alliance_table_data:
-                    for col in ['Captain', 'Pick 1', 'Recommendation 1']:
-                        if row[col]:
-                            num = row[col]
-                            name = st.session_state.toa_manager.get_team_nickname(num)
-                            row[col] = f"{num} - {name}"
-
             df_alliances = pd.DataFrame(alliance_table_data)
             st.dataframe(df_alliances, use_container_width=True, height=325)
         
@@ -1699,6 +1891,15 @@ elif page == "🤝 Alliance Selector":
                     available_teams = selector.get_available_teams(alliance.captainRank, 'pick1')
                     if available_teams:
                         selector.set_pick(alliance.allianceNumber - 1, 'pick1', available_teams[0].team)
+                        made_changes = True
+
+                # Pick 2 round (highest seeds first)
+                for alliance in selector.alliances:
+                    if not alliance.captain or alliance.pick2:
+                        continue
+                    available_teams2 = selector.get_available_teams(alliance.captainRank, 'pick2')
+                    if available_teams2:
+                        selector.set_pick(alliance.allianceNumber - 1, 'pick2', available_teams2[0].team)
                         made_changes = True
 
                 if made_changes:
@@ -1728,29 +1929,19 @@ elif page == "🤝 Alliance Selector":
                     # Captain selection
                     available_captains = selector.get_available_captains(i)
                     
-                    if st.session_state.toa_manager:
-                        captain_options = {team.team: f"{team.team} - {team.name}" for team in available_captains}
-                        captain_options[0] = "Auto"
-                        
-                        # Ensure current captain is in the list
-                        if a.captain and a.captain not in captain_options:
-                            captain_options[a.captain] = f"{a.captain} - {st.session_state.toa_manager.get_team_nickname(a.captain)}"
+                    captain_options = {team.team: str(team.team) for team in available_captains}
+                    captain_options[0] = "Auto"
+                    
+                    # Ensure current captain is in the list
+                    if a.captain and a.captain not in captain_options:
+                        captain_options[a.captain] = str(a.captain)
 
-                        selected_captain = st.selectbox(
+                    selected_captain = st.selectbox(
                             f"Captain A{a.allianceNumber}",
                             options=list(captain_options.keys()),
                             format_func=lambda x: captain_options.get(x, "Auto"),
                             key=f"captain_{i}",
                             index=list(captain_options.keys()).index(a.captain) if a.captain in captain_options else 0
-                        )
-                    else:
-                        captain_options = [team.team for team in available_captains]
-                        captain_options.insert(0, 0) # For "Auto"
-                        selected_captain = st.selectbox(
-                            f"Captain A{a.allianceNumber}",
-                            options=captain_options,
-                            key=f"captain_{i}",
-                            index=captain_options.index(a.captain) if a.captain in captain_options else 0
                         )
 
                     current_captain_value = a.captain if a.captain is not None else 0
@@ -1764,18 +1955,10 @@ elif page == "🤝 Alliance Selector":
                     # Pick 1 and Pick 2 selection
                     available_teams = selector.get_available_teams(a.captainRank, 'pick1')
                     
-                    if st.session_state.toa_manager:
-                        team_options = {str(team.team): f"{team.team} - {team.name}" for team in available_teams}
-                        # Ensure current pick remains selectable
-                        if a.pick1 and str(a.pick1) not in team_options:
-                            team_options[str(a.pick1)] = f"{a.pick1} - {st.session_state.toa_manager.get_team_nickname(a.pick1)}"
-                        team_options["0"] = "None"
-                    else:
-                        team_options = {str(team.team): str(team.team) for team in available_teams}
-                        # Ensure current pick remains selectable
-                        if a.pick1 and str(a.pick1) not in team_options:
-                            team_options[str(a.pick1)] = str(a.pick1)
-                        team_options["0"] = "None"
+                    team_options = {str(team.team): str(team.team) for team in available_teams}
+                    if a.pick1 and str(a.pick1) not in team_options:
+                        team_options[str(a.pick1)] = str(a.pick1)
+                    team_options["0"] = "None"
 
                     # Pick 1
                     options_list = list(team_options.keys())
@@ -1792,6 +1975,31 @@ elif page == "🤝 Alliance Selector":
                         try:
                             selected_val = int(selected_pick1) if selected_pick1 != "0" else None
                             selector.set_pick(i, 'pick1', selected_val)
+                            st.rerun()
+                        except ValueError as e:
+                            st.error(str(e))
+
+                    # Pick 2 — build available teams excluding already-selected picks
+                    available_teams2 = selector.get_available_teams(a.captainRank, 'pick2')
+                    team_options2 = {str(team.team): str(team.team) for team in available_teams2}
+                    if a.pick2 and str(a.pick2) not in team_options2:
+                        team_options2[str(a.pick2)] = str(a.pick2)
+                    team_options2["0"] = "None"
+
+                    options_list2 = list(team_options2.keys())
+                    pick2_val = str(a.pick2) if a.pick2 is not None and str(a.pick2) in team_options2 else "0"
+                    selected_pick2 = st.selectbox(
+                        f"Pick 2 A{a.allianceNumber}",
+                        options=options_list2,
+                        format_func=lambda x: team_options2.get(x, "None"),
+                        key=f"pick2_{i}",
+                        index=options_list2.index(pick2_val)
+                    )
+                    current_pick2_value = str(a.pick2) if a.pick2 is not None else "0"
+                    if selected_pick2 != current_pick2_value:
+                        try:
+                            selected_val2 = int(selected_pick2) if selected_pick2 != "0" else None
+                            selector.set_pick(i, 'pick2', selected_val2)
                             st.rerun()
                         except ValueError as e:
                             st.error(str(e))
@@ -2121,7 +2329,7 @@ elif page == "🏆 Honor Roll System":
                 total_qualified_non_def = len(qualified_non_defensive)
                 
                 if total_qualified_non_def > 0:
-                    # FTC 2-robot alliances: only one pick, so split into two tiers.
+                    # FRC 3-robot alliances: split into two pick tiers (pick1 and pick2).
                     tier_size = max(1, total_qualified_non_def // 2)
                     remainder = total_qualified_non_def % 2
 
@@ -2217,16 +2425,9 @@ elif page == "🏆 Honor Roll System":
                     stats_json = get_team_stats_json(team_num, result)
                     driver_skills = "Defensive" if is_defensive else "Offensive"
                     
-                    # Get team name if available
+                    # Format title with team number
                     team_name = ""
-                    if st.session_state.toa_manager:
-                        team_name = st.session_state.toa_manager.get_team_nickname(str(team_num))
-                    
-                    # Format title with number and name
-                    if team_name:
-                        title_str = f"{team_num} - {team_name}"
-                    else:
-                        title_str = f"Team {team_num}"
+                    title_str = f"Team {team_num}"
                     
                     lines = []
                     lines.append(f"  Image: {team_image_base64}")
@@ -2365,12 +2566,11 @@ elif page == "🏆 Honor Roll System":
         ranking_data = []
         team_numbers_list = []
         for rank, (team_num, results) in enumerate(rankings, 1):
-            team_name = st.session_state.toa_manager.get_team_nickname(team_num) if st.session_state.toa_manager else None
             c, sc, rp = st.session_state.school_system.calculate_competencies_score(team_num)
             team_numbers_list.append(team_num)
             ranking_data.append({
                 "Rank": rank,
-                "Team": f"{team_num} - {team_name}" if team_name else team_num,
+                "Team": str(team_num),
                 "Final Points": results.final_points,
                 "Honor Roll": round(results.honor_roll_score, 1),
                 "Curved Score": round(results.curved_score, 1),
@@ -2493,22 +2693,22 @@ elif page == "🔮 Foreshadowing":
             st.warning("No teams available. Upload data or fetch TBA event teams.")
         else:
             label_to_team = {label: team for label, team in team_options}
-            default_red = [label for label, _ in team_options[:2]]
-            default_blue = [label for label, _ in team_options[2:4]] if len(team_options) >= 4 else [label for label, _ in team_options[:2]]
+            default_red = [label for label, _ in team_options[:3]]
+            default_blue = [label for label, _ in team_options[3:6]] if len(team_options) >= 6 else [label for label, _ in team_options[:3]]
 
             with st.form("foreshadowing_form"):
                 st.markdown("### Configure Alliances")
                 select_cols = st.columns(2)
                 with select_cols[0]:
                     red_labels = st.multiselect(
-                        "Select Red Alliance (2 teams)",
+                        "Select Red Alliance (3 teams)",
                         options=[label for label, _ in team_options],
                         default=default_red,
                         key="foreshadowing_red_multiselect"
                     )
                 with select_cols[1]:
                     blue_labels = st.multiselect(
-                        "Select Blue Alliance (2 teams)",
+                        "Select Blue Alliance (3 teams)",
                         options=[label for label, _ in team_options],
                         default=default_blue,
                         key="foreshadowing_blue_multiselect"
@@ -2609,17 +2809,16 @@ elif page == "🔮 Foreshadowing":
                     algae_df = build_algae_summary_df(red_breakdown)
                     climb_df = build_climb_breakdown_df(red_breakdown)
 
-                    st.markdown("#### Artifact Contribution")
+                    st.markdown("#### Scoring Contribution")
                     st.dataframe(coral_df, use_container_width=True)
-                    st.markdown("#### Endgame Summary")
+                    st.markdown("#### Tower Climb Summary")
                     st.dataframe(algae_df, use_container_width=True)
-                    st.markdown("#### Endgame Returns")
+                    st.markdown("#### Endgame Breakdown")
                     st.dataframe(climb_df, use_container_width=True)
 
                     st.markdown("#### Additional Metrics")
                     st.write(
-                        f"Auto Leave: {red_breakdown['teams_left_auto_zone']}/2 | "
-                        f"Double Park Bonus: {'✅' if red_breakdown.get('double_park_bonus', 0) else '❌'}"
+                        f"Auto Leave: {red_breakdown.get('teams_left_auto_zone', 0)}/3"
                     )
 
                 with breakdown_tabs[1]:
@@ -2628,17 +2827,16 @@ elif page == "🔮 Foreshadowing":
                     algae_df = build_algae_summary_df(blue_breakdown)
                     climb_df = build_climb_breakdown_df(blue_breakdown)
 
-                    st.markdown("#### Artifact Contribution")
+                    st.markdown("#### Scoring Contribution")
                     st.dataframe(coral_df, use_container_width=True)
-                    st.markdown("#### Endgame Summary")
+                    st.markdown("#### Tower Climb Summary")
                     st.dataframe(algae_df, use_container_width=True)
-                    st.markdown("#### Endgame Returns")
+                    st.markdown("#### Endgame Breakdown")
                     st.dataframe(climb_df, use_container_width=True)
 
                     st.markdown("#### Additional Metrics")
                     st.write(
-                        f"Auto Leave: {blue_breakdown['teams_left_auto_zone']}/2 | "
-                        f"Double Park Bonus: {'✅' if blue_breakdown.get('double_park_bonus', 0) else '❌'}"
+                        f"Auto Leave: {blue_breakdown.get('teams_left_auto_zone', 0)}/3"
                     )
 
                 with breakdown_tabs[2]:
@@ -2718,167 +2916,881 @@ elif page == "🔮 Foreshadowing":
                     f"Confidence level: **{confidence}** | Favorite alliance: **{favorite}**"
                 )
 
-                red_teleop_total = sum(prediction.red_breakdown['teleop_artifacts'].values())
-                blue_teleop_total = sum(prediction.blue_breakdown['teleop_artifacts'].values())
+                red_teleop_fuel = prediction.red_breakdown.get('teleop_fuel', 0)
+                blue_teleop_fuel = prediction.blue_breakdown.get('teleop_fuel', 0)
 
-                if red_teleop_total > blue_teleop_total * 1.2:
-                    st.write("Red shows a strong teleop artifact advantage. Blue should focus on defense or endgame points.")
-                elif blue_teleop_total > red_teleop_total * 1.2:
-                    st.write("Blue shows a strong teleop artifact advantage. Red should prioritize efficient cycles.")
+                if red_teleop_fuel > blue_teleop_fuel * 1.2:
+                    st.write("Red shows a strong teleop FUEL advantage. Blue should focus on defense or tower climbing.")
+                elif blue_teleop_fuel > red_teleop_fuel * 1.2:
+                    st.write("Blue shows a strong teleop FUEL advantage. Red should prioritize efficient fuel cycles.")
                 else:
-                    st.write("Teleop artifacts are balanced. Endgame could decide the match.")
+                    st.write("Teleop FUEL is balanced. Tower climbing and endgame could decide the match.")
 
                 st.caption("Foreshadowing simulations use historical averages and random sampling for variability.")
 
-elif page == "⚙️ TOA Settings":
-    st.markdown("<div class='main-header'>⚙️ The Orange Alliance Settings</div>", unsafe_allow_html=True)
+elif page == "📊 Post-Match":
+    st.markdown("<div class='main-header'>📊 Post-Match Analysis</div>", unsafe_allow_html=True)
 
-    use_api = st.toggle(
-        "Use The Orange Alliance API (requires internet)",
-        key="toa_use_api"
-    )
+    CONTRIBUTION_OPTIONS = [
+        "Did not score any points",
+        "Dedicated to passing",
+        "Scored few points",
+        "Scored ~30% of alliance score",
+        "Scored ~50% of alliance score",
+        "Scored ~75% of alliance score",
+        "Scored almost all alliance score",
+    ]
 
-    if use_api:
-        st.markdown("""
-        <div class='stats-card'>
-        <p>To fetch the latest FTC event/team data, provide your <strong>The Orange Alliance (TOA) credentials</strong>:</p>
-        <ul>
-            <li><code>X-TOA-Key</code> (API key)</li>
-            <li><code>X-Application-Origin</code> (any identifier for your app)</li>
-        </ul>
-        </div>
-        """, unsafe_allow_html=True)
+    # Contribution level numeric weights for mode display
+    _CONTRIB_WEIGHTS = {opt: i for i, opt in enumerate(CONTRIBUTION_OPTIONS)}
 
-        st.session_state.toa_api_key = st.text_input(
-            "TOA Key (X-TOA-Key)",
-            value=st.session_state.toa_api_key,
-            type="password"
-        )
-        st.session_state.toa_application_origin = st.text_input(
-            "Application Origin (X-Application-Origin)",
-            value=st.session_state.toa_application_origin,
-            placeholder="Overture_Analizador_FTC"
-        )
-    else:
-        st.info(
-            "Offline mode active: the app will only use cached JSON files (e.g., `toa_events_<season_key>.json`, "
-            "`teams_<event_key>.json`) located next to the application."
-        )
+    def _contribution_mode(values: list) -> str:
+        """Return the most frequently occurring contribution level."""
+        if not values:
+            return "—"
+        counts = Counter(values)
+        return counts.most_common(1)[0][0]
 
-    if st.button("Initialize TOA Manager"):
-        api_key = st.session_state.toa_api_key.strip() or None
-        application_origin = st.session_state.toa_application_origin.strip() or None
-        try:
-            st.session_state.toa_manager = TOAManager(
-                api_key=api_key,
-                application_origin=application_origin,
-                use_api=use_api
-            )
-            st.success("TOA Manager initialized successfully!")
-        except ValueError as e:
-            st.error(str(e))
+    # ── Dummy data generator ────────────────────────────────────────────────
+    # Team numbers from data/teams_2026mxmo.json (2026 MXMO participants)
+    _DUMMY_TEAMS = [
+        3354, 3472, 3478, 3480, 3522, 3794, 3933, 4010, 4371, 4584,
+        4635, 4723, 4775, 4782, 5133, 5887, 5932, 5959, 6017, 6106,
+        6170, 6200, 6348, 6606, 6652, 6676, 6702, 6832, 7102, 7421,
+        7546, 8740, 8741, 9053, 9060, 9213, 9280, 9282, 10225, 10529,
+        10565, 10931, 11065,
+    ]
 
-    if st.session_state.toa_manager:
-        st.session_state.toa_manager.api_key = st.session_state.toa_api_key.strip() or st.session_state.toa_manager.api_key
-        if st.session_state.toa_application_origin.strip():
-            st.session_state.toa_manager.application_origin = st.session_state.toa_application_origin.strip()
-        try:
-            st.session_state.toa_manager.set_api_usage(use_api)
-        except ValueError:
-            st.warning("API access could not be enabled because no key is configured. Staying in offline mode.")
-            st.session_state.toa_use_api = False
-            use_api = False
+    def _generate_dummy_data() -> list:
+        import random
+        random.seed(_DUMMY_DATA_SEED)
+        dummy = []
+        for m in range(1, 13):
+            r_pts = random.randint(40, 150)
+            b_pts = random.randint(40, 150)
+            contribs = [random.choice(CONTRIBUTION_OPTIONS) for _ in range(6)]
+            match_teams = random.sample(_DUMMY_TEAMS, 6)
+            dummy.append({
+                "match_number": m,
+                "red_points": r_pts,
+                "blue_points": b_pts,
+                "num_teams": 6,
+                "team_numbers": match_teams,
+                "contributions": contribs,
+            })
+        return dummy
 
-    if st.session_state.toa_manager:
-        st.markdown("---")
-        st.markdown("### Event Selection")
+    tab_entry, tab_metrics = st.tabs(["📝 Match Entry", "📈 Qualitative Metrics"])
 
-        season_key = st.number_input(
-            "Select TOA Season Key (example: 2425)",
-            min_value=0,
-            max_value=9999,
-            value=2425
-        )
-
-        if st.button("Fetch Events for Season"):
-            events = st.session_state.toa_manager.get_events_by_season(season_key)
-            if events:
-                st.session_state.events_list = sorted(events, key=lambda x: x.get('name', ''))
-                st.success(f"Found {len(events)} events for season {int(season_key)}.")
+    with tab_entry:
+        # ── Top toolbar: Save / Upload / Dummy ─────────────────────────────
+        toolbar_col1, toolbar_col2, toolbar_col3, toolbar_col4 = st.columns([2, 2, 2, 2])
+        with toolbar_col1:
+            # Download as JSON
+            if st.session_state.post_match_data:
+                json_bytes = json.dumps(st.session_state.post_match_data, indent=2).encode("utf-8")
+                st.download_button(
+                    "💾 Save as JSON",
+                    data=json_bytes,
+                    file_name="post_match_data.json",
+                    mime="application/json",
+                    use_container_width=True,
+                    key="pm_download_json",
+                )
             else:
-                st.session_state.events_list = []
-                if use_api:
-                    last_error = getattr(st.session_state.toa_manager, "last_error", None)
-                    if isinstance(last_error, dict):
-                        status = last_error.get("status")
-                        message = last_error.get("message")
-                        err_type = last_error.get("type")
-                        preview = last_error.get("preview")
+                st.button("💾 Save as JSON", disabled=True, use_container_width=True, key="pm_download_json_dis")
 
-                        details = []
-                        if status is not None:
-                            details.append(f"HTTP {status}")
-                        if message:
-                            details.append(str(message))
-                        if err_type == "non_json" and preview:
-                            details.append(f"Non-JSON response preview: {preview}")
+        with toolbar_col2:
+            # Download as CSV
+            if st.session_state.post_match_data:
+                csv_rows = []
+                for e in st.session_state.post_match_data:
+                    team_nums = e.get("team_numbers", [])
+                    for i, c in enumerate(e.get("contributions", [])):
+                        alliance = "Red" if i < e.get("num_teams", 6) // 2 else "Blue"
+                        csv_rows.append({
+                            "match_number": e["match_number"],
+                            "red_points": e["red_points"],
+                            "blue_points": e["blue_points"],
+                            "team_number": team_nums[i] if i < len(team_nums) else "",
+                            "team_slot": i + 1,
+                            "alliance": alliance,
+                            "contribution": c,
+                        })
+                csv_bytes = pd.DataFrame(csv_rows).to_csv(index=False).encode("utf-8")
+                st.download_button(
+                    "📄 Save as CSV",
+                    data=csv_bytes,
+                    file_name="post_match_data.csv",
+                    mime="text/csv",
+                    use_container_width=True,
+                    key="pm_download_csv",
+                )
+            else:
+                st.button("📄 Save as CSV", disabled=True, use_container_width=True, key="pm_download_csv_dis")
 
-                        suffix = " - ".join(details)
-                        st.error(
-                            "Could not fetch events. Check your API key/internet."
-                            + (f" ({suffix})" if suffix else "")
-                        )
+        with toolbar_col3:
+            # Upload previously saved JSON
+            pm_upload = st.file_uploader(
+                "📂 Load JSON",
+                type=["json"],
+                key="pm_upload_file",
+                label_visibility="collapsed",
+                help="Upload a previously saved post_match_data.json file"
+            )
+            if pm_upload is not None:
+                try:
+                    raw_bytes = pm_upload.read()
+                    if len(raw_bytes) > _POST_MATCH_UPLOAD_MAX_BYTES:
+                        st.error("File too large (max 2 MB).")
                     else:
-                        st.error("Could not fetch events. Check your API key and internet connection.")
-                else:
-                    st.warning(
-                        f"No cached events found for {int(season_key)}. Add a `toa_events_{int(season_key)}.json` file "
-                        "to the app directory or enable API access."
-                    )
+                        loaded_data = json.loads(raw_bytes.decode("utf-8"))
+                        if isinstance(loaded_data, list):
+                            st.session_state.post_match_data = loaded_data[-_POST_MATCH_MAX_ENTRIES:]
+                            st.success(f"Loaded {len(loaded_data)} matches.")
+                            st.rerun()
+                        else:
+                            st.error("Invalid format: expected a JSON array.")
+                except Exception as _ex:
+                    st.error(f"Error loading file: {_ex}")
 
-        if st.session_state.events_list:
-            event_options = {event['key']: event['name'] for event in st.session_state.events_list}
-            selected_key = st.selectbox(
-                "Select Event",
-                options=list(event_options.keys()),
-                format_func=lambda x: event_options[x]
+        with toolbar_col4:
+            if st.button("🎲 Load Dummy Data", use_container_width=True, key="pm_dummy_btn",
+                         help="Populate with 12 randomised example matches for testing"):
+                st.session_state.post_match_data = _generate_dummy_data()
+                st.success("Dummy data loaded!")
+                st.rerun()
+
+        st.markdown("---")
+        st.markdown("### Record Post-Match Data")
+
+        with st.form("post_match_form", clear_on_submit=True):
+            pm_col1, pm_col2 = st.columns(2)
+            with pm_col1:
+                pm_match_number = st.number_input("Match Number", min_value=1, value=1, step=1)
+                pm_red_points = st.number_input("Red Alliance Points", min_value=0, value=0, step=1)
+            with pm_col2:
+                pm_blue_points = st.number_input("Blue Alliance Points", min_value=0, value=0, step=1)
+                pm_num_teams = st.number_input(
+                    "Number of Teams That Participated",
+                    min_value=1, max_value=6, value=6, step=1,
+                    help="Total teams in this match (usually 6: 3 red + 3 blue)"
+                )
+
+            st.markdown("#### Team Contribution Breakdown")
+            st.caption("For each participating team, enter the team number and select their contribution.")
+            contributions = []
+            team_numbers = []
+            contrib_cols = st.columns(min(int(pm_num_teams), 3))
+            for t_idx in range(int(pm_num_teams)):
+                col = contrib_cols[t_idx % 3]
+                alliance_label = "🔴 Red" if t_idx < int(pm_num_teams) // 2 else "🔵 Blue"
+                with col:
+                    t_num = st.number_input(
+                        f"Team # ({alliance_label})",
+                        min_value=1, max_value=99999,
+                        value=None,
+                        placeholder="Team number",
+                        step=1,
+                        key=f"pm_team_num_{t_idx}"
+                    )
+                    team_numbers.append(int(t_num) if t_num else 0)
+                    contrib = st.selectbox(
+                        "Contribution",
+                        options=CONTRIBUTION_OPTIONS,
+                        key=f"pm_contrib_{t_idx}"
+                    )
+                    contributions.append(contrib)
+
+            submitted = st.form_submit_button("✅ Save Match Entry", type="primary", use_container_width=True)
+            if submitted:
+                entry = {
+                    "match_number": int(pm_match_number),
+                    "red_points": int(pm_red_points),
+                    "blue_points": int(pm_blue_points),
+                    "num_teams": int(pm_num_teams),
+                    "team_numbers": team_numbers,
+                    "contributions": list(contributions),
+                }
+                existing = [e for e in st.session_state.post_match_data if e["match_number"] != entry["match_number"]]
+                existing.append(entry)
+                existing_sorted = sorted(existing, key=lambda x: x["match_number"])
+                # Cap to max entries to prevent unbounded memory growth
+                st.session_state.post_match_data = existing_sorted[-_POST_MATCH_MAX_ENTRIES:]
+                st.success(f"Match {int(pm_match_number)} saved!")
+
+        if st.session_state.post_match_data:
+            st.markdown("---")
+            st.markdown("### Recorded Matches")
+
+            # Per-team row view (like Team Statistics)
+            per_team_rows = []
+            for e in st.session_state.post_match_data:
+                team_nums = e.get("team_numbers", [])
+                for i, contrib in enumerate(e.get("contributions", [])):
+                    alliance = "🔴 Red" if i < e.get("num_teams", 6) // 2 else "🔵 Blue"
+                    team_display = (
+                        get_team_display_label(team_nums[i])
+                        if i < len(team_nums)
+                        else f"Slot {i + 1}"
+                    )
+                    per_team_rows.append({
+                        "Team": team_display,
+                        "Match": e["match_number"],
+                        "Alliance": alliance,
+                        "Red Pts": e["red_points"],
+                        "Blue Pts": e["blue_points"],
+                        "Contribution": contrib,
+                    })
+
+            pm_display_df = pd.DataFrame(per_team_rows)
+            st.dataframe(pm_display_df, use_container_width=True, hide_index=True)
+            if st.button("🗑️ Clear All Post-Match Data", type="secondary"):
+                st.session_state.post_match_data = []
+                st.rerun()
+
+    with tab_metrics:
+        pm_data = st.session_state.post_match_data
+        if not pm_data:
+            st.info(
+                "No post-match data yet. Record matches in the **Match Entry** tab, "
+                "upload a saved file, or click **🎲 Load Dummy Data** to explore."
+            )
+        else:
+            # ── Build per-team lookup: team_id → contributions and alliance points ──
+            team_contrib_map: dict = {}
+            team_pts_map: dict = {}
+            for entry in pm_data:
+                team_nums = entry.get("team_numbers", [])
+                num_teams_entry = entry.get("num_teams", 6)
+                for slot_idx, contrib in enumerate(entry.get("contributions", [])):
+                    team_id = (
+                        team_nums[slot_idx]
+                        if slot_idx < len(team_nums)
+                        else f"Slot {slot_idx + 1}"
+                    )
+                    alliance_pts = (
+                        entry["red_points"]
+                        if slot_idx < num_teams_entry // 2
+                        else entry["blue_points"]
+                    )
+                    team_contrib_map.setdefault(team_id, []).append(contrib)
+                    team_pts_map.setdefault(team_id, []).append(alliance_pts)
+
+            # ── Qualitative Stats table ──────────────────────────────────────────
+            st.markdown("#### 📊 Qualitative Stats")
+
+            def _pts_std(values: list) -> float:
+                """Calculate sample standard deviation using Bessel's correction (n-1 denominator).
+                Returns 0.0 for fewer than 2 values."""
+                if len(values) < 2:
+                    return 0.0
+                n = len(values)
+                mean = sum(values) / n
+                return (sum((v - mean) ** 2 for v in values) / (n - 1)) ** 0.5
+
+            qual_rows = []
+            for team_id, contribs in sorted(
+                team_contrib_map.items(),
+                key=lambda x: (0, int(x[0])) if str(x[0]).isdigit() else (1, str(x[0]))
+            ):
+                mode_val = _contribution_mode(contribs)
+                pts = team_pts_map.get(team_id, [])
+                avg_pts = sum(pts) / len(pts) if pts else 0.0
+                std_pts = _pts_std(pts)
+                qual_rows.append({
+                    "Team": get_team_display_label(team_id),
+                    "Matches": len(contribs),
+                    "Contribution Mode": mode_val,
+                    "Pts Avg": round(avg_pts, 2),
+                    "Pts Std": round(std_pts, 2),
+                    "Weight": _CONTRIB_WEIGHTS.get(mode_val, 0),
+                })
+            qual_df = pd.DataFrame(qual_rows)
+            qual_display = (
+                qual_df
+                .sort_values(by="Weight", ascending=False)
+                .drop(columns=["Weight"])
+                .reset_index(drop=True)
+            )
+            st.dataframe(qual_display, use_container_width=True, hide_index=True)
+
+            st.markdown("---")
+
+            # ── Per-team contribution distribution (like Detailed Stats) ─────────
+            st.markdown("#### Contribution Distribution")
+            all_team_ids = sorted(
+                team_contrib_map.keys(),
+                key=lambda x: (0, int(x)) if str(x).isdigit() else (1, str(x))
+            )
+            team_labels = [get_team_display_label(t) for t in all_team_ids]
+            selected_label = st.selectbox(
+                "Select a Team",
+                options=team_labels,
+                key="pm_team_contrib_selector",
+            )
+            if selected_label:
+                sel_idx = team_labels.index(selected_label)
+                sel_team_id = all_team_ids[sel_idx]
+                sel_contribs = team_contrib_map[sel_team_id]
+                sel_counts = Counter(sel_contribs)
+                sel_df = pd.DataFrame(
+                    [
+                        {
+                            "Contribution": k,
+                            "Count": v,
+                            "Percentage": f"{v / len(sel_contribs) * 100:.1f}%",
+                        }
+                        for k, v in sorted(
+                            sel_counts.items(),
+                            key=lambda x: _CONTRIB_WEIGHTS.get(x[0], 0),
+                        )
+                    ]
+                )
+                st.dataframe(sel_df, use_container_width=True, hide_index=True)
+
+                px, go = _ensure_plotly()
+                if px:
+                    fig_bar = px.bar(
+                        sel_df,
+                        x="Contribution",
+                        y="Count",
+                        title=f"Contribution Distribution — {selected_label}",
+                        color="Count",
+                        color_continuous_scale="Purples",
+                    )
+                    fig_bar.update_layout(
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        font=dict(color='#f8fafc'),
+                        xaxis=dict(color='#d1d5db', tickangle=-30),
+                        yaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)'),
+                        showlegend=False,
+                    )
+                    st.plotly_chart(fig_bar, use_container_width=True)
+
+            st.markdown("---")
+
+            # ── Alliance points trend across matches ─────────────────────────────
+            total_matches = len(pm_data)
+            px, go = _ensure_plotly()
+            if go and total_matches > 1:
+                match_nums = [e["match_number"] for e in pm_data]
+                red_pts = [e["red_points"] for e in pm_data]
+                blue_pts = [e["blue_points"] for e in pm_data]
+                fig_line = go.Figure()
+                fig_line.add_trace(go.Scatter(
+                    x=match_nums, y=red_pts,
+                    mode='lines+markers', name='Red Alliance',
+                    line=dict(color='#ef4444', width=2), marker=dict(size=7)
+                ))
+                fig_line.add_trace(go.Scatter(
+                    x=match_nums, y=blue_pts,
+                    mode='lines+markers', name='Blue Alliance',
+                    line=dict(color='#3b82f6', width=2), marker=dict(size=7)
+                ))
+                fig_line.update_layout(
+                    title='Alliance Points by Match',
+                    xaxis_title='Match Number',
+                    yaxis_title='Points',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#f8fafc'),
+                    xaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)'),
+                    yaxis=dict(color='#d1d5db', gridcolor='rgba(255,255,255,0.05)', rangemode='tozero'),
+                    legend=dict(font=dict(color='#f8fafc')),
+                )
+                st.plotly_chart(fig_line, use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# System Hub  (Linux scripts / services visual panel)
+# ─────────────────────────────────────────────────────────────────────────────
+elif page == "🛠️ System Hub":
+    import re as _re
+    import shutil
+    import subprocess
+    import time as _time
+    from pathlib import Path as _Path
+
+    st.markdown("<div class='main-header'>🛠️ System Hub</div>", unsafe_allow_html=True)
+    st.markdown("Visual control panel for Overture Linux services and scripts.")
+
+    _SCRIPTS_DIR = _Path(__file__).resolve().parent.parent / "scripts"
+    _DATA_DIR = _Path(__file__).resolve().parent.parent / "data"
+    _BACKUP_DIR = _Path(__file__).resolve().parent.parent / "backups"
+    _DEFAULT_CSV = _DATA_DIR / "default_scouting.csv"
+
+    _APP_SERVICE  = "overture-app.service"
+    _HID_SERVICE  = "overture-hid.service"
+
+    _SYSTEMCTL = shutil.which("systemctl")
+    _JOURNALCTL = shutil.which("journalctl")
+    _HAS_SYSTEMD = _SYSTEMCTL is not None
+
+    def _run(*args, timeout: int = 5) -> tuple[int, str]:
+        """Run a command safely, returning (returncode, stdout+stderr)."""
+        try:
+            result = subprocess.run(
+                list(args), capture_output=True, text=True,
+                timeout=timeout, check=False
+            )
+            return result.returncode, (result.stdout + result.stderr).strip()
+        except Exception as exc:
+            return -1, str(exc)
+
+    def _service_active(service: str) -> bool:
+        if not _HAS_SYSTEMD:
+            return False
+        rc, _ = _run(_SYSTEMCTL, "is-active", "--quiet", service)
+        return rc == 0
+
+    def _service_enabled(service: str) -> bool:
+        if not _HAS_SYSTEMD:
+            return False
+        rc, _ = _run(_SYSTEMCTL, "is-enabled", "--quiet", service)
+        return rc == 0
+
+    def _process_running(pattern: str) -> bool:
+        rc, _ = _run("pgrep", "-f", pattern)
+        return rc == 0
+
+    def _status_badge(active: bool) -> str:
+        return "🟢 Running" if active else "🔴 Stopped"
+
+    # ── Tab layout ─────────────────────────────────────────────────────────
+    hub_tab1, hub_tab2, hub_tab3, hub_tab4, hub_tab5 = st.tabs([
+        "⚙️ Services", "💾 Data", "📡 HID Scanner", "📋 Logs", "🔄 Updates"
+    ])
+
+    # ─── Tab 1: Service Status & Control ──────────────────────────────────
+    with hub_tab1:
+        st.markdown("### Service Status & Control")
+
+        if not _HAS_SYSTEMD:
+            st.warning(
+                "⚠️ `systemctl` not found — service control requires a Linux system "
+                "with systemd. Service status is based on running processes only."
             )
 
-            if st.button("Load Teams for Selected Event"):
-                with st.spinner(f"Loading teams for {event_options[selected_key]}..."):
-                    # First, try to load from a local file
-                    loaded = st.session_state.toa_manager.load_teams_from_file(selected_key)
-                    if loaded:
-                        st.session_state.toa_event_key = selected_key
-                        st.session_state.selected_event_name = event_options[selected_key]
-                        st.success(f"Loaded {len(loaded)} teams from local cache for {st.session_state.selected_event_name}.")
-                    else:
-                        # If not found locally, fetch from API
-                        teams_data = st.session_state.toa_manager.get_teams_for_event(selected_key)
-                        if teams_data:
-                            st.session_state.toa_manager.save_teams_to_file(selected_key, teams_data)
-                            loaded = st.session_state.toa_manager.load_teams_from_file(selected_key)  # Load into memory
-                            st.session_state.toa_event_key = selected_key
-                            st.session_state.selected_event_name = event_options[selected_key]
-                            st.success(f"Fetched and saved {len(teams_data)} teams for {st.session_state.selected_event_name}.")
-                        else:
-                            if use_api:
-                                st.error("Failed to fetch team data from TOA API.")
-                            else:
-                                st.warning(
-                                    f"No cached team data available for that event. Place a `teams_{selected_key}.json` "
-                                    "file in the app directory or enable API access."
-                                )
+        st.markdown("#### Systemd Services")
+        col_a, col_b = st.columns(2)
 
-    st.markdown("---")
-    st.markdown("### Current Status")
-    if st.session_state.toa_manager and st.session_state.toa_event_key:
-        st.success(
-            f"TOA Manager is active. Loaded data for event: **{st.session_state.selected_event_name}** "
-            f"(`{st.session_state.toa_event_key}`)"
+        with col_a:
+            app_active = _service_active(_APP_SERVICE)
+            app_enabled = _service_enabled(_APP_SERVICE)
+            st.markdown(f"**Web App** (`{_APP_SERVICE}`)")
+            st.markdown(_status_badge(app_active))
+            if app_enabled:
+                st.caption("Auto-start: enabled")
+            else:
+                st.caption("Auto-start: disabled / not installed")
+
+            btn_col1, btn_col2, btn_col3 = st.columns(3)
+            with btn_col1:
+                if st.button("▶ Start", key="app_start", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "start", _APP_SERVICE)
+                        st.toast(f"start: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+            with btn_col2:
+                if st.button("⏹ Stop", key="app_stop", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "stop", _APP_SERVICE)
+                        st.toast(f"stop: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+            with btn_col3:
+                if st.button("🔄 Restart", key="app_restart", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "restart", _APP_SERVICE)
+                        st.toast(f"restart: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+
+        with col_b:
+            hid_active = _service_active(_HID_SERVICE)
+            hid_enabled = _service_enabled(_HID_SERVICE)
+            st.markdown(f"**HID Scanner** (`{_HID_SERVICE}`)")
+            st.markdown(_status_badge(hid_active))
+            if hid_enabled:
+                st.caption("Auto-start: enabled")
+            else:
+                st.caption("Auto-start: disabled / not installed")
+
+            btn_col4, btn_col5, btn_col6 = st.columns(3)
+            with btn_col4:
+                if st.button("▶ Start", key="hid_start_svc", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "start", _HID_SERVICE)
+                        st.toast(f"start: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+            with btn_col5:
+                if st.button("⏹ Stop", key="hid_stop_svc", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "stop", _HID_SERVICE)
+                        st.toast(f"stop: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+            with btn_col6:
+                if st.button("🔄 Restart", key="hid_restart_svc", use_container_width=True):
+                    if _HAS_SYSTEMD:
+                        rc, out = _run("sudo", _SYSTEMCTL, "restart", _HID_SERVICE)
+                        st.toast(f"restart: {out or 'ok'}" if rc == 0 else f"Error: {out}")
+                    else:
+                        st.warning("systemctl not available.")
+
+        st.markdown("---")
+        st.markdown("#### Running Processes")
+        proc_col1, proc_col2 = st.columns(2)
+        with proc_col1:
+            streamlit_running = _process_running(r"streamlit.*streamlit_app\.py")
+            st.markdown(f"**Streamlit web process**  \n{_status_badge(streamlit_running)}")
+        with proc_col2:
+            hid_proc_running = _process_running("headless_interceptor.py")
+            st.markdown(f"**HID capture process**  \n{_status_badge(hid_proc_running)}")
+
+        st.markdown("---")
+        st.markdown("#### Auto-start Management")
+        en_col1, en_col2 = st.columns(2)
+        with en_col1:
+            if st.button("✅ Enable Web App auto-start", use_container_width=True, key="app_enable"):
+                if _HAS_SYSTEMD:
+                    rc, out = _run("sudo", _SYSTEMCTL, "enable", _APP_SERVICE)
+                    st.toast("Enabled" if rc == 0 else f"Error: {out}")
+                else:
+                    st.warning("systemctl not available.")
+            if st.button("❌ Disable Web App auto-start", use_container_width=True, key="app_disable"):
+                if _HAS_SYSTEMD:
+                    rc, out = _run("sudo", _SYSTEMCTL, "disable", _APP_SERVICE)
+                    st.toast("Disabled" if rc == 0 else f"Error: {out}")
+                else:
+                    st.warning("systemctl not available.")
+        with en_col2:
+            if st.button("✅ Enable HID auto-start", use_container_width=True, key="hid_enable"):
+                if _HAS_SYSTEMD:
+                    rc, out = _run("sudo", _SYSTEMCTL, "enable", _HID_SERVICE)
+                    st.toast("Enabled" if rc == 0 else f"Error: {out}")
+                else:
+                    st.warning("systemctl not available.")
+            if st.button("❌ Disable HID auto-start", use_container_width=True, key="hid_disable"):
+                if _HAS_SYSTEMD:
+                    rc, out = _run("sudo", _SYSTEMCTL, "disable", _HID_SERVICE)
+                    st.toast("Disabled" if rc == 0 else f"Error: {out}")
+                else:
+                    st.warning("systemctl not available.")
+
+        if st.button("🔃 Refresh Status", key="refresh_status", use_container_width=False):
+            st.rerun()
+
+    # ─── Tab 2: Data Management ─────────────────────────────────────────────
+    with hub_tab2:
+        st.markdown("### Data Management")
+
+        # Current data stats
+        if _DEFAULT_CSV.exists():
+            try:
+                lines = sum(1 for _ in open(_DEFAULT_CSV, encoding='utf-8')) - 1
+            except Exception:
+                lines = 0
+            st.success(f"✅ Scouting CSV: **{max(0, lines)} records**  \n`{_DEFAULT_CSV}`")
+        else:
+            st.info(f"ℹ️ No scouting data file at `{_DEFAULT_CSV}`")
+            lines = 0
+
+        st.markdown("---")
+        st.markdown("#### Backup")
+        backup_name_input = st.text_input(
+            "Backup name (optional)", placeholder="e.g. match_day_1",
+            key="backup_name_input"
         )
-    else:
-        st.warning("TOA Manager is not active or no event data is loaded. Team names will not be displayed.")
+        if st.button("💾 Create Backup", use_container_width=False, key="do_backup"):
+            if not _DEFAULT_CSV.exists() or lines <= 0:
+                st.warning("No scouting data to backup.")
+            else:
+                _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+                ts = _time.strftime("%Y%m%d_%H%M%S")
+                safe_name = "".join(c for c in backup_name_input.strip() if c.isalnum() or c in "_-")
+                fname = f"{safe_name}_{ts}.csv" if safe_name else f"scouting_backup_{ts}.csv"
+                dest = _BACKUP_DIR / fname
+                shutil.copy2(_DEFAULT_CSV, dest)
+                st.success(f"Backup created: `{dest.name}`")
+
+        st.markdown("---")
+        st.markdown("#### Available Backups")
+        if _BACKUP_DIR.exists():
+            backup_files = sorted(_BACKUP_DIR.glob("*.csv"), reverse=True)
+            if backup_files:
+                rows_bk = []
+                for bf in backup_files:
+                    try:
+                        n = sum(1 for _ in open(bf, encoding='utf-8')) - 1
+                    except Exception:
+                        n = 0
+                    rows_bk.append({"File": bf.name, "Records": max(0, n), "Size": f"{bf.stat().st_size // 1024} KB"})
+                st.dataframe(rows_bk, use_container_width=True)
+
+                restore_choice = st.selectbox(
+                    "Select backup to restore",
+                    options=[bf.name for bf in backup_files],
+                    key="restore_choice"
+                )
+                if st.button("♻️ Restore selected backup", use_container_width=False, key="do_restore"):
+                    src = _BACKUP_DIR / restore_choice
+                    if src.exists():
+                        _DATA_DIR.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(src, _DEFAULT_CSV)
+                        st.success(f"Restored `{restore_choice}` → `{_DEFAULT_CSV.name}`")
+                        if 'analizador' in st.session_state:
+                            st.session_state.analizador.reload_csv()
+                        st.rerun()
+                    else:
+                        st.error("Backup file not found.")
+            else:
+                st.info("No backup files found.")
+        else:
+            st.info("Backup directory does not exist yet.")
+
+        st.markdown("---")
+        st.markdown("#### Clear Scouting Data")
+        st.warning("⚠️ This removes all scouting records. A backup will be created automatically.")
+        if st.button("🗑️ Clear All Data", type="primary", key="clear_data_btn"):
+            st.session_state["_hub_clear_confirm"] = True
+
+        if st.session_state.get("_hub_clear_confirm"):
+            st.error("**Are you sure?** This cannot be undone (a backup is created first).")
+            conf_col1, conf_col2 = st.columns(2)
+            with conf_col1:
+                if st.button("✅ Yes, clear data", key="clear_confirm_yes"):
+                    if _DEFAULT_CSV.exists() and lines > 0:
+                        _BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+                        ts2 = _time.strftime("%Y%m%d_%H%M%S")
+                        shutil.copy2(_DEFAULT_CSV, _BACKUP_DIR / f"pre_clear_{ts2}.csv")
+                    if _DEFAULT_CSV.exists():
+                        # Keep header row only
+                        with open(_DEFAULT_CSV, encoding='utf-8') as fh:
+                            header = fh.readline()
+                        with open(_DEFAULT_CSV, 'w', encoding='utf-8') as fh:
+                            fh.write(header)
+                    if 'analizador' in st.session_state:
+                        st.session_state.analizador.reload_csv()
+                    st.session_state["_hub_clear_confirm"] = False
+                    st.success("Data cleared. Header preserved, backup created.")
+                    st.rerun()
+            with conf_col2:
+                if st.button("❌ Cancel", key="clear_confirm_no"):
+                    st.session_state["_hub_clear_confirm"] = False
+                    st.rerun()
+
+    # ─── Tab 3: HID Scanner ──────────────────────────────────────────────────
+    with hub_tab3:
+        st.markdown("### HID Scanner")
+
+        hid_col1, hid_col2 = st.columns(2)
+        with hid_col1:
+            hid_running = _process_running("headless_interceptor.py")
+            st.markdown(f"**Interceptor process:** {_status_badge(hid_running)}")
+
+        st.markdown("---")
+        st.markdown("#### Available HID Devices")
+        if st.button("🔍 List HID Devices", key="hid_list_btn", use_container_width=False):
+            venv_python = _Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python"
+            python_cmd = str(venv_python) if venv_python.exists() else "python3"
+            interceptor = _Path(__file__).resolve().parent / "headless_interceptor.py"
+            if interceptor.exists():
+                rc, out = _run(python_cmd, str(interceptor), "--list", timeout=10)
+                if out:
+                    st.code(out, language="text")
+                else:
+                    st.info("No output from interceptor list command.")
+            else:
+                st.error(f"Interceptor script not found: {interceptor}")
+
+        st.markdown("---")
+        st.markdown("#### Start / Stop Interceptor")
+
+        hid_start_col, hid_stop_col = st.columns(2)
+        with hid_start_col:
+            if st.button("▶ Start HID Interceptor", key="hid_start_proc", use_container_width=True):
+                if _HAS_SYSTEMD and hid_enabled:
+                    rc, out = _run("sudo", _SYSTEMCTL, "start", _HID_SERVICE)
+                    st.toast("Started via systemd" if rc == 0 else f"Error: {out}")
+                else:
+                    venv_python2 = _Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python"
+                    python_cmd2 = str(venv_python2) if venv_python2.exists() else "python3"
+                    interceptor2 = _Path(__file__).resolve().parent / "headless_interceptor.py"
+                    cfg = _Path(__file__).resolve().parent / "config" / "columns.json"
+                    if interceptor2.exists():
+                        _hid_log = _Path(__file__).resolve().parent.parent / "data" / "hid_interceptor.log"
+                        _hid_log.parent.mkdir(parents=True, exist_ok=True)
+                        _hid_log_fh = open(_hid_log, "a", encoding="utf-8")
+                        subprocess.Popen(
+                            [python_cmd2, str(interceptor2),
+                             "--config", str(cfg), "--output", str(_DEFAULT_CSV)],
+                            stdout=_hid_log_fh, stderr=_hid_log_fh,
+                            start_new_session=True
+                        )
+                        st.toast(f"HID interceptor started. Logs: {_hid_log.name}")
+                    else:
+                        st.error("Interceptor script not found.")
+        with hid_stop_col:
+            if st.button("⏹ Stop HID Interceptor", key="hid_stop_proc", use_container_width=True):
+                if _HAS_SYSTEMD and hid_enabled:
+                    rc, out = _run("sudo", _SYSTEMCTL, "stop", _HID_SERVICE)
+                    st.toast("Stopped via systemd" if rc == 0 else f"Error: {out}")
+                else:
+                    rc, out = _run("pkill", "-f", "headless_interceptor.py")
+                    st.toast("Stopped" if rc == 0 else "Process not running or pkill failed.")
+
+    # ─── Tab 4: Logs ────────────────────────────────────────────────────────
+    with hub_tab4:
+        st.markdown("### Service Logs")
+
+        log_service_choice = st.selectbox(
+            "Select service",
+            options=["Web App (overture-app)", "HID Scanner (overture-hid)"],
+            key="log_service_choice"
+        )
+        log_lines = st.slider("Lines to show", min_value=20, max_value=500, value=60, step=20, key="log_lines_slider")
+
+        if st.button("📋 Fetch Logs", key="fetch_logs_btn", use_container_width=False):
+            if not _JOURNALCTL:
+                st.warning("`journalctl` not available on this system.")
+            else:
+                service_unit = _APP_SERVICE if "Web App" in log_service_choice else _HID_SERVICE
+                rc, out = _run(
+                    _JOURNALCTL, "-u", service_unit,
+                    "--no-pager", f"-n{log_lines}", "--output=short",
+                    timeout=10
+                )
+                if out.strip():
+                    st.code(out, language="text")
+                else:
+                    st.info(f"No log output for `{service_unit}`. "
+                            "The service may not be installed or has no recent entries.")
+
+        st.markdown("---")
+        st.markdown("#### Script Reference")
+        ctl_script = _SCRIPTS_DIR / "overture-ctl.sh"
+        if ctl_script.exists():
+            st.code(f"# Run from project root:\nbash scripts/overture-ctl.sh help", language="bash")
+            with st.expander("📄 View overture-ctl.sh help output"):
+                rc_h, out_h = _run("bash", str(ctl_script), "help", timeout=5)
+                # Strip ANSI colour codes for clean display
+                out_clean = _re.sub(r'\x1b\[[0-9;]*m', '', out_h)
+                st.code(out_clean, language="text")
+        else:
+            st.info(f"Script not found: `{ctl_script}`")
+
+    # ─── Tab 5: Updates ──────────────────────────────────────────────────────
+    with hub_tab5:
+        st.markdown("### 🔄 Application Updates")
+        st.markdown(
+            "Check whether a newer version is available on the `main` branch "
+            "and apply it with a single button."
+        )
+
+        _HUB_PROJECT_ROOT = _Path(__file__).resolve().parent.parent
+        _GIT_CMD = shutil.which("git")
+        _UPDATE_BRANCH = "main"
+
+        def _current_sha() -> str:
+            """Return the short SHA of the current HEAD commit."""
+            if not _GIT_CMD:
+                return ""
+            rc, out = _run(_GIT_CMD, "-C", str(_HUB_PROJECT_ROOT), "rev-parse", "--short", "HEAD")
+            return out.strip() if rc == 0 else ""
+
+        def _remote_sha(branch: str = _UPDATE_BRANCH) -> str:
+            """Fetch remote refs and return the short SHA of the remote HEAD.
+
+            Returns empty string if fetch or rev-parse fails (e.g. offline).
+            """
+            if not _GIT_CMD:
+                return ""
+            # Refresh remote refs; ignore failure (offline / no remote)
+            rc_fetch, fetch_out = _run(
+                _GIT_CMD, "-C", str(_HUB_PROJECT_ROOT),
+                "fetch", "--quiet", "origin", branch, timeout=20,
+            )
+            if rc_fetch != 0:
+                print(f"[Update] git fetch failed: {fetch_out}")
+                # Fall back to whatever remote ref we have cached locally
+            rc, out = _run(_GIT_CMD, "-C", str(_HUB_PROJECT_ROOT),
+                           "rev-parse", "--short", f"origin/{branch}")
+            return out.strip() if rc == 0 else ""
+
+        # ── One-time check per session ─────────────────────────────────────
+        if not st.session_state._hub_update_checked:
+            with st.spinner("Checking for updates…"):
+                cur = _current_sha()
+                rem = _remote_sha()
+            st.session_state._hub_current_sha = cur
+            st.session_state._hub_latest_sha = rem
+            st.session_state._hub_update_available = bool(rem and cur and rem != cur)
+            st.session_state._hub_update_checked = True
+
+        cur_sha = st.session_state._hub_current_sha
+        rem_sha = st.session_state._hub_latest_sha
+        update_available = st.session_state._hub_update_available
+
+        # Status display
+        info_col1, info_col2 = st.columns(2)
+        with info_col1:
+            st.metric("Current version", cur_sha or "unknown")
+        with info_col2:
+            st.metric("Latest on main", rem_sha or "unknown")
+
+        if not _GIT_CMD:
+            st.warning("`git` not found – update management requires git to be installed.")
+        elif update_available:
+            st.warning(
+                f"⬆️ **A new version is available** (`{rem_sha}`).  "
+                "Update to get the latest features and fixes."
+            )
+            if st.button("⬇️ Update Now (git pull)", key="hub_update_now_btn", type="primary"):
+                with st.spinner("Downloading update…"):
+                    rc_pull, out_pull = _run(
+                        _GIT_CMD, "-C", str(_HUB_PROJECT_ROOT),
+                        "pull", "--ff-only", "origin", _UPDATE_BRANCH,
+                        timeout=120,
+                    )
+                if rc_pull == 0:
+                    st.success(
+                        "✅ Update applied successfully! "
+                        "Restart the app for changes to take effect."
+                    )
+                    # Refresh state
+                    st.session_state._hub_current_sha = _current_sha()
+                    st.session_state._hub_update_available = False
+                    st.rerun()
+                else:
+                    st.error(f"Update failed:\n```\n{out_pull}\n```")
+        else:
+            st.success("✅ You are running the latest version.")
+
+        st.markdown("---")
+        st.markdown("#### Manual Controls")
+        upd_col1, upd_col2 = st.columns(2)
+        with upd_col1:
+            if st.button("🔃 Re-check for updates", key="hub_recheck_btn"):
+                # Reset the one-time flag so the check runs again
+                st.session_state._hub_update_checked = False
+                st.rerun()
+        with upd_col2:
+            if st.button("📋 Show recent commits", key="hub_log_btn"):
+                if _GIT_CMD:
+                    rc_log, out_log = _run(
+                        _GIT_CMD, "-C", str(_HUB_PROJECT_ROOT),
+                        "log", "--oneline", "-10", f"origin/{_UPDATE_BRANCH}",
+                        timeout=15,
+                    )
+                    st.code(out_log, language="text")
+                else:
+                    st.warning("`git` not found.")
+
 
 # Footer - appears on all pages
 st.markdown("<hr style='margin-top: 3rem; border: 1px solid #e2e8f0;'>", unsafe_allow_html=True)

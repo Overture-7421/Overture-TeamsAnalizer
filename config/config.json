@@ -1,11 +1,11 @@
 {
-    "version": "1.0",
-    "description": "Main configuration file for Alliance Simulator - FTC Scouting Tool",
+    "version": "2.0",
+    "description": "Main configuration file for Alliance Simulator - FRC Scouting Tool",
     "app": {
-        "title": "Alliance Simulator - Overture 23619",
+        "title": "Alliance Simulator - Overture 7421",
         "icon": "🤖",
-        "subtitle": "FTC DECODE 2026",
-        "team_name": "Team Overture 23619",
+        "subtitle": "FRC REBUILT 2026",
+        "team_name": "Team Overture 7421",
         "layout": "wide",
         "initial_sidebar_state": "expanded"
     },
@@ -15,31 +15,26 @@
         "during_event": 20
     },
     "game": {
-        "name": "DECODE 2026",
+        "name": "REBUILT 2026",
         "year": 2026,
         "autonomous": {
             "leave": 3,
-            "artifact": 3,
-            "overflow": 1,
-            "depot": 1,
-            "pattern_match": 2
+            "fuel": 1,
+            "tower_level1_auto": 15
         },
         "teleop": {
-            "artifact": 3,
-            "overflow": 1,
-            "depot": 1,
-            "pattern_match": 2
+            "fuel": 1
         },
         "endgame": {
-            "park_partial": 5,
-            "park_full": 10,
-            "double_park_bonus": 10
+            "tower_level1": 10,
+            "tower_level2": 20,
+            "tower_level3": 30
         }
     },
     "metrics": {
         "game_phases": ["autonomous", "teleop", "endgame"],
-        "endgame_states": ["park_partial", "park_full"],
-        "match_items": ["artifact", "overflow", "depot", "pattern_match"]
+        "endgame_states": ["tower_level1", "tower_level2", "tower_level3"],
+        "match_items": ["fuel", "tower_level1_auto"]
     },
     "ui": {
         "theme": "dark",
@@ -49,16 +44,17 @@
         "chart_colors": {
             "red_alliance": "#ef4444",
             "blue_alliance": "#3b82f6",
-            "coral": "#ef4444",
-            "algae": "#22d3ee",
-            "climb": "#a855f7"
+            "fuel": "#f59e0b",
+            "tower": "#a855f7",
+            "climb": "#22d3ee"
         }
     },
     "alliance": {
         "max_alliances": 8,
-        "teams_per_alliance": 2,
+        "teams_per_alliance": 3,
         "draft_parameters": {
-            "pick1_round": "standard"
+            "pick1_round": "standard",
+            "pick2_round": "standard"
         }
     },
     "honor_roll": {

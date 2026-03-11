@@ -1,0 +1,259 @@
+Scouter Name,Match Number,Robot Position,Team Number,Starting Position,Is HP True to your team?,Shoot Time (Auto),HP Scored (Auto),Climb Position (Auto),Stuck in Tower If Climbed? (Auto),Auton Quality,Shoot Time (Teleop),Pass Time,HP Scored (Teleop),Penalty Counter,Climb,Jammed over balls?,Died,Driver Quality,Do you want it on our alliance?
+Diego,1,Blue 1,10225,Outpost Side,True,5.03,8,N/A,False,Average,40.71,30.8,22,0,Didn't Climb,False,False,Average,False
+Fernanda,1,Blue 2,10529,Depot Side,True,0.03,12,Side,False,Bad,14.84,13.62,16,0,L2,False,False,Average,False
+Miguel,1,Blue 3,10565,Outpost Side,True,7.23,7,Side,True,Good,15.38,21.14,8,1,L2,False,False,Average,False
+Isabela,1,Red 1,10931,Middle,True,5.06,1,Side,False,Average,55.01,23.0,9,1,L2,False,False,Average,False
+Rodrigo,1,Red 2,11065,Depot Side,True,5.23,7,Side,False,Average,50.23,26.52,34,1,L2,False,False,Average,False
+Camila,1,Red 3,3354,Depot Side,True,4.02,9,Side,False,Excellent,69.89,21.44,26,2,L1,False,False,Excellent,True
+Marco,2,Blue 1,3472,Middle,True,9.27,6,Side,False,Good,31.6,11.0,22,2,L2,False,False,Bad,False
+Sofia,2,Blue 2,3478,Middle,False,7.17,4,N/A,False,Good,67.73,12.76,14,0,Didn't Climb,False,False,Good,True
+Carlos,2,Blue 3,3480,Depot Side,False,8.57,10,Middle,False,Average,18.78,32.49,35,0,L3,False,False,Good,True
+Ana,2,Red 1,3522,Outpost Side,True,0.05,10,Middle,False,Average,49.87,22.23,13,1,L1,False,False,Good,True
+Luis,2,Red 2,3794,Middle,False,9.35,8,Side,False,Excellent,57.01,32.45,11,1,L1,False,False,Bad,False
+Valeria,2,Red 3,3933,Depot Side,True,3.53,3,Side,False,Average,56.17,5.77,13,2,L2,False,False,Good,True
+Diego,3,Blue 1,4010,Depot Side,True,4.34,15,Side,True,Bad,30.19,22.95,18,2,L1,False,False,Excellent,True
+Fernanda,3,Blue 2,4371,Outpost Side,True,7.11,8,Middle,False,Good,62.67,8.87,24,2,L2,False,False,Excellent,True
+Miguel,3,Blue 3,4584,Middle,True,1.75,4,Middle,False,Average,37.83,34.98,17,1,L2,False,False,Average,False
+Isabela,3,Red 1,4635,Middle,True,9.54,2,Middle,False,Average,62.72,24.37,3,1,L1,False,False,Average,False
+Rodrigo,3,Red 2,4723,Depot Side,True,7.51,11,Middle,False,Average,53.86,22.1,29,2,L2,False,False,Average,False
+Camila,3,Red 3,4775,Middle,True,6.3,7,Side,False,Bad,40.4,13.3,29,0,L2,False,True,Good,True
+Marco,4,Blue 1,4782,Depot Side,True,2.35,3,Side,False,Excellent,28.6,7.82,9,2,L1,False,False,Good,True
+Sofia,4,Blue 2,5133,Depot Side,True,4.63,2,Side,False,Good,68.75,31.35,12,2,L2,False,False,Excellent,True
+Carlos,4,Blue 3,5887,Middle,True,7.27,12,Side,False,Excellent,56.15,32.48,21,1,L1,True,False,Bad,False
+Ana,4,Red 1,5932,Middle,True,0.37,6,Side,False,Good,41.36,22.91,12,2,L2,False,False,Good,True
+Luis,4,Red 2,5959,Middle,True,0.28,4,Side,False,Good,53.04,21.24,23,2,L2,False,True,Bad,False
+Valeria,4,Red 3,6017,Depot Side,True,0.89,6,N/A,False,Excellent,20.76,6.14,12,2,Didn't Climb,False,False,Average,False
+Diego,5,Blue 1,6106,Outpost Side,True,0.58,10,N/A,False,Bad,23.31,20.26,27,0,Didn't Climb,False,False,Good,True
+Fernanda,5,Blue 2,6170,Middle,True,3.75,10,N/A,False,Good,37.56,18.73,15,1,Didn't Climb,False,False,Good,True
+Miguel,5,Blue 3,6200,Depot Side,False,7.02,5,Side,False,Good,57.72,24.17,22,0,L2,False,False,Average,False
+Isabela,5,Red 1,6348,Depot Side,False,0.45,3,N/A,False,Excellent,33.6,21.17,12,2,Didn't Climb,False,False,Good,True
+Rodrigo,5,Red 2,6606,Depot Side,False,0.42,11,N/A,False,Good,45.56,28.62,21,0,Didn't Climb,False,False,Bad,False
+Camila,5,Red 3,6652,Depot Side,True,6.48,5,Middle,False,Average,66.35,15.67,28,2,L3,False,False,Bad,False
+Marco,6,Blue 1,6676,Depot Side,True,8.42,9,Middle,False,Average,13.82,14.08,6,2,L3,False,False,Good,True
+Sofia,6,Blue 2,6702,Outpost Side,False,1.18,3,Side,False,Average,38.46,19.96,13,2,L1,False,False,Excellent,True
+Carlos,6,Blue 3,6832,Middle,True,7.53,11,Side,False,Good,23.56,14.75,20,2,L1,False,False,Average,False
+Ana,6,Red 1,7102,Depot Side,True,4.1,10,Middle,False,Bad,58.19,16.45,20,0,L2,False,False,Good,True
+Luis,6,Red 2,7421,Outpost Side,True,2.34,8,Side,False,Good,68.33,21.84,14,0,L2,False,False,Excellent,True
+Valeria,6,Red 3,7546,Middle,True,6.33,6,Side,False,Good,60.46,27.93,16,2,L2,False,False,Average,False
+Diego,7,Blue 1,8740,Outpost Side,True,6.44,12,N/A,False,Average,34.88,28.35,30,1,Didn't Climb,False,True,Average,False
+Fernanda,7,Blue 2,8741,Outpost Side,True,7.8,10,Middle,False,Good,57.44,20.45,9,2,L1,False,False,Bad,False
+Miguel,7,Blue 3,9053,Outpost Side,True,7.06,4,Middle,False,Average,15.06,17.51,11,2,L1,False,False,Bad,False
+Isabela,7,Red 1,9060,Outpost Side,False,3.41,6,Side,False,Average,30.84,23.2,13,1,L2,True,False,Good,True
+Rodrigo,7,Red 2,9213,Outpost Side,True,2.74,10,Side,False,Average,60.53,17.0,23,0,L1,False,False,Bad,False
+Camila,7,Red 3,9280,Depot Side,True,9.74,6,Middle,False,Bad,45.75,19.68,25,2,L2,False,False,Bad,False
+Marco,8,Blue 1,9282,Depot Side,True,6.31,7,Middle,False,Bad,65.53,34.39,18,0,L2,False,False,Average,False
+Sofia,8,Blue 2,10225,Depot Side,True,5.59,14,Middle,False,Excellent,60.44,14.77,16,2,L2,False,False,Average,False
+Carlos,8,Blue 3,10529,Depot Side,True,8.65,5,Side,False,Average,26.82,13.98,30,0,L3,False,False,Good,True
+Ana,8,Red 1,10565,Depot Side,False,9.57,6,Side,False,Excellent,28.04,20.44,23,2,L3,False,False,Excellent,True
+Luis,8,Red 2,10931,Middle,True,8.13,6,Middle,False,Good,25.43,27.7,14,0,L1,False,False,Bad,False
+Valeria,8,Red 3,11065,Depot Side,True,5.36,12,N/A,False,Good,62.22,26.63,17,1,Didn't Climb,False,False,Bad,False
+Diego,9,Blue 1,3354,Depot Side,True,8.79,12,Middle,False,Bad,22.66,10.86,11,0,L2,False,False,Good,True
+Fernanda,9,Blue 2,3472,Outpost Side,True,2.87,4,Side,False,Average,31.91,5.29,14,2,L2,False,False,Bad,False
+Miguel,9,Blue 3,3478,Middle,True,6.33,4,Side,False,Average,12.89,25.95,12,2,L2,False,False,Average,False
+Isabela,9,Red 1,3480,Outpost Side,True,0.37,11,Side,False,Average,45.41,7.11,21,1,L1,False,False,Good,True
+Rodrigo,9,Red 2,3522,Depot Side,False,1.05,7,Middle,False,Bad,15.51,21.04,9,1,L3,False,False,Bad,False
+Camila,9,Red 3,3794,Middle,False,9.58,4,Side,False,Good,24.52,26.51,15,1,L1,False,False,Good,True
+Marco,10,Blue 1,3933,Depot Side,True,4.76,1,N/A,False,Excellent,32.9,20.9,12,1,Didn't Climb,False,True,Good,True
+Sofia,10,Blue 2,4010,Outpost Side,True,7.67,12,Middle,False,Excellent,61.82,22.41,20,1,L1,False,False,Good,True
+Carlos,10,Blue 3,4371,Middle,True,8.05,6,Side,False,Good,34.95,34.29,12,0,L3,False,False,Bad,False
+Ana,10,Red 1,4584,Middle,True,1.16,4,N/A,False,Average,36.84,25.01,23,1,Didn't Climb,False,False,Bad,False
+Luis,10,Red 2,4635,Depot Side,True,9.71,6,Middle,True,Excellent,12.82,7.73,13,2,L3,False,True,Average,False
+Valeria,10,Red 3,4723,Depot Side,False,6.36,9,Middle,False,Good,45.02,12.14,29,0,L1,False,False,Excellent,True
+Diego,11,Blue 1,4775,Depot Side,True,2.37,7,Middle,False,Bad,43.55,20.15,14,1,L2,True,False,Average,False
+Fernanda,11,Blue 2,4782,Outpost Side,True,8.23,9,Middle,False,Bad,38.46,25.8,13,2,L1,False,True,Good,True
+Miguel,11,Blue 3,5133,Depot Side,True,3.39,6,Side,False,Average,66.56,7.5,12,2,L1,False,False,Average,False
+Isabela,11,Red 1,5887,Depot Side,True,7.47,9,Side,False,Average,10.63,5.86,21,2,L3,False,False,Average,False
+Rodrigo,11,Red 2,5932,Middle,True,0.68,12,Side,True,Average,10.24,20.82,12,0,L2,False,False,Good,True
+Camila,11,Red 3,5959,Depot Side,True,8.32,3,N/A,False,Good,36.63,7.05,13,1,Didn't Climb,False,False,Good,True
+Marco,12,Blue 1,6017,Depot Side,True,2.96,4,Middle,False,Good,28.79,10.04,10,2,L1,False,False,Bad,False
+Sofia,12,Blue 2,6106,Outpost Side,True,8.0,12,Side,False,Good,23.79,8.85,17,1,L1,False,False,Good,True
+Carlos,12,Blue 3,6170,Depot Side,True,5.09,8,Side,False,Average,12.25,23.64,14,0,L2,False,False,Average,False
+Ana,12,Red 1,6200,Depot Side,True,3.37,3,Side,False,Bad,27.88,17.42,22,2,L1,False,False,Average,False
+Luis,12,Red 2,6348,Middle,True,4.21,2,N/A,False,Bad,35.76,23.68,3,1,Didn't Climb,False,False,Bad,False
+Valeria,12,Red 3,6606,Outpost Side,False,2.15,8,Middle,False,Good,39.43,16.81,19,0,L2,False,False,Good,True
+Diego,13,Blue 1,6652,Outpost Side,True,2.35,6,Middle,False,Good,28.64,5.1,22,0,L1,False,False,Average,False
+Fernanda,13,Blue 2,6676,Middle,True,1.25,5,N/A,False,Bad,30.79,9.48,11,1,Didn't Climb,False,False,Average,False
+Miguel,13,Blue 3,6702,Depot Side,True,6.86,1,Side,False,Good,35.38,34.75,3,1,L2,False,False,Excellent,True
+Isabela,13,Red 1,6832,Depot Side,True,2.48,15,N/A,False,Average,16.54,33.54,28,0,Didn't Climb,False,False,Average,False
+Rodrigo,13,Red 2,7102,Middle,True,9.33,8,Side,False,Average,14.55,31.29,20,0,L1,False,False,Average,False
+Camila,13,Red 3,7421,Outpost Side,True,2.53,7,Side,False,Good,43.33,12.55,19,1,L2,False,False,Average,False
+Marco,14,Blue 1,7546,Depot Side,True,8.72,3,Side,False,Average,24.81,32.53,4,2,L1,False,False,Average,False
+Sofia,14,Blue 2,8740,Outpost Side,True,1.07,13,Side,False,Good,32.36,29.71,33,1,L1,False,False,Good,True
+Carlos,14,Blue 3,8741,Middle,True,3.6,12,Middle,False,Bad,37.96,23.1,9,2,L2,False,False,Average,False
+Ana,14,Red 1,9053,Depot Side,False,0.58,4,N/A,False,Average,23.73,6.49,12,1,Didn't Climb,False,False,Average,False
+Luis,14,Red 2,9060,Outpost Side,False,1.27,1,N/A,False,Average,62.45,11.88,7,2,Didn't Climb,False,False,Average,False
+Valeria,14,Red 3,9213,Depot Side,True,4.41,7,Side,False,Good,60.04,27.07,16,1,L2,False,False,Excellent,True
+Diego,15,Blue 1,9280,Outpost Side,True,3.97,7,Side,False,Average,12.93,18.6,28,2,L2,False,False,Average,False
+Fernanda,15,Blue 2,9282,Middle,False,9.63,4,Side,True,Good,37.72,23.64,14,0,L2,False,False,Excellent,True
+Miguel,15,Blue 3,10225,Middle,True,6.7,12,Side,False,Good,26.59,11.57,30,1,L2,False,False,Good,True
+Isabela,15,Red 1,10529,Middle,True,1.94,7,Side,False,Excellent,25.12,8.59,13,1,L1,False,False,Average,False
+Rodrigo,15,Red 2,10565,Depot Side,True,7.98,7,Middle,False,Good,57.89,6.48,15,2,L2,False,False,Good,True
+Camila,15,Red 3,10931,Outpost Side,True,3.07,1,Side,False,Excellent,25.51,25.34,6,1,L3,False,False,Excellent,True
+Marco,16,Blue 1,11065,Outpost Side,True,2.01,8,N/A,False,Good,22.15,21.21,40,0,Didn't Climb,False,False,Bad,False
+Sofia,16,Blue 2,3354,Depot Side,True,7.46,10,Side,False,Good,23.13,15.74,26,2,L1,False,False,Good,True
+Carlos,16,Blue 3,3472,Outpost Side,True,6.34,5,Middle,False,Good,30.66,17.08,23,0,L1,False,True,Bad,False
+Ana,16,Red 1,3478,Middle,True,7.14,4,Middle,False,Bad,48.73,15.68,4,0,L2,False,False,Excellent,True
+Luis,16,Red 2,3480,Outpost Side,True,3.51,15,Middle,False,Good,33.63,29.08,27,2,L3,False,False,Good,True
+Valeria,16,Red 3,3522,Outpost Side,True,3.97,8,Side,False,Average,60.96,31.22,11,2,L1,False,False,Bad,False
+Diego,17,Blue 1,3794,Depot Side,True,8.56,7,Middle,False,Bad,54.38,10.6,8,1,L3,False,False,Bad,False
+Fernanda,17,Blue 2,3933,Depot Side,True,0.92,3,Middle,False,Good,12.78,30.01,14,1,L2,False,False,Excellent,True
+Miguel,17,Blue 3,4010,Outpost Side,True,7.06,11,N/A,False,Average,41.29,8.89,15,1,Didn't Climb,False,False,Excellent,True
+Isabela,17,Red 1,4371,Depot Side,True,9.3,7,Middle,False,Good,56.57,13.35,27,2,L1,False,False,Bad,False
+Rodrigo,17,Red 2,4584,Middle,False,7.55,5,Middle,False,Excellent,51.41,27.16,18,0,L3,True,False,Excellent,True
+Camila,17,Red 3,4635,Outpost Side,True,4.44,5,Middle,False,Good,13.05,27.56,4,2,L3,True,False,Bad,False
+Marco,18,Blue 1,4723,Depot Side,False,5.29,14,Middle,False,Excellent,56.13,31.89,34,2,L2,False,False,Excellent,True
+Sofia,18,Blue 2,4775,Outpost Side,True,0.5,8,N/A,False,Bad,28.32,23.9,10,0,Didn't Climb,False,False,Bad,False
+Carlos,18,Blue 3,4782,Outpost Side,True,9.08,3,Middle,False,Average,20.7,22.75,16,0,L3,True,False,Bad,False
+Ana,18,Red 1,5133,Middle,True,8.66,4,Middle,False,Good,57.2,23.11,3,0,L1,False,True,Good,True
+Luis,18,Red 2,5887,Outpost Side,True,8.61,14,N/A,False,Average,40.73,8.69,33,2,Didn't Climb,False,False,Bad,False
+Valeria,18,Red 3,5932,Outpost Side,True,4.03,5,N/A,False,Average,59.42,14.42,30,2,Didn't Climb,True,False,Excellent,True
+Diego,19,Blue 1,5959,Outpost Side,True,1.47,6,Middle,False,Bad,64.21,14.5,22,1,L3,False,False,Average,False
+Fernanda,19,Blue 2,6017,Depot Side,True,8.14,3,Middle,False,Good,54.96,17.2,6,0,L1,False,False,Average,False
+Miguel,19,Blue 3,6106,Depot Side,True,7.21,9,Side,False,Average,19.26,9.64,34,2,L2,False,False,Average,False
+Isabela,19,Red 1,6170,Depot Side,False,3.82,10,N/A,False,Excellent,62.62,24.42,10,2,Didn't Climb,False,False,Excellent,True
+Rodrigo,19,Red 2,6200,Middle,True,2.33,3,Side,False,Good,54.98,9.3,9,0,L2,False,False,Bad,False
+Camila,19,Red 3,6348,Middle,False,6.95,4,N/A,False,Average,48.58,9.01,9,2,Didn't Climb,False,False,Good,True
+Marco,20,Blue 1,6606,Middle,True,0.2,14,Side,False,Bad,17.69,21.31,13,2,L1,False,False,Bad,False
+Sofia,20,Blue 2,6652,Outpost Side,True,8.69,6,Middle,False,Average,54.77,8.58,15,2,L1,False,False,Bad,False
+Carlos,20,Blue 3,6676,Middle,True,1.69,3,Middle,False,Average,64.44,13.1,9,0,L1,False,True,Bad,False
+Ana,20,Red 1,6702,Middle,True,2.54,1,N/A,False,Good,16.5,7.29,8,0,Didn't Climb,False,False,Good,True
+Luis,20,Red 2,6832,Middle,True,9.78,7,Side,False,Average,17.07,13.17,23,0,L1,False,False,Bad,False
+Valeria,20,Red 3,7102,Depot Side,True,4.03,8,Middle,False,Average,48.19,29.78,25,1,L1,False,False,Average,False
+Diego,21,Blue 1,7421,Depot Side,True,2.05,8,Side,True,Good,57.59,33.17,18,2,L2,False,False,Good,True
+Fernanda,21,Blue 2,7546,Depot Side,True,6.79,3,Middle,False,Bad,25.36,27.69,7,1,L2,False,False,Good,True
+Miguel,21,Blue 3,8740,Outpost Side,True,4.01,14,Middle,False,Excellent,26.55,34.87,24,2,L2,False,True,Average,False
+Isabela,21,Red 1,8741,Outpost Side,True,5.71,12,Middle,False,Good,12.88,17.81,9,2,L2,False,False,Average,False
+Rodrigo,21,Red 2,9053,Middle,True,6.24,3,Side,False,Good,65.32,17.04,6,1,L2,True,False,Average,False
+Camila,21,Red 3,9060,Depot Side,False,9.9,4,Side,False,Average,65.09,19.32,9,1,L1,False,False,Good,True
+Marco,22,Blue 1,9213,Middle,True,4.31,10,Side,False,Average,58.36,6.02,30,2,L1,False,False,Excellent,True
+Sofia,22,Blue 2,9280,Depot Side,True,5.18,5,Middle,False,Average,57.15,17.23,27,0,L3,True,False,Average,False
+Carlos,22,Blue 3,9282,Outpost Side,True,2.61,4,Side,False,Excellent,21.18,19.95,22,0,L3,False,False,Good,True
+Ana,22,Red 1,10225,Middle,True,9.35,11,Side,False,Good,33.1,11.3,25,2,L2,False,False,Average,False
+Luis,22,Red 2,10529,Middle,True,4.42,9,Side,False,Average,57.4,34.35,18,1,L2,False,False,Good,True
+Valeria,22,Red 3,10565,Middle,True,7.06,4,N/A,False,Good,40.61,33.35,19,0,Didn't Climb,False,False,Average,False
+Diego,23,Blue 1,10931,Middle,True,7.43,5,N/A,False,Good,39.33,16.14,7,0,Didn't Climb,False,False,Average,False
+Fernanda,23,Blue 2,11065,Depot Side,True,1.71,14,Side,False,Good,33.12,14.64,21,2,L1,False,False,Average,False
+Miguel,23,Blue 3,3354,Outpost Side,True,2.59,11,Side,False,Average,10.23,30.74,32,0,L2,False,False,Average,False
+Isabela,23,Red 1,3472,Outpost Side,True,0.28,8,Side,False,Excellent,47.89,26.37,7,1,L3,False,False,Average,False
+Rodrigo,23,Red 2,3478,Depot Side,True,7.65,1,N/A,False,Average,11.75,26.35,7,0,Didn't Climb,False,False,Average,False
+Camila,23,Red 3,3480,Outpost Side,True,9.19,13,Side,False,Excellent,10.92,6.87,14,2,L1,False,False,Excellent,True
+Marco,24,Blue 1,3522,Middle,True,7.42,12,Middle,False,Bad,24.84,23.96,20,0,L1,False,False,Average,False
+Sofia,24,Blue 2,3794,Outpost Side,True,5.5,8,Side,False,Average,40.24,29.77,8,2,L3,False,False,Good,True
+Carlos,24,Blue 3,3933,Outpost Side,True,7.57,6,Side,False,Bad,43.97,30.62,12,0,L2,False,False,Average,False
+Ana,24,Red 1,4010,Outpost Side,True,5.01,11,N/A,False,Average,53.96,16.08,31,2,Didn't Climb,False,False,Good,True
+Luis,24,Red 2,4371,Depot Side,True,0.76,10,Middle,False,Good,41.25,34.26,22,2,L2,False,False,Good,True
+Valeria,24,Red 3,4584,Depot Side,True,4.14,5,Side,False,Excellent,33.15,23.64,11,2,L3,False,False,Good,True
+Diego,25,Blue 1,4635,Depot Side,True,2.74,1,N/A,False,Excellent,37.07,16.58,10,2,Didn't Climb,False,False,Excellent,True
+Fernanda,25,Blue 2,4723,Outpost Side,True,5.2,11,Side,True,Good,59.57,32.22,14,0,L1,False,False,Good,True
+Miguel,25,Blue 3,4775,Outpost Side,True,6.86,8,Middle,False,Good,59.27,33.54,27,2,L2,False,False,Excellent,True
+Isabela,25,Red 1,4782,Depot Side,True,6.97,4,N/A,False,Good,33.97,7.33,14,0,Didn't Climb,False,True,Good,True
+Rodrigo,25,Red 2,5133,Depot Side,True,5.53,3,Side,False,Average,58.52,25.24,16,2,L2,False,False,Average,False
+Camila,25,Red 3,5887,Middle,True,6.67,13,Side,False,Average,39.4,18.75,36,2,L2,False,False,Average,False
+Marco,26,Blue 1,5932,Depot Side,True,0.59,11,Side,False,Excellent,42.77,19.82,24,1,L3,False,False,Good,True
+Sofia,26,Blue 2,5959,Outpost Side,True,6.33,4,Middle,False,Good,12.52,11.0,19,0,L3,False,False,Good,True
+Carlos,26,Blue 3,6017,Middle,True,4.75,5,Side,False,Good,39.5,20.2,3,1,L1,False,False,Bad,False
+Ana,26,Red 1,6106,Outpost Side,True,7.35,10,N/A,False,Bad,41.85,9.22,35,0,Didn't Climb,False,False,Good,True
+Luis,26,Red 2,6170,Middle,True,3.24,6,Side,False,Excellent,22.49,24.05,12,1,L3,False,False,Bad,False
+Valeria,26,Red 3,6200,Middle,True,0.91,4,N/A,False,Good,68.13,13.11,13,0,Didn't Climb,False,False,Excellent,True
+Diego,27,Blue 1,6348,Middle,True,2.71,6,Middle,False,Bad,62.47,28.82,10,1,L2,False,False,Bad,False
+Fernanda,27,Blue 2,6606,Outpost Side,True,8.3,8,N/A,False,Average,21.81,22.29,21,2,Didn't Climb,False,False,Bad,False
+Miguel,27,Blue 3,6652,Depot Side,False,0.73,9,Side,False,Average,56.95,33.28,18,1,L2,False,False,Average,False
+Isabela,27,Red 1,6676,Depot Side,True,3.69,4,Side,False,Average,14.16,29.66,18,2,L1,False,False,Good,True
+Rodrigo,27,Red 2,6702,Depot Side,True,1.77,5,Side,False,Excellent,58.57,6.45,3,2,L2,False,False,Average,False
+Camila,27,Red 3,6832,Outpost Side,True,0.18,10,Side,False,Average,60.68,6.08,13,0,L2,False,False,Good,True
+Marco,28,Blue 1,7102,Outpost Side,True,9.35,8,Middle,False,Good,20.2,17.0,10,1,L2,False,False,Excellent,True
+Sofia,28,Blue 2,7421,Outpost Side,True,7.18,9,Side,False,Good,10.18,17.74,24,2,L3,False,False,Good,True
+Carlos,28,Blue 3,7546,Middle,True,6.61,3,Side,False,Bad,14.79,33.8,7,2,L2,False,False,Bad,False
+Ana,28,Red 1,8740,Outpost Side,False,7.58,14,Side,False,Bad,21.63,17.21,13,2,L3,False,False,Average,False
+Luis,28,Red 2,8741,Middle,True,7.62,12,N/A,False,Bad,13.14,27.02,25,0,Didn't Climb,False,False,Good,True
+Valeria,28,Red 3,9053,Middle,True,2.38,4,Side,False,Good,58.4,29.28,16,2,L3,False,False,Excellent,True
+Diego,29,Blue 1,9060,Middle,True,5.38,5,Side,False,Good,67.69,18.39,3,0,L3,False,False,Average,False
+Fernanda,29,Blue 2,9213,Middle,True,1.19,11,Middle,False,Excellent,27.4,25.76,18,1,L3,False,False,Good,True
+Miguel,29,Blue 3,9280,Depot Side,True,3.38,11,Middle,False,Excellent,33.93,27.22,29,1,L1,True,False,Bad,False
+Isabela,29,Red 1,9282,Outpost Side,False,7.8,5,Middle,False,Bad,56.25,20.58,23,0,L1,False,True,Good,True
+Rodrigo,29,Red 2,10225,Outpost Side,True,3.89,7,N/A,False,Good,17.15,22.87,40,1,Didn't Climb,False,False,Average,False
+Camila,29,Red 3,10529,Depot Side,False,5.81,11,Side,False,Good,56.36,8.57,25,2,L2,False,False,Bad,False
+Marco,30,Blue 1,10565,Outpost Side,True,0.43,6,Side,False,Good,36.15,21.44,18,1,L2,False,False,Average,False
+Sofia,30,Blue 2,10931,Depot Side,True,6.67,3,Middle,True,Average,23.99,33.63,15,1,L1,False,False,Excellent,True
+Carlos,30,Blue 3,11065,Depot Side,True,0.98,10,Side,False,Average,42.14,32.1,18,1,L2,False,False,Excellent,True
+Ana,30,Red 1,3354,Depot Side,True,6.95,9,Side,False,Bad,49.73,34.58,17,2,L1,False,False,Bad,False
+Luis,30,Red 2,3472,Middle,True,3.5,4,Side,False,Excellent,29.36,34.31,17,1,L2,False,False,Excellent,True
+Valeria,30,Red 3,3478,Depot Side,True,1.76,6,Side,False,Excellent,33.38,10.57,16,2,L2,False,False,Good,True
+Diego,31,Blue 1,3480,Depot Side,True,1.97,14,Side,False,Average,35.76,21.38,36,0,L1,True,False,Average,False
+Fernanda,31,Blue 2,3522,Depot Side,True,6.11,12,Middle,True,Average,62.97,9.08,18,1,L1,False,False,Average,False
+Miguel,31,Blue 3,3794,Outpost Side,True,8.09,3,Side,False,Bad,19.63,28.73,21,2,L2,False,False,Bad,False
+Isabela,31,Red 1,3933,Outpost Side,False,3.5,1,Middle,False,Average,15.98,17.71,5,1,L2,False,False,Excellent,True
+Rodrigo,31,Red 2,4010,Middle,True,7.92,7,Side,False,Good,36.97,17.27,28,0,L1,False,False,Average,False
+Camila,31,Red 3,4371,Outpost Side,True,9.55,11,Middle,False,Bad,18.07,16.68,14,0,L2,False,False,Average,False
+Marco,32,Blue 1,4584,Middle,True,5.73,5,Side,False,Bad,60.6,21.41,14,2,L1,False,False,Average,False
+Sofia,32,Blue 2,4635,Depot Side,True,9.13,3,Side,False,Good,44.61,17.68,4,0,L2,False,False,Average,False
+Carlos,32,Blue 3,4723,Middle,True,5.15,12,N/A,False,Excellent,63.38,27.54,24,1,Didn't Climb,False,True,Bad,False
+Ana,32,Red 1,4775,Depot Side,True,5.13,9,Side,False,Good,31.98,6.12,24,1,L3,False,False,Good,True
+Luis,32,Red 2,4782,Outpost Side,False,0.82,6,Middle,False,Good,51.53,5.38,23,0,L3,False,False,Good,True
+Valeria,32,Red 3,5133,Depot Side,True,1.26,4,N/A,False,Bad,24.17,28.42,4,0,Didn't Climb,False,False,Good,True
+Diego,33,Blue 1,5887,Middle,True,8.56,11,Middle,False,Good,24.91,33.12,23,0,L2,False,False,Bad,False
+Fernanda,33,Blue 2,5932,Middle,True,0.83,6,Side,False,Bad,67.01,6.5,14,1,L2,False,False,Average,False
+Miguel,33,Blue 3,5959,Depot Side,False,5.47,8,Middle,False,Bad,29.84,29.8,10,1,L1,False,False,Good,True
+Isabela,33,Red 1,6017,Depot Side,True,5.73,2,Side,False,Average,22.14,24.55,7,0,L3,False,False,Good,True
+Rodrigo,33,Red 2,6106,Middle,True,5.4,15,N/A,False,Excellent,48.7,19.25,36,1,Didn't Climb,False,False,Good,True
+Camila,33,Red 3,6170,Middle,True,5.69,5,Middle,False,Good,54.82,10.56,14,1,L2,False,False,Good,True
+Marco,34,Blue 1,6200,Middle,True,9.51,3,Side,False,Average,24.63,26.46,23,1,L2,False,False,Good,True
+Sofia,34,Blue 2,6348,Middle,True,1.02,1,Middle,False,Bad,14.94,8.38,13,2,L2,False,True,Good,True
+Carlos,34,Blue 3,6606,Outpost Side,True,9.82,13,N/A,False,Average,14.39,10.54,39,0,Didn't Climb,False,False,Good,True
+Ana,34,Red 1,6652,Depot Side,True,0.68,9,Middle,False,Bad,29.82,6.61,29,0,L2,False,False,Good,True
+Luis,34,Red 2,6676,Middle,True,8.53,5,Side,False,Excellent,64.42,22.75,8,1,L3,False,False,Bad,False
+Valeria,34,Red 3,6702,Middle,False,7.18,3,Middle,False,Average,13.76,20.71,14,1,L1,False,True,Good,True
+Diego,35,Blue 1,6832,Outpost Side,False,2.47,7,Middle,False,Excellent,27.67,20.82,13,0,L3,False,False,Average,False
+Fernanda,35,Blue 2,7102,Outpost Side,True,2.31,5,Middle,False,Good,33.0,16.34,19,2,L1,False,True,Good,True
+Miguel,35,Blue 3,7421,Depot Side,False,7.17,3,Middle,True,Good,48.72,15.34,6,0,L2,False,False,Excellent,True
+Isabela,35,Red 1,7546,Middle,True,5.82,3,Middle,False,Good,44.53,21.91,16,0,L2,False,False,Bad,False
+Rodrigo,35,Red 2,8740,Middle,True,2.68,9,Side,False,Average,26.09,23.94,25,0,L1,False,False,Excellent,True
+Camila,35,Red 3,8741,Depot Side,True,7.24,9,N/A,False,Good,57.04,23.91,28,2,Didn't Climb,False,False,Excellent,True
+Marco,36,Blue 1,9053,Depot Side,True,2.95,5,Side,False,Good,65.35,8.33,19,0,L2,False,False,Good,True
+Sofia,36,Blue 2,9060,Outpost Side,True,0.58,1,N/A,False,Good,59.45,21.49,12,0,Didn't Climb,False,False,Bad,False
+Carlos,36,Blue 3,9213,Depot Side,False,4.91,12,Middle,False,Average,36.71,33.43,13,1,L2,False,False,Good,True
+Ana,36,Red 1,9280,Depot Side,True,1.88,6,Middle,False,Good,26.34,26.84,10,1,L2,False,False,Bad,False
+Luis,36,Red 2,9282,Middle,True,2.37,8,Middle,False,Average,32.73,12.13,7,1,L2,False,False,Good,True
+Valeria,36,Red 3,10225,Middle,True,3.74,10,Side,False,Bad,35.69,32.28,13,0,L2,True,False,Average,False
+Diego,37,Blue 1,10529,Depot Side,True,6.5,8,Middle,False,Good,35.58,24.91,16,2,L2,False,False,Good,True
+Fernanda,37,Blue 2,10565,Middle,True,2.85,8,Middle,False,Excellent,17.99,19.9,12,1,L2,False,False,Bad,False
+Miguel,37,Blue 3,10931,Depot Side,True,7.3,4,Middle,False,Bad,51.96,16.52,5,2,L3,False,False,Good,True
+Isabela,37,Red 1,11065,Middle,True,5.14,8,Middle,False,Bad,39.34,16.15,29,2,L3,False,False,Bad,False
+Rodrigo,37,Red 2,3354,Outpost Side,False,8.77,7,Middle,False,Excellent,47.4,11.44,13,0,L1,False,False,Good,True
+Camila,37,Red 3,3472,Depot Side,True,0.83,9,N/A,False,Bad,34.68,9.84,10,1,Didn't Climb,False,False,Average,False
+Marco,38,Blue 1,3478,Outpost Side,True,7.79,6,Side,False,Bad,53.92,22.24,16,2,L2,False,False,Good,True
+Sofia,38,Blue 2,3480,Outpost Side,True,3.23,15,Middle,False,Good,55.42,17.53,30,2,L3,False,False,Average,False
+Carlos,38,Blue 3,3522,Middle,True,7.29,11,N/A,False,Bad,53.05,28.04,18,1,Didn't Climb,False,False,Average,False
+Ana,38,Red 1,3794,Outpost Side,True,4.05,6,N/A,False,Good,34.04,27.19,23,2,Didn't Climb,False,True,Average,False
+Luis,38,Red 2,3933,Middle,False,3.11,5,Middle,False,Good,31.54,16.71,9,2,L1,False,False,Average,False
+Valeria,38,Red 3,4010,Middle,True,3.28,7,Side,False,Good,18.88,29.41,12,2,L3,False,False,Average,False
+Diego,39,Blue 1,4371,Depot Side,False,0.12,9,Side,False,Bad,10.74,6.46,11,1,L1,False,False,Excellent,True
+Fernanda,39,Blue 2,4584,Middle,False,3.98,6,Side,False,Good,58.98,20.29,14,0,L3,False,False,Bad,False
+Miguel,39,Blue 3,4635,Depot Side,True,2.99,3,Side,True,Average,47.71,7.55,7,0,L2,False,False,Good,True
+Isabela,39,Red 1,4723,Depot Side,True,4.21,7,Middle,False,Bad,39.27,22.85,20,0,L3,False,False,Average,False
+Rodrigo,39,Red 2,4775,Depot Side,True,3.76,9,Side,False,Average,25.58,10.3,25,1,L2,False,False,Average,False
+Camila,39,Red 3,4782,Depot Side,False,7.41,6,Middle,False,Good,11.59,6.34,24,1,L2,False,False,Good,True
+Marco,40,Blue 1,5133,Outpost Side,True,4.04,5,Middle,False,Good,30.06,21.38,15,2,L1,False,False,Good,True
+Sofia,40,Blue 2,5887,Outpost Side,False,1.14,10,Side,False,Average,20.0,17.17,29,0,L2,False,True,Average,False
+Carlos,40,Blue 3,5932,Outpost Side,True,0.85,11,Side,False,Average,51.23,13.2,32,0,L2,False,False,Good,True
+Ana,40,Red 1,5959,Depot Side,True,6.18,3,Middle,False,Average,23.67,29.07,19,2,L3,False,False,Average,False
+Luis,40,Red 2,6017,Outpost Side,True,8.27,2,Side,False,Average,51.31,16.78,12,2,L1,False,False,Excellent,True
+Valeria,40,Red 3,6106,Depot Side,True,2.75,12,Side,False,Average,41.99,34.28,22,2,L1,False,False,Excellent,True
+Diego,41,Blue 1,6170,Outpost Side,True,2.03,6,Side,False,Excellent,14.24,30.29,12,2,L3,False,False,Good,True
+Fernanda,41,Blue 2,6200,Depot Side,True,1.18,7,Middle,False,Bad,45.49,26.09,12,1,L3,False,False,Good,True
+Miguel,41,Blue 3,6348,Middle,True,7.04,4,Middle,False,Good,31.55,10.07,13,2,L2,False,False,Good,True
+Isabela,41,Red 1,6606,Middle,True,0.93,14,Side,False,Good,39.46,25.85,13,1,L2,False,False,Excellent,True
+Rodrigo,41,Red 2,6652,Depot Side,True,8.38,12,N/A,False,Good,20.54,20.02,16,0,Didn't Climb,False,False,Average,False
+Camila,41,Red 3,6676,Depot Side,True,7.34,6,N/A,False,Average,11.76,33.8,6,2,Didn't Climb,False,False,Good,True
+Marco,42,Blue 1,6702,Depot Side,True,8.81,3,Side,False,Excellent,29.46,5.09,8,1,L2,False,False,Bad,False
+Sofia,42,Blue 2,6832,Middle,True,9.65,11,Side,False,Good,18.46,13.19,32,0,L1,False,False,Average,False
+Carlos,42,Blue 3,7102,Middle,False,7.39,8,Side,False,Good,19.68,33.32,29,0,L2,False,True,Excellent,True
+Ana,42,Red 1,7421,Depot Side,True,2.86,9,Side,False,Excellent,43.22,18.72,22,2,L2,False,False,Good,True
+Luis,42,Red 2,7546,Outpost Side,True,5.43,1,Side,False,Average,29.65,13.16,15,2,L3,False,False,Excellent,True
+Valeria,42,Red 3,8740,Depot Side,True,3.12,8,Middle,True,Good,58.68,31.86,25,0,L1,False,False,Good,True
+Diego,43,Blue 1,8741,Outpost Side,False,4.8,11,N/A,False,Good,43.18,6.15,11,1,Didn't Climb,False,False,Good,True
+Fernanda,43,Blue 2,9053,Outpost Side,True,7.06,7,Side,False,Good,21.61,12.21,8,1,L1,False,False,Average,False
+Miguel,43,Blue 3,9060,Depot Side,True,0.86,1,N/A,False,Good,23.15,8.02,5,0,Didn't Climb,False,False,Average,False
+Isabela,43,Red 1,9213,Outpost Side,True,5.39,14,Side,False,Good,36.09,18.37,15,0,L2,False,False,Good,True
+Rodrigo,43,Red 2,9280,Middle,False,0.05,8,Middle,False,Excellent,10.65,29.7,24,1,L3,False,False,Average,False
+Camila,43,Red 3,9282,Middle,True,8.47,8,N/A,False,Average,14.25,32.8,17,1,Didn't Climb,False,False,Good,True

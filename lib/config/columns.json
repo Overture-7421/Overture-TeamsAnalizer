@@ -1,6 +1,6 @@
 {
-    "version": "1.0",
-    "timestamp": "8.6",
+    "version": "0.1.0",
+    "category": "FRC",
     "PREMATCH": [
         {
             "label": "Scouter Name",
@@ -16,7 +16,7 @@
             "label": "Robot Position",
             "key": "robot_position",
             "type": "dropdown",
-            "options": ["Blue 1", "Blue 2", "Red 1", "Red 2"]
+            "options": ["Blue 1", "Blue 2", "Blue 3", "Red 1", "Red 2", "Red 3"]
         },
         {
             "label": "Team Number",
@@ -24,131 +24,95 @@
             "type": "number"
         },
         {
-            "label": "Starting Side (Relative)",
-            "key": "starting_side",
+            "label": "Starting Position",
+            "key": "starting_position",
             "type": "dropdown",
-            "options": ["Goal Side", "Obelisk Side", "Center", "Unknown"]
+            "options": ["Outpost Side", "Middle", "Depot Side"]
         },
         {
-            "label": "No Show",
-            "key": "no_show",
+            "label": "Is HP True to your team?",
+            "key": "teleop_hp_true",
             "type": "switch"
         }
     ],
     "AUTONOMOUS": [
         {
-            "label": "Left Launch Line (LEAVE)",
-            "key": "auto_leave",
-            "type": "switch"
+            "label": "Shoot Time",
+            "key": "auton_shoot_time",
+            "type": "chrono"
         },
         {
-            "label": "Artifacts Scored (CLASSIFIED)",
-            "key": "auto_artifact_classified",
+            "label": "HP Scored",
+            "key": "auto_hp_scored",
             "type": "counter"
         },
         {
-            "label": "Artifacts Scored (OVERFLOW)",
-            "key": "auto_artifact_overflow",
-            "type": "counter"
-        },
-        {
-            "label": "Artifacts Placed in Depot",
-            "key": "auto_depot_placed",
-            "type": "counter"
-        },
-        {
-            "label": "Pattern Matches at End of Auto (0-9)",
-            "key": "auto_pattern_matches",
-            "type": "counter"
-        },
-        {
-            "label": "Auto Strategy",
-            "key": "auto_strategy",
+            "label": "Climb Position",
+            "key": "auto_climb_position",
             "type": "dropdown",
-            "options": ["Score Goal", "Build Pattern", "Depot Focus", "Mixed", "None/Dead"]
+            "options": ["Middle", "Side"]
         },
         {
-            "label": "Died/Stopped Moving in Auto",
-            "key": "auto_died",
+            "label": "Stuck in Tower If Climbed?",
+            "key": "auto_descends_stuck",
             "type": "switch"
+        },
+        {
+            "label": "Auton Quality",
+            "key": "auton_quality",
+            "type": "dropdown",
+            "options": ["Did Nothing", "Bad", "Average", "Good", "Excellent"]
         }
     ],
     "TELEOP": [
         {
-            "label": "Artifacts Scored (CLASSIFIED)",
-            "key": "teleop_artifact_classified",
+            "label": "Shoot Time",
+            "key": "teleop_shoot_time",
+            "type": "chrono"
+        },
+        {
+            "label": "Pass Time",
+            "key": "teleop_pass_time",
+            "type": "chrono"
+        },
+        {
+            "label": "HP Scored",
+            "key": "teleop_hp_scored",
             "type": "counter"
         },
         {
-            "label": "Artifacts Scored (OVERFLOW)",
-            "key": "teleop_artifact_overflow",
+            "label": "Penalty Counter",
+            "key": "teleop_penalty",
             "type": "counter"
-        },
-        {
-            "label": "Artifacts Placed in Depot",
-            "key": "teleop_depot_placed",
-            "type": "counter"
-        },
-        {
-            "label": "How many artifacts failed to score?",
-            "key": "teleop_artifact_failed",
-            "type": "counter"
-        },
-        {
-            "label": "Pattern Matches at End of Match (0-9)",
-            "key": "teleop_pattern_matches",
-            "type": "counter"
-        },
-        {
-            "label": "Cycle Focus",
-            "key": "teleop_cycle_focus",
-            "type": "dropdown",
-            "options": ["Goal Scoring", "Pattern Building", "Depot", "Mixed", "None/Dead"]
-        },
-        {
-            "label": "Played Defense",
-            "key": "teleop_defense",
-            "type": "switch"
-        },
-        {
-            "label": "Was Defended Heavily",
-            "key": "teleop_got_defended",
-            "type": "switch"
-        },
-        {
-            "label": "Died/Stopped Moving in Teleop",
-            "key": "teleop_died",
-            "type": "switch"
         }
     ],
     "ENDGAME": [
         {
-            "label": "Returned to Base",
-            "key": "endgame_base_return",
+            "label": "Climb",
+            "key": "endgame_climb",
             "type": "dropdown",
-            "options": ["Not Returned", "Partially Returned", "Fully Returned"]
+            "options": ["Didn't Climb", "L1", "L2", "L3", "Failed Climb Attempt"]
         },
         {
-            "label": "Climbed On Top of Another Robot",
-            "key": "endgame_climbed",
-            "type": "dropdown",
-            "options": ["NOT Attempted", "Attempted - Successful", "Attempted - Failed"]
-        },
-        {
-            "label": "Tipped/Fell Over",
-            "key": "endgame_tipped",
+            "label": "Jammed over balls?",
+            "key": "endgame_jammed_over_balls",
             "type": "switch"
         },
         {
-            "label": "Broke / Major Failure",
-            "key": "endgame_broke",
+            "label": "Died",
+            "key": "teleop_died",
             "type": "switch"
         },
         {
-            "label": "Card",
-            "key": "endgame_card",
+            "label": "Driver Quality",
+            "key": "driver_quality",
             "type": "dropdown",
-            "options": ["None", "Yellow Card", "Red Card"]
+            "options": ["Did Nothing", "Bad", "Average", "Good", "Excellent"]
+        },
+        {
+            "label": "Do you want it on our alliance?",
+            "key": "scout_alliance_preference",
+            "type": "switch"
         }
     ],
     "headers": [
@@ -156,201 +120,146 @@
         "Match Number",
         "Robot Position",
         "Team Number",
-        "Starting Side (Relative)",
-        "No Show",
-        "Left Launch Line (LEAVE)",
-        "Artifacts Scored (CLASSIFIED) (Auto)",
-        "Artifacts Scored (OVERFLOW) (Auto)",
-        "Artifacts Placed in Depot (Auto)",
-        "Pattern Matches at End of Auto (0-9)",
-        "Auto Strategy",
-        "Died/Stopped Moving in Auto",
-        "Artifacts Scored (CLASSIFIED) (Teleop)",
-        "Artifacts Scored (OVERFLOW) (Teleop)",
-        "Artifacts Placed in Depot (Teleop)",
-        "How many artifacts failed to score?",
-        "Pattern Matches at End of Match (0-9)",
-        "Cycle Focus",
-        "Played Defense",
-        "Was Defended Heavily",
-        "Died/Stopped Moving in Teleop",
-        "Returned to Base",
-        "Climbed On Top of Another Robot",
-        "Tipped/Fell Over",
-        "Broke / Major Failure",
-        "Card"
+        "Starting Position",
+        "Is HP True to your team?",
+        "Shoot Time (Auto)",
+        "HP Scored (Auto)",
+        "Climb Position (Auto)",
+        "Stuck in Tower If Climbed? (Auto)",
+        "Auton Quality",
+        "Shoot Time (Teleop)",
+        "Pass Time",
+        "HP Scored (Teleop)",
+        "Penalty Counter",
+        "Climb",
+        "Jammed over balls?",
+        "Died",
+        "Driver Quality",
+        "Do you want it on our alliance?"
     ],
     "column_configuration": {
         "numeric_for_overall": [
-            "Artifacts Scored (CLASSIFIED) (Auto)",
-            "Artifacts Scored (OVERFLOW) (Auto)",
-            "Artifacts Placed in Depot (Auto)",
-            "Pattern Matches at End of Auto (0-9)",
-            "Artifacts Scored (CLASSIFIED) (Teleop)",
-            "Artifacts Scored (OVERFLOW) (Teleop)",
-            "Artifacts Placed in Depot (Teleop)",
-            "How many artifacts failed to score?",
-            "Pattern Matches at End of Match (0-9)"
+            "HP Scored (Auto)",
+            "HP Scored (Teleop)"
         ],
         "stats_columns": [
-            "No Show",
-            "Left Launch Line (LEAVE)",
-            "Artifacts Scored (CLASSIFIED) (Auto)",
-            "Artifacts Scored (OVERFLOW) (Auto)",
-            "Artifacts Placed in Depot (Auto)",
-            "Pattern Matches at End of Auto (0-9)",
-            "Auto Strategy",
-            "Died/Stopped Moving in Auto",
-            "Artifacts Scored (CLASSIFIED) (Teleop)",
-            "Artifacts Scored (OVERFLOW) (Teleop)",
-            "Artifacts Placed in Depot (Teleop)",
-            "How many artifacts failed to score?",
-            "Pattern Matches at End of Match (0-9)",
-            "Cycle Focus",
-            "Played Defense",
-            "Was Defended Heavily",
-            "Died/Stopped Moving in Teleop",
-            "Returned to Base",
-            "Climbed On Top of Another Robot",
-            "Tipped/Fell Over",
-            "Broke / Major Failure",
-            "Card"
+            "Starting Position",
+            "Is HP True to your team?",
+            "Shoot Time (Auto)",
+            "HP Scored (Auto)",
+            "Climb Position (Auto)",
+            "Stuck in Tower If Climbed? (Auto)",
+            "Auton Quality",
+            "Shoot Time (Teleop)",
+            "Pass Time",
+            "HP Scored (Teleop)",
+            "Penalty Counter",
+            "Climb",
+            "Jammed over balls?",
+            "Died",
+            "Driver Quality",
+            "Do you want it on our alliance?"
         ],
         "mode_boolean_columns": [
-            "No Show",
-            "Left Launch Line (LEAVE)",
-            "Died/Stopped Moving in Auto",
-            "Played Defense",
-            "Was Defended Heavily",
-            "Died/Stopped Moving in Teleop",
-            "Returned to Base",
-            "Climbed On Top of Another Robot",
-            "Tipped/Fell Over",
-            "Broke / Major Failure"
+            "Is HP True to your team?",
+            "Stuck in Tower If Climbed? (Auto)",
+            "Jammed over balls?",
+            "Died",
+            "Do you want it on our alliance?"
         ],
         "autonomous_columns": [
-            "Left Launch Line (LEAVE)",
-            "Artifacts Scored (CLASSIFIED) (Auto)",
-            "Artifacts Scored (OVERFLOW) (Auto)",
-            "Artifacts Placed in Depot (Auto)",
-            "Pattern Matches at End of Auto (0-9)",
-            "Auto Strategy",
-            "Died/Stopped Moving in Auto"
+            "Shoot Time (Auto)",
+            "HP Scored (Auto)",
+            "Climb Position (Auto)",
+            "Stuck in Tower If Climbed? (Auto)",
+            "Auton Quality"
         ],
         "teleop_columns": [
-            "Artifacts Scored (CLASSIFIED) (Teleop)",
-            "Artifacts Scored (OVERFLOW) (Teleop)",
-            "Artifacts Placed in Depot (Teleop)",
-            "How many artifacts failed to score?",
-            "Pattern Matches at End of Match (0-9)",
-            "Cycle Focus",
-            "Played Defense",
-            "Was Defended Heavily",
-            "Died/Stopped Moving in Teleop"
+            "Shoot Time (Teleop)",
+            "Pass Time",
+            "HP Scored (Teleop)",
+            "Penalty Counter"
         ],
         "endgame_columns": [
-            "Returned to Base",
-            "Climbed On Top of Another Robot",
-            "Tipped/Fell Over",
-            "Broke / Major Failure"
+            "Climb",
+            "Jammed over balls?",
+            "Died",
+            "Driver Quality",
+            "Do you want it on our alliance?"
         ]
     },
     "streamlit_config": {
         "overall_rankings": {
             "average_columns": [
-                {"column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-                {"column": "Artifacts Scored (OVERFLOW) (Auto)", "label": "Auto Overflow"},
-                {"column": "Artifacts Placed in Depot (Auto)", "label": "Auto Depot"},
-                {"column": "Pattern Matches at End of Auto (0-9)", "label": "Auto Pattern Matches"},
-                {"column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
-                {"column": "Artifacts Scored (OVERFLOW) (Teleop)", "label": "Teleop Overflow"},
-                {"column": "Artifacts Placed in Depot (Teleop)", "label": "Teleop Depot"},
-                {"column": "How many artifacts failed to score?", "label": "Teleop Failed"},
-                {"column": "Pattern Matches at End of Match (0-9)", "label": "Teleop Pattern Matches"}
+                {"column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+                {"column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
             ],
             "rate_columns": [
-                {"columns": ["No Show"], "label": "No Show Rate (%)"},
-                {"columns": ["Left Launch Line (LEAVE)"], "label": "Leave Rate (%)"},
-                {"columns": ["Played Defense"], "label": "Played Defense Rate (%)"},
-                {"columns": ["Was Defended Heavily"], "label": "Defended Heavily Rate (%)"},
-                {"columns": ["Died/Stopped Moving in Auto"], "label": "Auto Died Rate (%)"},
-                {"columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate (%)"},
-                {"columns": ["Returned to Base"], "label": "Returned to Base Rate (%)"},
-                {"columns": ["Climbed On Top of Another Robot"], "label": "Climb On Top Rate (%)"},
-                {"columns": ["Tipped/Fell Over"], "label": "Tip/Fall Rate (%)"},
-                {"columns": ["Broke / Major Failure"], "label": "Broke Rate (%)"}
+                {"columns": ["Is HP True to your team?"], "label": "HP True Rate (%)"},
+                {"columns": ["Stuck in Tower If Climbed? (Auto)"], "label": "Auto Stuck Rate (%)"},
+                {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"},
+                {"columns": ["Died"], "label": "Died Rate (%)"},
+                {"columns": ["Do you want it on our alliance?"], "label": "Alliance Preference Rate (%)"}
             ]
         },
         "simplified_ranking": {
             "rate_columns": [
-                {"columns": ["Played Defense"], "label": "Defense Rate (%)"},
-                {"columns": ["Died/Stopped Moving in Teleop"], "label": "Died Rate (%)"}
+                {"columns": ["Died"], "label": "Died Rate (%)"},
+                {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"}
             ],
             "mode_columns": [
-                {"column": "Cycle Focus", "label": "Cycle Focus"},
-                {"column": "Climbed On Top of Another Robot", "label": "Climb On Top Mode"}
+                {"column": "Auton Quality", "label": "Auton Quality"},
+                {"column": "Driver Quality", "label": "Driver Quality"},
+                {"column": "Climb", "label": "Climb Mode"}
             ]
         },
         "detailed_stats": {
             "compare_metrics": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
-                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"},
-                {"type": "rate", "columns": ["Died/Stopped Moving in Teleop"], "label": "Teleop Died Rate", "format": "percent"}
+                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
+                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"},
+                {"type": "rate", "columns": ["Died"], "label": "Died Rate", "format": "percent"}
             ],
             "radar_categories": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"},
+                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"},
                 {"type": "consistency", "label": "Consistency"}
             ],
             "bar_metrics": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified"},
-                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified"}
+                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
+                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
             ],
             "comparison_table": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "overall_std", "label": "Overall Std"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Auto)", "label": "Auto Classified Avg"},
-                {"type": "avg", "column": "Artifacts Scored (CLASSIFIED) (Teleop)", "label": "Teleop Classified Avg"}
+                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
+                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"}
             ]
         },
         "match_trend": {
             "auto": {
-                "leave": "Left Launch Line (LEAVE)",
-                "artifact_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
-                "artifact_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
-                "depot": "Artifacts Placed in Depot (Auto)",
-                "pattern": "Pattern Matches at End of Auto (0-9)"
+                "hp_scored": "HP Scored (Auto)"
             },
             "teleop": {
-                "artifact_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
-                "artifact_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
-                "depot": "Artifacts Placed in Depot (Teleop)",
-                "pattern": "Pattern Matches at End of Match (0-9)"
+                "hp_scored": "HP Scored (Teleop)"
             },
             "endgame": {
-                "returned": "Returned to Base"
+                "tower_climb": "Climb"
             }
         }
     },
     "foreshadowing_columns": {
-        "auto_classified": "Artifacts Scored (CLASSIFIED) (Auto)",
-        "auto_overflow": "Artifacts Scored (OVERFLOW) (Auto)",
-        "auto_depot": "Artifacts Placed in Depot (Auto)",
-        "auto_pattern": "Pattern Matches at End of Auto (0-9)",
-        "teleop_classified": "Artifacts Scored (CLASSIFIED) (Teleop)",
-        "teleop_overflow": "Artifacts Scored (OVERFLOW) (Teleop)",
-        "teleop_depot": "Artifacts Placed in Depot (Teleop)",
-        "teleop_failed": "How many artifacts failed to score?",
-        "teleop_pattern": "Pattern Matches at End of Match (0-9)",
-        "auto_leave": "Left Launch Line (LEAVE)",
-        "endgame_returned": "Returned to Base"
+        "auto_fuel": "HP Scored (Auto)",
+        "auto_leave": "",
+        "auto_tower_l1": "",
+        "teleop_fuel": "HP Scored (Teleop)",
+        "endgame_tower_climb": "Climb"
     },
     "robot_valuation": {
         "phase_weights": [
@@ -365,7 +274,7 @@
         ]
     },
     "metadata": {
-        "total_columns": 27,
-        "description": "DECODE Competition Column Configuration"
+        "total_columns": 20,
+        "description": "FRC REBUILT 2026 Competition Column Configuration"
     }
 }

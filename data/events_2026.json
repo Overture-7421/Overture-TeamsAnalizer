@@ -1,0 +1,3760 @@
+[
+    {
+        "city": "Huntsville",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-11",
+        "event_code": "alhu",
+        "event_type": 0,
+        "key": "2026alhu",
+        "name": "Rocket City Regional",
+        "start_date": "2026-04-08",
+        "state_prov": "AL",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "arc",
+        "event_type": 3,
+        "key": "2026arc",
+        "name": "Archimedes Division",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Searcy",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "arli",
+        "event_type": 0,
+        "key": "2026arli",
+        "name": "Arkansas Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "AR",
+        "year": 2026
+    },
+    {
+        "city": "Cambridge Park",
+        "country": "Australia",
+        "district": null,
+        "end_date": "2026-03-15",
+        "event_code": "ausc",
+        "event_type": 0,
+        "key": "2026ausc",
+        "name": "Southern Cross Regional",
+        "start_date": "2026-03-12",
+        "state_prov": "NSW",
+        "year": 2026
+    },
+    {
+        "city": "Glendale",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-02-28",
+        "event_code": "azdd",
+        "event_type": 100,
+        "key": "2026azdd",
+        "name": "Duel in the Desert Week 0",
+        "start_date": "2026-02-28",
+        "state_prov": "AZ",
+        "year": 2026
+    },
+    {
+        "city": "Glendale",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-02-21",
+        "event_code": "azddm1",
+        "event_type": 100,
+        "key": "2026azddm1",
+        "name": "Duel in the Desert Week -1",
+        "start_date": "2026-02-21",
+        "state_prov": "AZ",
+        "year": 2026
+    },
+    {
+        "city": "Flagstaff",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-14",
+        "event_code": "azfg",
+        "event_type": 0,
+        "key": "2026azfg",
+        "name": "Arizona North Regional",
+        "start_date": "2026-03-11",
+        "state_prov": "AZ",
+        "year": 2026
+    },
+    {
+        "city": "Vancouver",
+        "country": "Canada",
+        "district": null,
+        "end_date": "2026-03-07",
+        "event_code": "bcvi",
+        "event_type": 0,
+        "key": "2026bcvi",
+        "name": "Canadian Pacific Regional",
+        "start_date": "2026-03-04",
+        "state_prov": "BC",
+        "year": 2026
+    },
+    {
+        "city": "S\u00e3o Paulo",
+        "country": "Brazil",
+        "district": null,
+        "end_date": "2026-03-08",
+        "event_code": "brba",
+        "event_type": 0,
+        "key": "2026brba",
+        "name": "Regional Brazil - Festival SESI de Educa\u00e7\u00e3o",
+        "start_date": "2026-03-05",
+        "state_prov": "SP",
+        "year": 2026
+    },
+    {
+        "city": "Osasco",
+        "country": "Brazil",
+        "district": null,
+        "end_date": "2026-03-15",
+        "event_code": "brsp",
+        "event_type": 0,
+        "key": "2026brsp",
+        "name": "Regional Brazil - SESI OSASCO",
+        "start_date": "2026-03-12",
+        "state_prov": "SP",
+        "year": 2026
+    },
+    {
+        "city": "Lancaster",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "caasv",
+        "event_type": 1,
+        "key": "2026caasv",
+        "name": "CA District Aerospace Valley Event",
+        "start_date": "2026-04-02",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Pittsburg",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "cacac",
+        "event_type": 1,
+        "key": "2026cacac",
+        "name": "CA District Contra Costa Event",
+        "start_date": "2026-04-02",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Clovis",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "caclv",
+        "event_type": 1,
+        "key": "2026caclv",
+        "name": "CA District Central Valley Event",
+        "start_date": "2026-03-27",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Berkeley",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "caetb",
+        "event_type": 1,
+        "key": "2026caetb",
+        "name": "CA District East Bay Event",
+        "start_date": "2026-04-02",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Glendale",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "cagle",
+        "event_type": 1,
+        "key": "2026cagle",
+        "name": "CA District Glendale Event",
+        "start_date": "2026-03-27",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Half Moon Bay",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "cahal",
+        "event_type": 1,
+        "key": "2026cahal",
+        "name": "CA District Half Moon Bay Event",
+        "start_date": "2026-03-06",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "El Segundo",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "calas",
+        "event_type": 1,
+        "key": "2026calas",
+        "name": "CA District Los Angeles Event",
+        "start_date": "2026-03-20",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Mountain View",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-02-28",
+        "event_code": "camou",
+        "event_type": 100,
+        "key": "2026camou",
+        "name": "Spartan Week Zero",
+        "start_date": "2026-02-28",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Daly City",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-04-12",
+        "event_code": "cancmp",
+        "event_type": 2,
+        "key": "2026cancmp",
+        "name": "FIRST California Northern State Championship",
+        "start_date": "2026-04-09",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Mission Viejo",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "caoec",
+        "event_type": 1,
+        "key": "2026caoec",
+        "name": "CA District Orange County Event",
+        "start_date": "2026-04-02",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Hollister",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "capin",
+        "event_type": 1,
+        "key": "2026capin",
+        "name": "CA District Pinnacles Event presented by Apple",
+        "start_date": "2026-03-27",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Port Hueneme",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "capoh",
+        "event_type": 1,
+        "key": "2026capoh",
+        "name": "CA District Hueneme Port Event",
+        "start_date": "2026-03-06",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Elk Grove",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "casac",
+        "event_type": 1,
+        "key": "2026casac",
+        "name": "CA District Sacramento Event",
+        "start_date": "2026-03-20",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Anaheim",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-04-12",
+        "event_code": "cascmp",
+        "event_type": 2,
+        "key": "2026cascmp",
+        "name": "FIRST California Southern State Championship presented by Qualcomm",
+        "start_date": "2026-04-09",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Rosemead",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "casgv",
+        "event_type": 1,
+        "key": "2026casgv",
+        "name": "CA District San Gabriel Valley Event",
+        "start_date": "2026-03-27",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "San Diego",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "casnd",
+        "event_type": 1,
+        "key": "2026casnd",
+        "name": "CA District San Diego Event presented by Qualcomm",
+        "start_date": "2026-03-20",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "San Francisco",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "casnf",
+        "event_type": 1,
+        "key": "2026casnf",
+        "name": "CA District San Francisco Event",
+        "start_date": "2026-03-13",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Woodside",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "casnv",
+        "event_type": 1,
+        "key": "2026casnv",
+        "name": "CA District Silicon Valley Event presented by Apple",
+        "start_date": "2026-03-13",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Ventura",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ca",
+            "display_name": "FIRST California",
+            "key": "2026ca",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "caven",
+        "event_type": 1,
+        "key": "2026caven",
+        "name": "CA District Ventura County Event",
+        "start_date": "2026-03-13",
+        "state_prov": "CA",
+        "year": 2026
+    },
+    {
+        "city": "Petersburg",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fch",
+            "display_name": "FIRST Chesapeake",
+            "key": "2026fch",
+            "year": 2026
+        },
+        "end_date": "2026-04-12",
+        "event_code": "chcmp",
+        "event_type": 2,
+        "key": "2026chcmp",
+        "name": "FIRST Chesapeake District Championship presented by C-CAM, VSU, Go Tec, and NASA",
+        "start_date": "2026-04-09",
+        "state_prov": "VA",
+        "year": 2026
+    },
+    {
+        "city": "Becker",
+        "country": "United States",
+        "district": null,
+        "end_date": "2026-02-22",
+        "event_code": "cisw0",
+        "event_type": 100,
+        "key": "2026cisw0",
+        "name": "Becker Week Zero Scrimmage",
+        "start_date": "2026-02-21",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Becker",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-02-28",
+        "event_code": "cisw1",
+        "event_type": 100,
+        "key": "2026cisw1",
+        "name": "Get Ready for Week one Scrimmage",
+        "start_date": "2026-02-28",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "cmptx",
+        "event_type": 4,
+        "key": "2026cmptx",
+        "name": "FIRST Championship - FIRST Robotics Competition",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Minhang District",
+        "country": "China",
+        "district": null,
+        "end_date": "2026-03-15",
+        "event_code": "cnsh",
+        "event_type": 0,
+        "key": "2026cnsh",
+        "name": "Shanghai Regional",
+        "start_date": "2026-03-12",
+        "state_prov": "SH",
+        "year": 2026
+    },
+    {
+        "city": "Denver",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-11",
+        "event_code": "code",
+        "event_type": 0,
+        "key": "2026code",
+        "name": "Denver Regional",
+        "start_date": "2026-04-08",
+        "state_prov": "CO",
+        "year": 2026
+    },
+    {
+        "city": "Colorado Springs",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-08",
+        "event_code": "cosp",
+        "event_type": 0,
+        "key": "2026cosp",
+        "name": "Pikes Peak Regional",
+        "start_date": "2026-03-05",
+        "state_prov": "CO",
+        "year": 2026
+    },
+    {
+        "city": "Hartford",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "cthar",
+        "event_type": 1,
+        "key": "2026cthar",
+        "name": "NE District Hartford Event",
+        "start_date": "2026-03-27",
+        "state_prov": "CT",
+        "year": 2026
+    },
+    {
+        "city": "Waterbury",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "ctwat",
+        "event_type": 1,
+        "key": "2026ctwat",
+        "name": "NE District Waterbury Event",
+        "start_date": "2026-03-20",
+        "state_prov": "CT",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "cur",
+        "event_type": 3,
+        "key": "2026cur",
+        "name": "Curie Division",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "dal",
+        "event_type": 3,
+        "key": "2026dal",
+        "name": "Daly Division",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Orlando",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "flor",
+        "event_type": 0,
+        "key": "2026flor",
+        "name": "Orlando Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "FL",
+        "year": 2026
+    },
+    {
+        "city": "Tallahassee",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-18",
+        "event_code": "flta",
+        "event_type": 0,
+        "key": "2026flta",
+        "name": "Tallahassee Regional",
+        "start_date": "2026-04-15",
+        "state_prov": "FL",
+        "year": 2026
+    },
+    {
+        "city": "Coral Gables",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-11",
+        "event_code": "flwp",
+        "event_type": 0,
+        "key": "2026flwp",
+        "name": "South Florida Regional",
+        "start_date": "2026-04-08",
+        "state_prov": "FL",
+        "year": 2026
+    },
+    {
+        "city": "Albany",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pch",
+            "display_name": "Peachtree",
+            "key": "2026pch",
+            "year": 2026
+        },
+        "end_date": "2026-03-28",
+        "event_code": "gaalb",
+        "event_type": 1,
+        "key": "2026gaalb",
+        "name": "PCH District Albany Event presented by Procter & Gamble",
+        "start_date": "2026-03-26",
+        "state_prov": "GA",
+        "year": 2026
+    },
+    {
+        "city": "Macon",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pch",
+            "display_name": "Peachtree",
+            "key": "2026pch",
+            "year": 2026
+        },
+        "end_date": "2026-04-11",
+        "event_code": "gacmp",
+        "event_type": 2,
+        "key": "2026gacmp",
+        "name": "Peachtree District Championship presented by Mercer University",
+        "start_date": "2026-04-08",
+        "state_prov": "GA",
+        "year": 2026
+    },
+    {
+        "city": "Columbus",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pch",
+            "display_name": "Peachtree",
+            "key": "2026pch",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "gacol",
+        "event_type": 1,
+        "key": "2026gacol",
+        "name": "PCH District Columbus Event presented by Muscogee County Schools (CTAE) and Columbus Development Authority",
+        "start_date": "2026-03-19",
+        "state_prov": "GA",
+        "year": 2026
+    },
+    {
+        "city": "Dalton",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pch",
+            "display_name": "Peachtree",
+            "key": "2026pch",
+            "year": 2026
+        },
+        "end_date": "2026-03-07",
+        "event_code": "gadal",
+        "event_type": 1,
+        "key": "2026gadal",
+        "name": "PCH District Dalton Event presented by Shaw Industries",
+        "start_date": "2026-03-05",
+        "state_prov": "GA",
+        "year": 2026
+    },
+    {
+        "city": "Gainesville",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pch",
+            "display_name": "Peachtree",
+            "key": "2026pch",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "gagai",
+        "event_type": 1,
+        "key": "2026gagai",
+        "name": "PCH District Gainesville Event presented by Honeywell",
+        "start_date": "2026-04-02",
+        "state_prov": "GA",
+        "year": 2026
+    },
+    {
+        "city": "Lawrenceville",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pch",
+            "display_name": "Peachtree",
+            "key": "2026pch",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "gagwi",
+        "event_type": 1,
+        "key": "2026gagwi",
+        "name": "PCH District Gwinnett Event presented by Gwinnett County Public Schools",
+        "start_date": "2026-03-13",
+        "state_prov": "GA",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "gal",
+        "event_type": 3,
+        "key": "2026gal",
+        "name": "Galileo Division",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Honolulu",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-22",
+        "event_code": "hiho",
+        "event_type": 0,
+        "key": "2026hiho",
+        "name": "Hawaii Regional",
+        "start_date": "2026-03-19",
+        "state_prov": "HI",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "hop",
+        "event_type": 3,
+        "key": "2026hop",
+        "name": "Hopper Division",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Cedar Falls",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-28",
+        "event_code": "iacf",
+        "event_type": 0,
+        "key": "2026iacf",
+        "name": "Iowa Regional",
+        "start_date": "2026-03-25",
+        "state_prov": "IA",
+        "year": 2026
+    },
+    {
+        "city": "Nampa",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-28",
+        "event_code": "idbo",
+        "event_type": 0,
+        "key": "2026idbo",
+        "name": "Idaho Regional",
+        "start_date": "2026-03-26",
+        "state_prov": "ID",
+        "year": 2026
+    },
+    {
+        "city": "Arlington Heights",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-28",
+        "event_code": "ilch",
+        "event_type": 0,
+        "key": "2026ilch",
+        "name": "Midwest Regional Presented by Baxter",
+        "start_date": "2026-03-25",
+        "state_prov": "IL",
+        "year": 2026
+    },
+    {
+        "city": "Peoria",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "ilpe",
+        "event_type": 0,
+        "key": "2026ilpe",
+        "name": "Central Illinois Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "IL",
+        "year": 2026
+    },
+    {
+        "city": "Indianapolis",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fin",
+            "display_name": "FIRST Indiana Robotics",
+            "key": "2026fin",
+            "year": 2026
+        },
+        "end_date": "2026-04-19",
+        "event_code": "incmp",
+        "event_type": 2,
+        "key": "2026incmp",
+        "name": "FIRST Indiana State Championship",
+        "start_date": "2026-04-17",
+        "state_prov": "IN",
+        "year": 2026
+    },
+    {
+        "city": "Columbus",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fin",
+            "display_name": "FIRST Indiana Robotics",
+            "key": "2026fin",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "incol",
+        "event_type": 1,
+        "key": "2026incol",
+        "name": "FIN District Columbus Event",
+        "start_date": "2026-03-20",
+        "state_prov": "IN",
+        "year": 2026
+    },
+    {
+        "city": "Lafayette",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fin",
+            "display_name": "FIRST Indiana Robotics",
+            "key": "2026fin",
+            "year": 2026
+        },
+        "end_date": "2026-03-28",
+        "event_code": "inlaf",
+        "event_type": 1,
+        "key": "2026inlaf",
+        "name": "FIN District Lafayette Event",
+        "start_date": "2026-03-26",
+        "state_prov": "IN",
+        "year": 2026
+    },
+    {
+        "city": "Mishawaka",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fin",
+            "display_name": "FIRST Indiana Robotics",
+            "key": "2026fin",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "inmis",
+        "event_type": 1,
+        "key": "2026inmis",
+        "name": "FIN District Mishawaka Event",
+        "start_date": "2026-03-06",
+        "state_prov": "IN",
+        "year": 2026
+    },
+    {
+        "city": "Washington",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fin",
+            "display_name": "FIRST Indiana Robotics",
+            "key": "2026fin",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "inwas",
+        "event_type": 1,
+        "key": "2026inwas",
+        "name": "FIN District Washington Event presented by Toyota IN & VU CARA",
+        "start_date": "2026-04-02",
+        "state_prov": "IN",
+        "year": 2026
+    },
+    {
+        "city": "Binyamina",
+        "country": "Israel",
+        "district": null,
+        "end_date": "2026-03-06",
+        "event_code": "ipr",
+        "event_type": 100,
+        "key": "2026ipr",
+        "name": "Pregional by ORBIT",
+        "start_date": "2026-03-05",
+        "state_prov": "HaZafon",
+        "year": 2026
+    },
+    {
+        "city": "Hadera",
+        "country": "Israel",
+        "district": {
+            "abbreviation": "isr",
+            "display_name": "FIRST Israel",
+            "key": "2026isr",
+            "year": 2026
+        },
+        "end_date": "2026-03-31",
+        "event_code": "iscmp",
+        "event_type": 2,
+        "key": "2026iscmp",
+        "name": "FIRST Israel District Championship",
+        "start_date": "2026-03-29",
+        "state_prov": "M",
+        "year": 2026
+    },
+    {
+        "city": "Natanya",
+        "country": "Israel",
+        "district": {
+            "abbreviation": "isr",
+            "display_name": "FIRST Israel",
+            "key": "2026isr",
+            "year": 2026
+        },
+        "end_date": "2026-03-10",
+        "event_code": "isde1",
+        "event_type": 1,
+        "key": "2026isde1",
+        "name": "ISR District Event #1",
+        "start_date": "2026-03-08",
+        "state_prov": "M",
+        "year": 2026
+    },
+    {
+        "city": "Natanya",
+        "country": "Israel",
+        "district": {
+            "abbreviation": "isr",
+            "display_name": "FIRST Israel",
+            "key": "2026isr",
+            "year": 2026
+        },
+        "end_date": "2026-03-12",
+        "event_code": "isde2",
+        "event_type": 1,
+        "key": "2026isde2",
+        "name": "ISR District Event #2",
+        "start_date": "2026-03-10",
+        "state_prov": "M",
+        "year": 2026
+    },
+    {
+        "city": "Hadera",
+        "country": "Israel",
+        "district": {
+            "abbreviation": "isr",
+            "display_name": "FIRST Israel",
+            "key": "2026isr",
+            "year": 2026
+        },
+        "end_date": "2026-03-17",
+        "event_code": "isde3",
+        "event_type": 1,
+        "key": "2026isde3",
+        "name": "ISR District Event #3",
+        "start_date": "2026-03-15",
+        "state_prov": "M",
+        "year": 2026
+    },
+    {
+        "city": "Hadera",
+        "country": "Israel",
+        "district": {
+            "abbreviation": "isr",
+            "display_name": "FIRST Israel",
+            "key": "2026isr",
+            "year": 2026
+        },
+        "end_date": "2026-03-19",
+        "event_code": "isde4",
+        "event_type": 1,
+        "key": "2026isde4",
+        "name": "ISR District Event #4",
+        "start_date": "2026-03-17",
+        "state_prov": "M",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "joh",
+        "event_type": 3,
+        "key": "2026joh",
+        "name": "Johnson Division",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Flint",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-01",
+        "event_code": "ketwkz1",
+        "event_type": 99,
+        "key": "2026ketwkz1",
+        "name": "Kettering Week 0 - AM Session",
+        "start_date": "2026-03-01",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Flint",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-01",
+        "event_code": "ketwkz2",
+        "event_type": 99,
+        "key": "2026ketwkz2",
+        "name": "Kettering Week 0 - PM Session",
+        "start_date": "2026-03-01",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Shawnee",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "ksla",
+        "event_type": 0,
+        "key": "2026ksla",
+        "name": "Heartland Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "KS",
+        "year": 2026
+    },
+    {
+        "city": "Kenner",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-04",
+        "event_code": "lake",
+        "event_type": 0,
+        "key": "2026lake",
+        "name": "Bayou Regional",
+        "start_date": "2026-04-01",
+        "state_prov": "LA",
+        "year": 2026
+    },
+    {
+        "city": "Billerica",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "mabil",
+        "event_type": 1,
+        "key": "2026mabil",
+        "name": "NE District Minuteman Event",
+        "start_date": "2026-03-06",
+        "state_prov": "MA",
+        "year": 2026
+    },
+    {
+        "city": "Revere",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "mabos",
+        "event_type": 1,
+        "key": "2026mabos",
+        "name": "NE District Greater Boston Event",
+        "start_date": "2026-03-27",
+        "state_prov": "MA",
+        "year": 2026
+    },
+    {
+        "city": "Reading",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "marea",
+        "event_type": 1,
+        "key": "2026marea",
+        "name": "NE District North Shore Event",
+        "start_date": "2026-03-13",
+        "state_prov": "MA",
+        "year": 2026
+    },
+    {
+        "city": "Springfield",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "mawne",
+        "event_type": 1,
+        "key": "2026mawne",
+        "name": "NE District Western NE Event",
+        "start_date": "2026-03-13",
+        "state_prov": "MA",
+        "year": 2026
+    },
+    {
+        "city": "Worcester",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-04-05",
+        "event_code": "mawor",
+        "event_type": 1,
+        "key": "2026mawor",
+        "name": "NE District WPI Event",
+        "start_date": "2026-04-03",
+        "state_prov": "MA",
+        "year": 2026
+    },
+    {
+        "city": "Bethesda",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fch",
+            "display_name": "FIRST Chesapeake",
+            "key": "2026fch",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "mdbet",
+        "event_type": 1,
+        "key": "2026mdbet",
+        "name": "FCH District Bethesda MD Event presented by Bechtel",
+        "start_date": "2026-03-20",
+        "state_prov": "MD",
+        "year": 2026
+    },
+    {
+        "city": "Pasadena",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fch",
+            "display_name": "FIRST Chesapeake",
+            "key": "2026fch",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "mdpas",
+        "event_type": 1,
+        "key": "2026mdpas",
+        "name": "FCH District Pasadena MD Event presented by Plummer Industries",
+        "start_date": "2026-03-13",
+        "state_prov": "MD",
+        "year": 2026
+    },
+    {
+        "city": "Severn",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fch",
+            "display_name": "FIRST Chesapeake",
+            "key": "2026fch",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "mdsev",
+        "event_type": 1,
+        "key": "2026mdsev",
+        "name": "FCH District Severn MD Event presented by Arcfield",
+        "start_date": "2026-03-27",
+        "state_prov": "MD",
+        "year": 2026
+    },
+    {
+        "city": "Falmouth",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "mefal",
+        "event_type": 1,
+        "key": "2026mefal",
+        "name": "NE District Pine Tree Event",
+        "start_date": "2026-03-06",
+        "state_prov": "ME",
+        "year": 2026
+    },
+    {
+        "city": "Battle Creek",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "mibat",
+        "event_type": 1,
+        "key": "2026mibat",
+        "name": "FIM District Battle Creek Event",
+        "start_date": "2026-03-27",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Belleville",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "mibel",
+        "event_type": 1,
+        "key": "2026mibel",
+        "name": "FIM District Belleville Event presented by DTE",
+        "start_date": "2026-03-19",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Berrien Springs",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "miber",
+        "event_type": 1,
+        "key": "2026miber",
+        "name": "FIM District Berrien Springs Event presented by Edgewater Automation",
+        "start_date": "2026-03-20",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Big Rapids",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-11",
+        "event_code": "mibig",
+        "event_type": 1,
+        "key": "2026mibig",
+        "name": "FIM District Ferris State Event presented by Ferris State University",
+        "start_date": "2026-04-09",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Brooklyn",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "mibkn",
+        "event_type": 1,
+        "key": "2026mibkn",
+        "name": "FIM District Jackson at Columbia Event presented by Consumers Energy Foundation",
+        "start_date": "2026-03-20",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Brownstown Charter Twp",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "mibro",
+        "event_type": 1,
+        "key": "2026mibro",
+        "name": "FIM District Woodhaven Event",
+        "start_date": "2026-03-13",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Chelsea",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "miche",
+        "event_type": 1,
+        "key": "2026miche",
+        "name": "FIM District Chelsea Event presented by DTE",
+        "start_date": "2026-03-06",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "University Center",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "micmp",
+        "event_type": 2,
+        "key": "2026micmp",
+        "name": "FIRST in Michigan State Championship",
+        "start_date": "2026-04-16",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "University Center",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "micmp1",
+        "event_type": 5,
+        "key": "2026micmp1",
+        "name": "FIRST in Michigan State Championship - DTE Energy Foundation Division",
+        "start_date": "2026-04-16",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "University Center",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "micmp2",
+        "event_type": 5,
+        "key": "2026micmp2",
+        "name": "FIRST in Michigan State Championship - Hemlock Semiconductor Division",
+        "start_date": "2026-04-16",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "University Center",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "micmp3",
+        "event_type": 5,
+        "key": "2026micmp3",
+        "name": "FIRST in Michigan State Championship - Consumers Energy Division",
+        "start_date": "2026-04-16",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "University Center",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "micmp4",
+        "event_type": 5,
+        "key": "2026micmp4",
+        "name": "FIRST in Michigan State Championship - Aptiv Division",
+        "start_date": "2026-04-16",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Detroit",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-14",
+        "event_code": "midtr",
+        "event_type": 1,
+        "key": "2026midtr",
+        "name": "FIM District Wayne State Event presented by Magna",
+        "start_date": "2026-03-12",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Escanaba",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-11",
+        "event_code": "miesc",
+        "event_type": 1,
+        "key": "2026miesc",
+        "name": "FIM District Escanaba Event",
+        "start_date": "2026-04-09",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Fenton",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-12",
+        "event_code": "mifen",
+        "event_type": 1,
+        "key": "2026mifen",
+        "name": "FIM District Fenton Event presented by Gene Haas Foundation",
+        "start_date": "2026-04-10",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Flint",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "mifli",
+        "event_type": 1,
+        "key": "2026mifli",
+        "name": "FIM District Kearsley Event presented by BAE Systems",
+        "start_date": "2026-03-20",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Kentwood",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-11",
+        "event_code": "miken",
+        "event_type": 1,
+        "key": "2026miken",
+        "name": "FIM District Kentwood Event presented by Dematic",
+        "start_date": "2026-04-09",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "mil",
+        "event_type": 3,
+        "key": "2026mil",
+        "name": "Milstein Division",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Lake City",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "milac",
+        "event_type": 1,
+        "key": "2026milac",
+        "name": "FIM District Lake City Event presented by AT&T",
+        "start_date": "2026-03-13",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Battle Creek",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-07",
+        "event_code": "milak",
+        "event_type": 1,
+        "key": "2026milak",
+        "name": "FIM District Lakeview Event",
+        "start_date": "2026-03-05",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Livonia",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "miliv",
+        "event_type": 1,
+        "key": "2026miliv",
+        "name": "FIM District Livonia Event presented by Aisin",
+        "start_date": "2026-04-02",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Sault Ste. Marie",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-28",
+        "event_code": "milsu",
+        "event_type": 1,
+        "key": "2026milsu",
+        "name": "FIM District LSSU Event presented by Lake Superior State University",
+        "start_date": "2026-03-26",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Marysville",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "mimar",
+        "event_type": 1,
+        "key": "2026mimar",
+        "name": "FIM District Marysville Event",
+        "start_date": "2026-03-13",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Mason",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "mimas",
+        "event_type": 1,
+        "key": "2026mimas",
+        "name": "FIM District Mason Event presented by Altair",
+        "start_date": "2026-03-27",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Midland",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-14",
+        "event_code": "mimid",
+        "event_type": 1,
+        "key": "2026mimid",
+        "name": "FIM District Midland Event presented by Dow",
+        "start_date": "2026-03-12",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Highland",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-14",
+        "event_code": "mimil",
+        "event_type": 1,
+        "key": "2026mimil",
+        "name": "FIM District Milford Event presented by GM Proving Grounds",
+        "start_date": "2026-03-12",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Mt Pleasant",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "mimtp",
+        "event_type": 1,
+        "key": "2026mimtp",
+        "name": "FIM District Mt Pleasant Event presented by AT&T",
+        "start_date": "2026-03-06",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Muskegon",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "mimus",
+        "event_type": 1,
+        "key": "2026mimus",
+        "name": "FIM District Muskegon Event presented by Renk",
+        "start_date": "2026-03-19",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Saline",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "misal",
+        "event_type": 1,
+        "key": "2026misal",
+        "name": "FIM District Saline Event presented by Oracle",
+        "start_date": "2026-03-27",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Troy",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "mitr2",
+        "event_type": 1,
+        "key": "2026mitr2",
+        "name": "FIM District Troy Event #2 presented by DTE Foundation",
+        "start_date": "2026-04-02",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Troy",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "mitry",
+        "event_type": 1,
+        "key": "2026mitry",
+        "name": "FIM District Troy Event presented by Aptiv Foundation",
+        "start_date": "2026-03-27",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Traverse City",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "mitvc",
+        "event_type": 1,
+        "key": "2026mitvc",
+        "name": "FIM District Traverse City Event presented by Cone Drive",
+        "start_date": "2026-03-19",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Allendale",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fim",
+            "display_name": "FIRST in Michigan",
+            "key": "2026fim",
+            "year": 2026
+        },
+        "end_date": "2026-03-28",
+        "event_code": "miwmi",
+        "event_type": 1,
+        "key": "2026miwmi",
+        "name": "FIM District West Michigan Event presented by Grand Valley State University",
+        "start_date": "2026-03-26",
+        "state_prov": "MI",
+        "year": 2026
+    },
+    {
+        "city": "Eagan",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-02-22",
+        "event_code": "mnbt",
+        "event_type": 100,
+        "key": "2026mnbt",
+        "name": "Blue Twilight Week Zero",
+        "start_date": "2026-02-21",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Eagan",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "mnbt2",
+        "event_type": 99,
+        "key": "2026mnbt2",
+        "name": "Blue Twilight Reloaded",
+        "start_date": "2026-03-21",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Duluth",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-07",
+        "event_code": "mndu",
+        "event_type": 0,
+        "key": "2026mndu",
+        "name": "Lake Superior Regional",
+        "start_date": "2026-03-04",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Duluth",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-07",
+        "event_code": "mndu2",
+        "event_type": 0,
+        "key": "2026mndu2",
+        "name": "Northern Lights Regional",
+        "start_date": "2026-03-04",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "New Brighton",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-02-28",
+        "event_code": "mnkk",
+        "event_type": 100,
+        "key": "2026mnkk",
+        "name": "KnightKrawler Week Zero",
+        "start_date": "2026-02-28",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Minneapolis",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-28",
+        "event_code": "mnmi",
+        "event_type": 0,
+        "key": "2026mnmi",
+        "name": "Minnesota 10,000 Lakes Regional",
+        "start_date": "2026-03-25",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "St. Cloud",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-11",
+        "event_code": "mnmi2",
+        "event_type": 0,
+        "key": "2026mnmi2",
+        "name": "Minnesota Granite City Regional",
+        "start_date": "2026-04-08",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Minneapolis",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-04",
+        "event_code": "mnum",
+        "event_type": 0,
+        "key": "2026mnum",
+        "name": "Minnesota North Star Regional",
+        "start_date": "2026-04-01",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Winona",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-07",
+        "event_code": "mnwi",
+        "event_type": 0,
+        "key": "2026mnwi",
+        "name": "Minnesota Bluff Country Regional",
+        "start_date": "2026-03-04",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Lee's Summit",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-11",
+        "event_code": "mokc",
+        "event_type": 0,
+        "key": "2026mokc",
+        "name": "Greater Kansas City Regional",
+        "start_date": "2026-04-08",
+        "state_prov": "MO",
+        "year": 2026
+    },
+    {
+        "city": "Riverside",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-04",
+        "event_code": "mose",
+        "event_type": 0,
+        "key": "2026mose",
+        "name": "City of Fountains Regional",
+        "start_date": "2026-04-01",
+        "state_prov": "MO",
+        "year": 2026
+    },
+    {
+        "city": "St. Louis",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-28",
+        "event_code": "mosl",
+        "event_type": 0,
+        "key": "2026mosl",
+        "name": "St. Louis Regional",
+        "start_date": "2026-03-25",
+        "state_prov": "MO",
+        "year": 2026
+    },
+    {
+        "city": "Bethlehem",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "mrcmp",
+        "event_type": 2,
+        "key": "2026mrcmp",
+        "name": "FIRST Mid-Atlantic District Championship",
+        "start_date": "2026-04-15",
+        "state_prov": "PA",
+        "year": 2026
+    },
+    {
+        "city": "Laurel",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "mslr",
+        "event_type": 0,
+        "key": "2026mslr",
+        "name": "Magnolia Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "MS",
+        "year": 2026
+    },
+    {
+        "city": "Monterrey",
+        "country": "Mexico",
+        "district": null,
+        "end_date": "2026-03-14",
+        "event_code": "mxmo",
+        "event_type": 0,
+        "key": "2026mxmo",
+        "name": "Regional Monterrey presented by PrepaTec",
+        "start_date": "2026-03-11",
+        "state_prov": "MEX",
+        "year": 2026
+    },
+    {
+        "city": "Torre\u00f3n",
+        "country": "Mexico",
+        "district": null,
+        "end_date": "2026-03-28",
+        "event_code": "mxto",
+        "event_type": 0,
+        "key": "2026mxto",
+        "name": "Regional Laguna presented by Pe\u00f1oles",
+        "start_date": "2026-03-25",
+        "state_prov": "COA",
+        "year": 2026
+    },
+    {
+        "city": "Asheville",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fnc",
+            "display_name": "FIRST North Carolina",
+            "key": "2026fnc",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "ncash",
+        "event_type": 1,
+        "key": "2026ncash",
+        "name": "FNC District UNC Asheville Event",
+        "start_date": "2026-03-13",
+        "state_prov": "NC",
+        "year": 2026
+    },
+    {
+        "city": "Concord",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fnc",
+            "display_name": "FIRST North Carolina",
+            "key": "2026fnc",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "nccab",
+        "event_type": 1,
+        "key": "2026nccab",
+        "name": "FNC District Cabarrus Event",
+        "start_date": "2026-03-06",
+        "state_prov": "NC",
+        "year": 2026
+    },
+    {
+        "city": "Greensboro",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fnc",
+            "display_name": "FIRST North Carolina",
+            "key": "2026fnc",
+            "year": 2026
+        },
+        "end_date": "2026-04-12",
+        "event_code": "nccmp",
+        "event_type": 2,
+        "key": "2026nccmp",
+        "name": "FIRST North Carolina State Championship",
+        "start_date": "2026-04-09",
+        "state_prov": "NC",
+        "year": 2026
+    },
+    {
+        "city": "Elon",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fnc",
+            "display_name": "FIRST North Carolina",
+            "key": "2026fnc",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "ncelo",
+        "event_type": 1,
+        "key": "2026ncelo",
+        "name": "FNC District Elon University Event",
+        "start_date": "2026-03-20",
+        "state_prov": "NC",
+        "year": 2026
+    },
+    {
+        "city": "Pembroke",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fnc",
+            "display_name": "FIRST North Carolina",
+            "key": "2026fnc",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "ncpem",
+        "event_type": 1,
+        "key": "2026ncpem",
+        "name": "FNC District UNC Pembroke Event",
+        "start_date": "2026-03-27",
+        "state_prov": "NC",
+        "year": 2026
+    },
+    {
+        "city": "Wake Forest",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fnc",
+            "display_name": "FIRST North Carolina",
+            "key": "2026fnc",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "ncwak",
+        "event_type": 1,
+        "key": "2026ncwak",
+        "name": "FNC District Wake County Event #1",
+        "start_date": "2026-03-06",
+        "state_prov": "NC",
+        "year": 2026
+    },
+    {
+        "city": "Wake Forest",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fnc",
+            "display_name": "FIRST North Carolina",
+            "key": "2026fnc",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "ncwk2",
+        "event_type": 1,
+        "key": "2026ncwk2",
+        "name": "FNC District Wake County Event #2",
+        "start_date": "2026-03-20",
+        "state_prov": "NC",
+        "year": 2026
+    },
+    {
+        "city": "Grand Forks",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-14",
+        "event_code": "ndgf",
+        "event_type": 0,
+        "key": "2026ndgf",
+        "name": "Great Northern Regional",
+        "start_date": "2026-03-11",
+        "state_prov": "ND",
+        "year": 2026
+    },
+    {
+        "city": "West Springfield",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "necmp",
+        "event_type": 2,
+        "key": "2026necmp",
+        "name": "New England FIRST District Championship",
+        "start_date": "2026-04-15",
+        "state_prov": "MA",
+        "year": 2026
+    },
+    {
+        "city": "West Springfield",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "necmp1",
+        "event_type": 5,
+        "key": "2026necmp1",
+        "name": "New England FIRST District Championship - Burns Division",
+        "start_date": "2026-04-15",
+        "state_prov": "MA",
+        "year": 2026
+    },
+    {
+        "city": "West Springfield",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "necmp2",
+        "event_type": 5,
+        "key": "2026necmp2",
+        "name": "New England FIRST District Championship - Newsom Division",
+        "start_date": "2026-04-15",
+        "state_prov": "MA",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-05-02",
+        "event_code": "new",
+        "event_type": 3,
+        "key": "2026new",
+        "name": "Newton Division",
+        "start_date": "2026-04-29",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Bedford",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "nhbed",
+        "event_type": 1,
+        "key": "2026nhbed",
+        "name": "NE District Granite State Event",
+        "start_date": "2026-03-13",
+        "state_prov": "NH",
+        "year": 2026
+    },
+    {
+        "city": "Durham",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "nhdur",
+        "event_type": 1,
+        "key": "2026nhdur",
+        "name": "NE District UNH Event",
+        "start_date": "2026-03-27",
+        "state_prov": "NH",
+        "year": 2026
+    },
+    {
+        "city": "Flanders",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "njfla",
+        "event_type": 1,
+        "key": "2026njfla",
+        "name": "FMA District Mount Olive Event",
+        "start_date": "2026-03-27",
+        "state_prov": "NJ",
+        "year": 2026
+    },
+    {
+        "city": "Trenton",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "njrob",
+        "event_type": 1,
+        "key": "2026njrob",
+        "name": "FMA District Robbinsville Event",
+        "start_date": "2026-03-20",
+        "state_prov": "NJ",
+        "year": 2026
+    },
+    {
+        "city": "Skillman",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-04-12",
+        "event_code": "njski",
+        "event_type": 1,
+        "key": "2026njski",
+        "name": "FMA District Montgomery Event",
+        "start_date": "2026-04-10",
+        "state_prov": "NJ",
+        "year": 2026
+    },
+    {
+        "city": "Tabernacle",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "njtab",
+        "event_type": 1,
+        "key": "2026njtab",
+        "name": "FMA District Seneca Event",
+        "start_date": "2026-03-13",
+        "state_prov": "NJ",
+        "year": 2026
+    },
+    {
+        "city": "Washington",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "njwas",
+        "event_type": 1,
+        "key": "2026njwas",
+        "name": "FMA District Warren Hills Event",
+        "start_date": "2026-03-06",
+        "state_prov": "NJ",
+        "year": 2026
+    },
+    {
+        "city": "Las Vegas",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-11",
+        "event_code": "nvlv",
+        "event_type": 0,
+        "key": "2026nvlv",
+        "name": "Las Vegas Regional",
+        "start_date": "2026-04-08",
+        "state_prov": "NV",
+        "year": 2026
+    },
+    {
+        "city": "Hempstead",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "nyli2",
+        "event_type": 0,
+        "key": "2026nyli2",
+        "name": "FIRST Long Island Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "NY",
+        "year": 2026
+    },
+    {
+        "city": "New York",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-08",
+        "event_code": "nyn2",
+        "event_type": 0,
+        "key": "2026nyn2",
+        "name": "Gotham Regional",
+        "start_date": "2026-04-06",
+        "state_prov": "NY",
+        "year": 2026
+    },
+    {
+        "city": "New York",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-12",
+        "event_code": "nyny",
+        "event_type": 0,
+        "key": "2026nyny",
+        "name": "New York City Regional",
+        "start_date": "2026-04-09",
+        "state_prov": "NY",
+        "year": 2026
+    },
+    {
+        "city": "Rochester",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-14",
+        "event_code": "nyro",
+        "event_type": 0,
+        "key": "2026nyro",
+        "name": "Finger Lakes Regional",
+        "start_date": "2026-03-11",
+        "state_prov": "NY",
+        "year": 2026
+    },
+    {
+        "city": "Suffern",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "nysu",
+        "event_type": 0,
+        "key": "2026nysu",
+        "name": "Hudson Valley Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "NY",
+        "year": 2026
+    },
+    {
+        "city": "Albany",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-18",
+        "event_code": "nytr",
+        "event_type": 0,
+        "key": "2026nytr",
+        "name": "New York Tech Valley Regional",
+        "start_date": "2026-04-15",
+        "state_prov": "NY",
+        "year": 2026
+    },
+    {
+        "city": "Bethpage",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-01",
+        "event_code": "nywz",
+        "event_type": 100,
+        "key": "2026nywz",
+        "name": "Regal Eagles Rampage",
+        "start_date": "2026-03-01",
+        "state_prov": "NY",
+        "year": 2026
+    },
+    {
+        "city": "Cleveland",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "ohcl",
+        "event_type": 0,
+        "key": "2026ohcl",
+        "name": "Buckeye Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "OH",
+        "year": 2026
+    },
+    {
+        "city": "Cincinnati",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-04",
+        "event_code": "ohmv",
+        "event_type": 0,
+        "key": "2026ohmv",
+        "name": "Miami Valley Regional",
+        "start_date": "2026-04-01",
+        "state_prov": "OH",
+        "year": 2026
+    },
+    {
+        "city": "Enid",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-07",
+        "event_code": "okok",
+        "event_type": 0,
+        "key": "2026okok",
+        "name": "Oklahoma Regional",
+        "start_date": "2026-03-04",
+        "state_prov": "OK",
+        "year": 2026
+    },
+    {
+        "city": "Tulsa",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-04",
+        "event_code": "oktu",
+        "event_type": 0,
+        "key": "2026oktu",
+        "name": "Green Country Regional",
+        "start_date": "2026-04-01",
+        "state_prov": "OK",
+        "year": 2026
+    },
+    {
+        "city": "Barrie",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "onbar",
+        "event_type": 1,
+        "key": "2026onbar",
+        "name": "ONT District Georgian College Event",
+        "start_date": "2026-03-27",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Niagara Falls",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-04-19",
+        "event_code": "oncmp",
+        "event_type": 2,
+        "key": "2026oncmp",
+        "name": "FIRST Ontario Provincial Championship",
+        "start_date": "2026-04-16",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Niagara Falls",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-04-19",
+        "event_code": "oncmp1",
+        "event_type": 5,
+        "key": "2026oncmp1",
+        "name": "FIRST Ontario Provincial Championship - Science Division",
+        "start_date": "2026-04-16",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Niagara Falls",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-04-19",
+        "event_code": "oncmp2",
+        "event_type": 5,
+        "key": "2026oncmp2",
+        "name": "FIRST Ontario Provincial Championship - Technology Division",
+        "start_date": "2026-04-16",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Hamilton",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "onham",
+        "event_type": 1,
+        "key": "2026onham",
+        "name": "ONT District McMaster University Event",
+        "start_date": "2026-03-20",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "North Bay",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "onnob",
+        "event_type": 1,
+        "key": "2026onnob",
+        "name": "ONT District North Bay Event",
+        "start_date": "2026-03-20",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Oshawa",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "onosh",
+        "event_type": 1,
+        "key": "2026onosh",
+        "name": "ONT District Durham College Event",
+        "start_date": "2026-03-13",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Etobicoke",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-03-14",
+        "event_code": "ontor",
+        "event_type": 1,
+        "key": "2026ontor",
+        "name": "ONT District Humber Polytechnic Event",
+        "start_date": "2026-03-12",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Waterloo",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-03-28",
+        "event_code": "onwat",
+        "event_type": 1,
+        "key": "2026onwat",
+        "name": "ONT District University of Waterloo Event",
+        "start_date": "2026-03-26",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Welland",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-04-12",
+        "event_code": "onwel",
+        "event_type": 1,
+        "key": "2026onwel",
+        "name": "ONT District Niagara College Event",
+        "start_date": "2026-04-10",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Windsor",
+        "country": "Canada",
+        "district": {
+            "abbreviation": "ont",
+            "display_name": "FIRST Canada - Ontario",
+            "key": "2026ont",
+            "year": 2026
+        },
+        "end_date": "2026-04-11",
+        "event_code": "onwin",
+        "event_type": 1,
+        "key": "2026onwin",
+        "name": "ONT District Windsor Essex Great Lake Event",
+        "start_date": "2026-04-09",
+        "state_prov": "ON",
+        "year": 2026
+    },
+    {
+        "city": "Oregon City",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-03-28",
+        "event_code": "orore",
+        "event_type": 1,
+        "key": "2026orore",
+        "name": "PNW District Clackamas Academy Event",
+        "start_date": "2026-03-26",
+        "state_prov": "OR",
+        "year": 2026
+    },
+    {
+        "city": "Salem",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-03-07",
+        "event_code": "orsal",
+        "event_type": 1,
+        "key": "2026orsal",
+        "name": "PNW District Oregon State Fair Event",
+        "start_date": "2026-03-05",
+        "state_prov": "OR",
+        "year": 2026
+    },
+    {
+        "city": "Wilsonville",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "orwil",
+        "event_type": 1,
+        "key": "2026orwil",
+        "name": "PNW District Wilsonville Event",
+        "start_date": "2026-03-13",
+        "state_prov": "OR",
+        "year": 2026
+    },
+    {
+        "city": "Bensalem",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "paben",
+        "event_type": 1,
+        "key": "2026paben",
+        "name": "FMA District Bensalem Event",
+        "start_date": "2026-03-27",
+        "state_prov": "PA",
+        "year": 2026
+    },
+    {
+        "city": "Pittsburgh",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "paca",
+        "event_type": 0,
+        "key": "2026paca",
+        "name": "Greater Pittsburgh Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "PA",
+        "year": 2026
+    },
+    {
+        "city": "Horsham",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "pahat",
+        "event_type": 1,
+        "key": "2026pahat",
+        "name": "FMA District Hatboro-Horsham Event",
+        "start_date": "2026-03-06",
+        "state_prov": "PA",
+        "year": 2026
+    },
+    {
+        "city": "Philadelphia",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "paphi",
+        "event_type": 1,
+        "key": "2026paphi",
+        "name": "FMA District Philadelphia Event",
+        "start_date": "2026-04-02",
+        "state_prov": "PA",
+        "year": 2026
+    },
+    {
+        "city": "Warminster",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fma",
+            "display_name": "FIRST Mid-Atlantic",
+            "key": "2026fma",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "pawar",
+        "event_type": 1,
+        "key": "2026pawar",
+        "name": "FMA District Centennial Event",
+        "start_date": "2026-03-20",
+        "state_prov": "PA",
+        "year": 2026
+    },
+    {
+        "city": "Cheney",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-04-11",
+        "event_code": "pncmp",
+        "event_type": 2,
+        "key": "2026pncmp",
+        "name": "Pacific Northwest FIRST District Championship",
+        "start_date": "2026-04-08",
+        "state_prov": "WA",
+        "year": 2026
+    },
+    {
+        "city": "Dorval",
+        "country": "Canada",
+        "district": null,
+        "end_date": "2026-04-11",
+        "event_code": "qcmo",
+        "event_type": 0,
+        "key": "2026qcmo",
+        "name": "Festival de Robotique Regional",
+        "start_date": "2026-04-08",
+        "state_prov": "QC",
+        "year": 2026
+    },
+    {
+        "city": "Kingston",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "rikin",
+        "event_type": 1,
+        "key": "2026rikin",
+        "name": "NE District URI Event",
+        "start_date": "2026-03-19",
+        "state_prov": "RI",
+        "year": 2026
+    },
+    {
+        "city": "North Charleston",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fsc",
+            "display_name": "FIRST South Carolina",
+            "key": "2026fsc",
+            "year": 2026
+        },
+        "end_date": "2026-03-07",
+        "event_code": "sccha",
+        "event_type": 1,
+        "key": "2026sccha",
+        "name": "FSC District North Charleston Event presented by SCDE & City of North Charleston Recreation",
+        "start_date": "2026-03-05",
+        "state_prov": "SC",
+        "year": 2026
+    },
+    {
+        "city": "Anderson",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fsc",
+            "display_name": "FIRST South Carolina",
+            "key": "2026fsc",
+            "year": 2026
+        },
+        "end_date": "2026-04-11",
+        "event_code": "sccmp",
+        "event_type": 2,
+        "key": "2026sccmp",
+        "name": "FIRST South Carolina State Championship presented by Magna",
+        "start_date": "2026-04-09",
+        "state_prov": "SC",
+        "year": 2026
+    },
+    {
+        "city": "Hartsville",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fsc",
+            "display_name": "FIRST South Carolina",
+            "key": "2026fsc",
+            "year": 2026
+        },
+        "end_date": "2026-03-28",
+        "event_code": "schar",
+        "event_type": 1,
+        "key": "2026schar",
+        "name": "FSC District Hartsville Event",
+        "start_date": "2026-03-26",
+        "state_prov": "SC",
+        "year": 2026
+    },
+    {
+        "city": "Hopkins",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fsc",
+            "display_name": "FIRST South Carolina",
+            "key": "2026fsc",
+            "year": 2026
+        },
+        "end_date": "2026-03-14",
+        "event_code": "schop",
+        "event_type": 1,
+        "key": "2026schop",
+        "name": "FSC District Richland Event presented by Aflac & RCSD1",
+        "start_date": "2026-03-12",
+        "state_prov": "SC",
+        "year": 2026
+    },
+    {
+        "city": "Becker",
+        "country": "United States",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "srsd",
+        "event_type": 100,
+        "key": "2026srsd",
+        "name": "Shamrock Showdown",
+        "start_date": "2026-03-21",
+        "state_prov": "MN",
+        "year": 2026
+    },
+    {
+        "city": "Sevierville",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-03-21",
+        "event_code": "tnkn",
+        "event_type": 0,
+        "key": "2026tnkn",
+        "name": "Smoky Mountains Regional",
+        "start_date": "2026-03-18",
+        "state_prov": "TN",
+        "year": 2026
+    },
+    {
+        "city": "Etimesgut / Ankara",
+        "country": "T\u00fcrkiye",
+        "district": null,
+        "end_date": "2026-04-09",
+        "event_code": "tuak",
+        "event_type": 0,
+        "key": "2026tuak",
+        "name": "Ankara Regional",
+        "start_date": "2026-04-07",
+        "state_prov": "06",
+        "year": 2026
+    },
+    {
+        "city": "Etimesgut / Ankara",
+        "country": "T\u00fcrkiye",
+        "district": null,
+        "end_date": "2026-04-12",
+        "event_code": "tuak2",
+        "event_type": 0,
+        "key": "2026tuak2",
+        "name": "Ba\u015fkent Regional",
+        "start_date": "2026-04-10",
+        "state_prov": "06",
+        "year": 2026
+    },
+    {
+        "city": "Bak\u0131rk\u00f6y / \u0130stanbul",
+        "country": "T\u00fcrkiye",
+        "district": null,
+        "end_date": "2026-03-27",
+        "event_code": "tuhc",
+        "event_type": 0,
+        "key": "2026tuhc",
+        "name": "Hali\u00e7 Regional",
+        "start_date": "2026-03-25",
+        "state_prov": "34",
+        "year": 2026
+    },
+    {
+        "city": "Ba\u015fak\u015fehir / \u0130stanbul",
+        "country": "T\u00fcrkiye",
+        "district": null,
+        "end_date": "2026-03-05",
+        "event_code": "tuis",
+        "event_type": 0,
+        "key": "2026tuis",
+        "name": "\u0130stanbul Regional",
+        "start_date": "2026-03-03",
+        "state_prov": "34",
+        "year": 2026
+    },
+    {
+        "city": "Ba\u015fak\u015fehir / \u0130stanbul",
+        "country": "T\u00fcrkiye",
+        "district": null,
+        "end_date": "2026-03-08",
+        "event_code": "tuis2",
+        "event_type": 0,
+        "key": "2026tuis2",
+        "name": "Bosphorus Regional",
+        "start_date": "2026-03-06",
+        "state_prov": "34",
+        "year": 2026
+    },
+    {
+        "city": "Bak\u0131rk\u00f6y / \u0130stanbul",
+        "country": "T\u00fcrkiye",
+        "district": null,
+        "end_date": "2026-03-30",
+        "event_code": "tuis3",
+        "event_type": 0,
+        "key": "2026tuis3",
+        "name": "Marmara Regional",
+        "start_date": "2026-03-28",
+        "state_prov": "34",
+        "year": 2026
+    },
+    {
+        "city": "Ba\u015fak\u015fehir / \u0130stanbul",
+        "country": "T\u00fcrkiye",
+        "district": null,
+        "end_date": "2026-03-11",
+        "event_code": "tuis4",
+        "event_type": 0,
+        "key": "2026tuis4",
+        "name": "Yeditepe Regional",
+        "start_date": "2026-03-09",
+        "state_prov": "34",
+        "year": 2026
+    },
+    {
+        "city": "Bak\u0131rk\u00f6y / \u0130stanbul",
+        "country": "T\u00fcrkiye",
+        "district": null,
+        "end_date": "2026-04-02",
+        "event_code": "tuis5",
+        "event_type": 0,
+        "key": "2026tuis5",
+        "name": "Avrasya Regional",
+        "start_date": "2026-03-31",
+        "state_prov": "34",
+        "year": 2026
+    },
+    {
+        "city": "Abilene",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-04-11",
+        "event_code": "txabi",
+        "event_type": 1,
+        "key": "2026txabi",
+        "name": "FIT District Abilene Event",
+        "start_date": "2026-04-09",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Amarillo",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "txama",
+        "event_type": 1,
+        "key": "2026txama",
+        "name": "FIT District Amarillo Event",
+        "start_date": "2026-04-02",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Belton",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-07",
+        "event_code": "txbel",
+        "event_type": 1,
+        "key": "2026txbel",
+        "name": "FIT District Belton Event",
+        "start_date": "2026-03-05",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Friendswood",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "txcl2",
+        "event_type": 1,
+        "key": "2026txcl2",
+        "name": "FIT District Space City @ Friendswood Event #2",
+        "start_date": "2026-04-02",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "League City",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-09",
+        "event_code": "txcle",
+        "event_type": 1,
+        "key": "2026txcle",
+        "name": "FIT District Space City @ League City Event #1",
+        "start_date": "2026-03-07",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "txcmp",
+        "event_type": 2,
+        "key": "2026txcmp",
+        "name": "FIRST In Texas District Championship",
+        "start_date": "2026-04-15",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "txcmp1",
+        "event_type": 5,
+        "key": "2026txcmp1",
+        "name": "FIRST In Texas District Championship - Mercury Division",
+        "start_date": "2026-04-15",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-04-18",
+        "event_code": "txcmp2",
+        "event_type": 5,
+        "key": "2026txcmp2",
+        "name": "FIRST In Texas District Championship - Apollo Division",
+        "start_date": "2026-04-15",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Dripping Springs",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "txdri",
+        "event_type": 1,
+        "key": "2026txdri",
+        "name": "FIT District Dripping Springs Event",
+        "start_date": "2026-04-02",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Farmersville",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "txfar",
+        "event_type": 1,
+        "key": "2026txfar",
+        "name": "FIT District Farmersville Event",
+        "start_date": "2026-03-27",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Fort Worth",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "txfor",
+        "event_type": 1,
+        "key": "2026txfor",
+        "name": "FIT District Fort Worth Event",
+        "start_date": "2026-03-19",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Houston",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "txhou",
+        "event_type": 1,
+        "key": "2026txhou",
+        "name": "FIT District Houston Event",
+        "start_date": "2026-03-19",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Manor",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "txman",
+        "event_type": 1,
+        "key": "2026txman",
+        "name": "FIT District Manor Event",
+        "start_date": "2026-03-27",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "McAllen",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-14",
+        "event_code": "txmca",
+        "event_type": 1,
+        "key": "2026txmca",
+        "name": "FIT District McAllen Event",
+        "start_date": "2026-03-12",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "San Antonio",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-14",
+        "event_code": "txsan",
+        "event_type": 1,
+        "key": "2026txsan",
+        "name": "FIT District San Antonio Event",
+        "start_date": "2026-03-12",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "Waco",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fit",
+            "display_name": "FIRST In Texas",
+            "key": "2026fit",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "txwac",
+        "event_type": 1,
+        "key": "2026txwac",
+        "name": "FIT District Waco Event",
+        "start_date": "2026-03-19",
+        "state_prov": "TX",
+        "year": 2026
+    },
+    {
+        "city": "West Valley City",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-04-18",
+        "event_code": "utwv",
+        "event_type": 0,
+        "key": "2026utwv",
+        "name": "Utah Regional",
+        "start_date": "2026-04-16",
+        "state_prov": "UT",
+        "year": 2026
+    },
+    {
+        "city": "Alexandria",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fch",
+            "display_name": "FIRST Chesapeake",
+            "key": "2026fch",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "vaale",
+        "event_type": 1,
+        "key": "2026vaale",
+        "name": "FCH District Alexandria VA Event presented by Qualcomm",
+        "start_date": "2026-03-06",
+        "state_prov": "VA",
+        "year": 2026
+    },
+    {
+        "city": "Blacksburg",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fch",
+            "display_name": "FIRST Chesapeake",
+            "key": "2026fch",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "vabla",
+        "event_type": 1,
+        "key": "2026vabla",
+        "name": "FCH District Blacksburg VA Event presented by Ball",
+        "start_date": "2026-03-27",
+        "state_prov": "VA",
+        "year": 2026
+    },
+    {
+        "city": "Chesapeake",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fch",
+            "display_name": "FIRST Chesapeake",
+            "key": "2026fch",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "vache",
+        "event_type": 1,
+        "key": "2026vache",
+        "name": "FCH District Chesapeake VA Event presented by Newport News Ship Yard / Hampton Roads Community Foundation (Norfolk Southern)",
+        "start_date": "2026-03-20",
+        "state_prov": "VA",
+        "year": 2026
+    },
+    {
+        "city": "Glen Allen",
+        "country": "USA",
+        "district": {
+            "abbreviation": "fch",
+            "display_name": "FIRST Chesapeake",
+            "key": "2026fch",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "vagle",
+        "event_type": 1,
+        "key": "2026vagle",
+        "name": "FCH District Glen Allen VA Event presented by Porvair Filtration",
+        "start_date": "2026-03-13",
+        "state_prov": "VA",
+        "year": 2026
+    },
+    {
+        "city": "Burlington",
+        "country": "USA",
+        "district": {
+            "abbreviation": "ne",
+            "display_name": "New England",
+            "key": "2026ne",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "vtbur",
+        "event_type": 1,
+        "key": "2026vtbur",
+        "name": "NE District UVM Event",
+        "start_date": "2026-04-02",
+        "state_prov": "VT",
+        "year": 2026
+    },
+    {
+        "city": "Auburn",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "waahs",
+        "event_type": 1,
+        "key": "2026waahs",
+        "name": "PNW District Auburn Event",
+        "start_date": "2026-03-27",
+        "state_prov": "WA",
+        "year": 2026
+    },
+    {
+        "city": "Bonney Lake",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "wabon",
+        "event_type": 1,
+        "key": "2026wabon",
+        "name": "PNW District Bonney Lake Event",
+        "start_date": "2026-03-06",
+        "state_prov": "WA",
+        "year": 2026
+    },
+    {
+        "city": "Bellevue",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "wasam",
+        "event_type": 1,
+        "key": "2026wasam",
+        "name": "PNW District Sammamish Event",
+        "start_date": "2026-03-20",
+        "state_prov": "WA",
+        "year": 2026
+    },
+    {
+        "city": "Snohomish",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-03-15",
+        "event_code": "wasno",
+        "event_type": 1,
+        "key": "2026wasno",
+        "name": "PNW District Glacier Peak Event",
+        "start_date": "2026-03-13",
+        "state_prov": "WA",
+        "year": 2026
+    },
+    {
+        "city": "Yakima",
+        "country": "USA",
+        "district": {
+            "abbreviation": "pnw",
+            "display_name": "Pacific Northwest",
+            "key": "2026pnw",
+            "year": 2026
+        },
+        "end_date": "2026-03-21",
+        "event_code": "wayak",
+        "event_type": 1,
+        "key": "2026wayak",
+        "name": "PNW District SunDome Event",
+        "start_date": "2026-03-19",
+        "state_prov": "WA",
+        "year": 2026
+    },
+    {
+        "city": "Nashua",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-02-21",
+        "event_code": "week0",
+        "event_type": 100,
+        "key": "2026week0",
+        "name": "Week 0",
+        "start_date": "2026-02-21",
+        "state_prov": "NH",
+        "year": 2026
+    },
+    {
+        "city": "Appleton",
+        "country": "USA",
+        "district": {
+            "abbreviation": "win",
+            "display_name": "FIRST Wisconsin",
+            "key": "2026win",
+            "year": 2026
+        },
+        "end_date": "2026-03-22",
+        "event_code": "wiapp",
+        "event_type": 1,
+        "key": "2026wiapp",
+        "name": "WIN District Appleton Event",
+        "start_date": "2026-03-20",
+        "state_prov": "WI",
+        "year": 2026
+    },
+    {
+        "city": "Brookfield",
+        "country": "USA",
+        "district": {
+            "abbreviation": "win",
+            "display_name": "FIRST Wisconsin",
+            "key": "2026win",
+            "year": 2026
+        },
+        "end_date": "2026-04-19",
+        "event_code": "wicmp",
+        "event_type": 2,
+        "key": "2026wicmp",
+        "name": "FIRST Wisconsin State Championship",
+        "start_date": "2026-04-17",
+        "state_prov": "WI",
+        "year": 2026
+    },
+    {
+        "city": "La Crosse",
+        "country": "USA",
+        "district": {
+            "abbreviation": "win",
+            "display_name": "FIRST Wisconsin",
+            "key": "2026win",
+            "year": 2026
+        },
+        "end_date": "2026-04-04",
+        "event_code": "wilax",
+        "event_type": 1,
+        "key": "2026wilax",
+        "name": "WIN District Seven Rivers Event",
+        "start_date": "2026-04-02",
+        "state_prov": "WI",
+        "year": 2026
+    },
+    {
+        "city": "Mukwonago",
+        "country": "USA",
+        "district": {
+            "abbreviation": "win",
+            "display_name": "FIRST Wisconsin",
+            "key": "2026win",
+            "year": 2026
+        },
+        "end_date": "2026-03-29",
+        "event_code": "wimuk",
+        "event_type": 1,
+        "key": "2026wimuk",
+        "name": "WIN District Mukwonago Event",
+        "start_date": "2026-03-27",
+        "state_prov": "WI",
+        "year": 2026
+    },
+    {
+        "city": "Plymouth",
+        "country": "USA",
+        "district": {
+            "abbreviation": "win",
+            "display_name": "FIRST Wisconsin",
+            "key": "2026win",
+            "year": 2026
+        },
+        "end_date": "2026-03-08",
+        "event_code": "wiply",
+        "event_type": 1,
+        "key": "2026wiply",
+        "name": "WIN District Lakeland Event",
+        "start_date": "2026-03-06",
+        "state_prov": "WI",
+        "year": 2026
+    },
+    {
+        "city": "Sussex",
+        "country": "USA",
+        "district": null,
+        "end_date": "2026-02-22",
+        "event_code": "wiss",
+        "event_type": 100,
+        "key": "2026wiss",
+        "name": "Sussex Scrimmage",
+        "start_date": "2026-02-22",
+        "state_prov": "WI",
+        "year": 2026
+    }
+]

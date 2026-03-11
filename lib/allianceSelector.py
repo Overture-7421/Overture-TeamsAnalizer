@@ -83,6 +83,8 @@ class Alliance:
         self.captainRank = None
         self.pick1 = None
         self.pick1Rec = None
+        self.pick2 = None
+        self.pick2Rec = None
         self.manual_captain = False
 
     def as_dict(self):
@@ -92,6 +94,8 @@ class Alliance:
             "captainRank": self.captainRank,
             "pick1": self.pick1,
             "pick1Rec": self.pick1Rec,
+            "pick2": self.pick2,
+            "pick2Rec": self.pick2Rec,
         }
 
 class AllianceSelector:
@@ -107,10 +111,9 @@ class AllianceSelector:
         W_CLUTCH = scoring_weights.get("clutch", W_CLUTCH)
 
         self.teams = sorted(teams, key=lambda t: t.rank)
-        # For testing purposes, create reasonable number of alliances
-        # FTC: 2 teams per alliance (captain + pick1)
+        # FRC: 3 teams per alliance (captain + pick1 + pick2)
         draft_params = config.draft_parameters or {}
-        teams_per_alliance = draft_params.get("teams_per_alliance", 2) or 2
+        teams_per_alliance = draft_params.get("teams_per_alliance", 3) or 3
         max_alliances_cfg = draft_params.get("max_alliances", 8) or 8
         max_alliances = min(max_alliances_cfg, max(1, len(teams) // teams_per_alliance))
         self.alliances = [Alliance(i+1) for i in range(max_alliances)]
@@ -121,6 +124,7 @@ class AllianceSelector:
         selected = []
         for a in self.alliances:
             if a.pick1: selected.append(a.pick1)
+            if a.pick2: selected.append(a.pick2)
         return selected
 
     def update_alliance_captains(self):
@@ -206,23 +210,19 @@ class AllianceSelector:
         return 0
 
     def update_recommendations(self):
-        # For each alliance, recommend the best available pick for pick1
+        # For each alliance, recommend the best available picks for pick1 and pick2
         # Each recommendation must be unique.
-        recommended_pick1 = set()
+        recommended = set()
 
-        # Pick 1 (1-8)
-        # New logic: Recommend the captain of the next alliance if available.
         all_captains = [a.captain for a in self.alliances if a.captain]
-        
+
+        # Pick 1 recommendations (snipe next alliance's captain)
         for idx, a in enumerate(self.alliances):
             if not a.pick1:
-                # Determine the target for recommendation
                 target_captain_team = None
                 if idx + 1 < len(all_captains):
-                    # Target the next alliance's captain
                     target_captain_team = all_captains[idx + 1]
                 else:
-                    # For the last alliance, find the next best team by rank not already a captain or picked
                     selected_teams = set(self.get_selected_picks()) | set(all_captains)
                     next_best_options = [t for t in self.teams if t.team not in selected_teams]
                     next_best_options.sort(key=lambda t: t.rank)
@@ -231,28 +231,39 @@ class AllianceSelector:
 
                 available = self.get_available_teams(a.captainRank, 'pick1')
                 available_teams_set = {t.team for t in available}
-                
-                # Check if the desired target is available
-                if target_captain_team and target_captain_team in available_teams_set:
+
+                if target_captain_team and target_captain_team in available_teams_set and target_captain_team not in recommended:
                     a.pick1Rec = target_captain_team
-                    recommended_pick1.add(target_captain_team)
+                    recommended.add(target_captain_team)
                 else:
-                    # Fallback to best available if target is not available
-                    available = [t for t in available if t.team not in recommended_pick1]
-                    if available:
-                        a.pick1Rec = available[0].team
-                        recommended_pick1.add(available[0].team)
+                    fallback = [t for t in available if t.team not in recommended]
+                    if fallback:
+                        a.pick1Rec = fallback[0].team
+                        recommended.add(fallback[0].team)
                     else:
                         a.pick1Rec = None
             else:
                 a.pick1Rec = None
 
+        # Pick 2 recommendations (best available team not already recommended/picked)
+        for a in self.alliances:
+            if not a.pick2:
+                available = self.get_available_teams(a.captainRank, 'pick2')
+                fallback = [t for t in available if t.team not in recommended]
+                if fallback:
+                    a.pick2Rec = fallback[0].team
+                    recommended.add(fallback[0].team)
+                else:
+                    a.pick2Rec = None
+            else:
+                a.pick2Rec = None
+
     def set_pick(self, alliance_index, pick_type, team_number):
         # Get the alliance that is making this pick
         picking_alliance = self.alliances[alliance_index]
 
-        if pick_type != 'pick1':
-            raise ValueError("FTC alliances only support pick1 (2-team alliance).")
+        if pick_type not in ('pick1', 'pick2'):
+            raise ValueError("FRC alliances support pick1 and pick2 (3-team alliance).")
 
         # Allow clearing a pick by passing None or 0
         if team_number in (None, 0):
@@ -267,9 +278,10 @@ class AllianceSelector:
         if team_number == picking_alliance.captain:
             raise ValueError(f"Cannot pick team {team_number} - alliance captains cannot pick themselves.")
         
-        # Check if the team is already selected as a pick
+        # Check if the team is already selected as a pick by any slot (allow re-selecting same slot)
         selected = self.get_selected_picks()
-        if team_number in selected:
+        current_val = getattr(picking_alliance, pick_type, None)
+        if team_number in selected and current_val != team_number:
             raise ValueError(f"Team {team_number} is already selected as a pick.")
         
         # Verify the team exists in our team list
@@ -284,6 +296,7 @@ class AllianceSelector:
     def reset_picks(self):
         for a in self.alliances:
             a.pick1 = None
+            a.pick2 = None
         self.update_alliance_captains()
         self.update_recommendations()
 
@@ -337,11 +350,14 @@ class AllianceSelector:
             alliance_score = 0
             if a.captain: alliance_score += self.get_team_score(a.captain)
             if a.pick1: alliance_score += self.get_team_score(a.pick1)
+            if a.pick2: alliance_score += self.get_team_score(a.pick2)
             table.append({
                 "Alliance #": a.allianceNumber,
                 "Captain": a.captain,
                 "Pick 1": a.pick1,
                 "Recommendation 1": a.pick1Rec,
+                "Pick 2": a.pick2,
+                "Recommendation 2": a.pick2Rec,
                 "Alliance Score": round(alliance_score, 1),
                 "Captain Mode": "Manual" if a.manual_captain else "Auto"
             })
@@ -369,8 +385,8 @@ class AllianceSelector:
 
     def update_teams(self, teams):
         self.teams = sorted(teams, key=lambda t: t.rank)
-        # Recalculate number of alliances based on new team count
-        max_alliances = min(8, max(1, len(teams) // 2))
+        # Recalculate number of alliances based on new team count (FRC: 3 teams per alliance)
+        max_alliances = min(8, max(1, len(teams) // 3))
         
         # If we need to adjust the number of alliances
         if len(self.alliances) != max_alliances:

@@ -6,6 +6,7 @@ QR decoding, and statistical calculations.
 """
 
 import csv
+import io
 import json
 import math
 import os
@@ -72,6 +73,8 @@ class AnalizadorRobot:
 
         # Column indices map for quick access
         self._column_indices: Dict[str, int] = {}
+        self._decode_column_lookup_cache: Dict[tuple, Optional[str]] = {}
+        self._has_decode_columns_cache: Optional[bool] = None
         self._update_column_indices()
 
         # User-configurable column selections
@@ -86,6 +89,12 @@ class AnalizadorRobot:
         self.robot_valuation_phase_weights: List[float] = robot_config.phase_weights.copy()
         self.robot_valuation_phase_names: List[str] = robot_config.phase_names.copy()
         
+        # Computation cache — cleared whenever sheet_data changes
+        self._team_data_grouped_cache: Optional[Dict[str, List[List[str]]]] = None
+        self._detailed_stats_cache: Optional[List[Dict[str, Any]]] = None
+        self._endgame_bonus_cache: Optional[Dict[int, float]] = None
+        self._data_version: int = 0
+
         # Hot-reload configuration
         self._csv_file_path: Optional[Path] = None
         self._csv_last_modified: float = 0.0
@@ -97,9 +106,30 @@ class AnalizadorRobot:
         if auto_load_default:
             self._try_load_default_csv()
 
+    def _invalidate_caches(self) -> None:
+        """Clear all computation caches and bump the data version counter."""
+        self._team_data_grouped_cache = None
+        self._detailed_stats_cache = None
+        self._endgame_bonus_cache = None
+        self._decode_column_lookup_cache.clear()
+        self._has_decode_columns_cache = None
+        self._data_version += 1
+
+    def _get_cached_endgame_bonus(self) -> Dict[int, float]:
+        """Return endgame bonus dict, computing and caching on first call."""
+        if self._endgame_bonus_cache is not None:
+            return self._endgame_bonus_cache
+        all_rows = self.sheet_data[1:] if len(self.sheet_data) > 1 else []
+        self._endgame_bonus_cache = self._decode_endgame_bonus_by_row_id(all_rows)
+        return self._endgame_bonus_cache
+
     def _update_column_indices(self) -> None:
         """Update the column name to index mapping."""
         self._column_indices.clear()
+        # Column-dependent caches must be reset when headers change
+        self._decode_column_lookup_cache.clear()
+        self._has_decode_columns_cache = None
+
         if not self.sheet_data or not self.sheet_data[0]:
             if self.default_column_names:
                 for i, col_name in enumerate(self.default_column_names):
@@ -109,7 +139,7 @@ class AnalizadorRobot:
         header = self.sheet_data[0]
         for i, col_name in enumerate(header):
             self._column_indices[col_name.strip()] = i
-        
+
         # Auto-detect game phase columns if not configured
         if not self._autonomous_columns or not self._teleop_columns or not self._endgame_columns:
             self._auto_detect_game_phase_columns()
@@ -345,10 +375,7 @@ class AnalizadorRobot:
         # FTC DECODE scoring path (only enabled when the sheet contains DECODE-style columns).
         if self._has_decode_columns():
             phase_totals = {"autonomous": 0.0, "teleop": 0.0, "endgame": 0.0}
-            # Endgame bonus is alliance-level (+10 if both robots fully returned), so compute
-            # from the entire sheet (not just this team).
-            all_rows = self.sheet_data[1:] if len(self.sheet_data) > 1 else []
-            endgame_bonus_by_row = self._decode_endgame_bonus_by_row_id(all_rows)
+            endgame_bonus_by_row = self._get_cached_endgame_bonus()
             for row in team_data:
                 score = self._decode_score_row(row, endgame_bonus=endgame_bonus_by_row.get(id(row), 0.0))
                 phase_totals["autonomous"] += score["autonomous"]
@@ -409,16 +436,21 @@ class AnalizadorRobot:
 
     # --- FTC DECODE scoring helpers ---
     def _has_decode_columns(self) -> bool:
-        """Return True if the current header looks like FTC DECODE scouting schema.
+        """Return True if the current header looks like a supported scouting schema
+        (FTC DECODE *or* FRC REBUILT QRS).
 
-        This is intentionally heuristic so the engine can support both the legacy FRC
-        REEFSCAPE schema and the FTC DECODE schema without hard coupling to one JSON.
+        This is intentionally heuristic so the engine can support multiple schemas
+        without hard coupling to one JSON config.
         """
+        if self._has_decode_columns_cache is not None:
+            return self._has_decode_columns_cache
+
         if not self.sheet_data or not self.sheet_data[0]:
+            self._has_decode_columns_cache = False
             return False
 
         header_lower = [str(h).strip().lower() for h in self.sheet_data[0]]
-        # Require at least one of these DECODE-specific concepts.
+        # FTC DECODE schema markers
         decode_markers = (
             "artifact",
             "classified",
@@ -428,20 +460,37 @@ class AnalizadorRobot:
             "fully returned",
             "partially returned",
         )
-        return any(any(marker in h for marker in decode_markers) for h in header_lower)
+        if any(any(marker in h for marker in decode_markers) for h in header_lower):
+            self._has_decode_columns_cache = True
+            return True
+
+        # FRC REBUILT QRS schema markers ("HP Scored" columns + "Climb")
+        qrs_markers = ("hp scored", "shoot time", "pass time", "penalty counter")
+        qrs_matches = sum(1 for h in header_lower if any(m in h for m in qrs_markers))
+        result = qrs_matches >= 2
+        self._has_decode_columns_cache = result
+        return result
 
     def _decode_find_column(self, *, keywords: List[str]) -> Optional[str]:
         """Find the first column whose name contains all keywords (case-insensitive)."""
+        cache_key = tuple(keywords)
+        if cache_key in self._decode_column_lookup_cache:
+            return self._decode_column_lookup_cache[cache_key]
+
         if not self.sheet_data or not self.sheet_data[0]:
+            self._decode_column_lookup_cache[cache_key] = None
             return None
         keywords_lower = [k.strip().lower() for k in keywords if k and str(k).strip()]
         if not keywords_lower:
+            self._decode_column_lookup_cache[cache_key] = None
             return None
         for col in self.sheet_data[0]:
             name = str(col).strip()
             name_lower = name.lower()
             if all(k in name_lower for k in keywords_lower):
+                self._decode_column_lookup_cache[cache_key] = name
                 return name
+        self._decode_column_lookup_cache[cache_key] = None
         return None
 
     def _decode_get_cell(self, row: List[str], col_name: Optional[str]) -> Any:
@@ -571,58 +620,63 @@ class AnalizadorRobot:
         return bonus_by_row_id
 
     def _decode_score_row(self, row: List[str], *, endgame_bonus: float = 0.0) -> Dict[str, float]:
-        """Compute DECODE points for a single robot/match row."""
+        """Compute FRC REBUILT 2026 match points for a single robot/match row.
+        
+        Scoring:
+        - AUTO: Leave 3pts, HP/FUEL 1pt each, Tower L1 15pts (max 2 robots)
+        - TELEOP: HP/FUEL 1pt each
+        - ENDGAME: Climb L1/Level 1=10pts, L2/Level 2=20pts, L3/Level 3=30pts
+        """
         # Autonomous
         auto_leave = 1.0 if self._decode_parse_bool(self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "leave"]) )
                                                     or self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "moved"]) )) else 0.0
-        auto_artifacts = self._decode_get_count(
-            row,
-            primary=["artifactsAuto", "Artifacts (Auto)", "Classified (Auto)", "Artifacts Auto", "Classified Auto"],
-            fallback=[["auto", "artifact"], ["auto", "classified"]],
-        )
-        auto_overflow = self._decode_get_count(
-            row,
-            primary=["overflowAuto", "Overflow (Auto)", "Overflow Auto"],
-            fallback=[["auto", "overflow"]],
-        )
-        auto_depot = self._decode_get_count(
-            row,
-            primary=["depotAuto", "Depot (Auto)", "Depot Auto"],
-            fallback=[["auto", "depot"]],
-        )
-        auto_pattern = self._decode_get_count(
-            row,
-            primary=["patternAuto", "Pattern (Auto)", "Pattern Match (Auto)", "Pattern Auto"],
-            fallback=[["auto", "pattern"]],
-        )
-        autonomous = 3.0 * auto_leave + 3.0 * auto_artifacts + 1.0 * auto_overflow + 1.0 * auto_depot + 2.0 * auto_pattern
 
-        # TeleOp
-        teleop_artifacts = self._decode_get_count(
+        # Auto HP/FUEL scored
+        auto_fuel = self._decode_get_count(
             row,
-            primary=["artifactsTeleop", "Artifacts (Teleop)", "Classified (Teleop)", "Artifacts Teleop", "Classified Teleop"],
-            fallback=[["teleop", "artifact"], ["teleop", "classified"], ["tele", "artifact"], ["tele", "classified"]],
+            primary=["HP Scored (Auto)", "FUEL Scored (Active HUB) (Auto)", "auto_fuel", "Auto FUEL"],
+            fallback=[["hp", "scored", "auto"], ["hp", "auto"], ["auto", "fuel"],
+                      ["auto", "artifact"], ["auto", "classified"]],
         )
-        teleop_overflow = self._decode_get_count(
-            row,
-            primary=["overflowTeleop", "Overflow (Teleop)", "Overflow Teleop"],
-            fallback=[["teleop", "overflow"], ["tele", "overflow"]],
-        )
-        teleop_depot = self._decode_get_count(
-            row,
-            primary=["depotTeleop", "Depot (Teleop)", "Depot Teleop"],
-            fallback=[["teleop", "depot"], ["tele", "depot"]],
-        )
-        teleop_pattern = self._decode_get_count(
-            row,
-            primary=["patternTeleop", "Pattern (Teleop)", "Pattern Match (Teleop)", "Pattern Teleop"],
-            fallback=[["teleop", "pattern"], ["tele", "pattern"]],
-        )
-        teleop = 3.0 * teleop_artifacts + 1.0 * teleop_overflow + 1.0 * teleop_depot + 2.0 * teleop_pattern
 
-        # Endgame
-        endgame_status = self._decode_get_endgame_status(row)
-        endgame = float(endgame_status["points"])
+        # Auto Tower Level 1 (old schema only)
+        auto_tower_l1 = 1.0 if self._decode_parse_bool(
+            self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "tower"])) or
+            self._decode_get_cell(row, self._decode_find_column(keywords=["tower", "level", "auto"]))
+        ) else 0.0
+
+        autonomous = 3.0 * auto_leave + 1.0 * auto_fuel + 15.0 * auto_tower_l1
+
+        # TeleOp HP/FUEL scored
+        teleop_fuel = self._decode_get_count(
+            row,
+            primary=["HP Scored (Teleop)", "FUEL Scored (Active HUB) (Teleop)", "teleop_fuel", "Teleop FUEL"],
+            fallback=[["hp", "scored", "teleop"], ["hp", "teleop"], ["teleop", "fuel"],
+                      ["tele", "fuel"], ["teleop", "artifact"], ["teleop", "classified"]],
+        )
+
+        teleop = 1.0 * teleop_fuel
+
+        # Endgame - Climb level (new QRS: "Climb" with L1/L2/L3; old: "Tower Climb Level")
+        # Use exact name lookup first to avoid accidentally matching "Climb Position (Auto)"
+        climb_col = next(
+            (name for name in ["Climb", "Tower Climb Level", "Tower Climb"]
+             if name in self._column_indices),
+            None
+        ) or self._decode_find_column(keywords=["tower", "climb"]) \
+          or self._decode_find_column(keywords=["climb", "level"])
+        climb_val = str(self._decode_get_cell(row, climb_col) or "").strip().lower()
+
+        if climb_val == "l3" or "level 3" in climb_val or "level3" in climb_val:
+            endgame = 30.0
+        elif climb_val == "l2" or "level 2" in climb_val or "level2" in climb_val:
+            endgame = 20.0
+        elif climb_val == "l1" or "level 1" in climb_val or "level1" in climb_val:
+            endgame = 10.0
+        else:
+            # Fallback: legacy FTC endgame (Returned to Base)
+            endgame_status = self._decode_get_endgame_status(row)
+            endgame = float(endgame_status["points"])
 
         total = autonomous + teleop + endgame + float(endgame_bonus or 0.0)
         return {
@@ -761,12 +815,75 @@ class AnalizadorRobot:
                                 row = row[:target_len]
                             self.sheet_data.append(row)
             
+            self._invalidate_caches()
             self._update_column_indices()
             self._initialize_selected_columns()
         except FileNotFoundError:
             print(f"Error: File not found at {file_path}")
         except Exception as e:
             print(f"Error loading CSV: {e}")
+
+    def load_csv_from_bytes(self, data: bytes, encoding: str = 'utf-8') -> None:
+        """Load CSV data directly from bytes, skipping the disk round-trip.
+
+        Functionally identical to :meth:`load_csv` but accepts a ``bytes``
+        buffer (e.g. from ``st.file_uploader``) so the caller does not need to
+        write a temporary file first.
+
+        Args:
+            data: Raw CSV bytes.
+            encoding: Character encoding of the bytes (default: utf-8).
+        """
+        try:
+            text = data.decode(encoding, errors='replace')
+            reader = csv.reader(io.StringIO(text))
+            csv_rows = [row for row in reader if any(field.strip() for field in row)]
+
+            if not csv_rows:
+                print("CSV data is empty or contains no records.")
+                return
+
+            csv_headers = csv_rows[0]
+
+            detected_format = self.config_manager.detect_csv_format(csv_headers)
+
+            if detected_format == "legacy_format":
+                print("Detected legacy format. Converting to new format...")
+                converted_rows = self.csv_converter.convert_rows_to_new_format(csv_headers, csv_rows[1:])
+                csv_rows = [self.config_manager.get_column_config().headers] + converted_rows
+                print(f"Successfully converted {len(converted_rows)} data rows to new format.")
+            elif detected_format == "unknown_format":
+                print("Warning: Unknown CSV format detected. Loading as-is.")
+
+            if not self.sheet_data or (len(self.sheet_data) == 1 and not any(self.sheet_data[0])):
+                self.sheet_data = csv_rows
+                print(f"CSV data loaded. {len(self.sheet_data)} rows (including header).")
+            else:
+                current_header = self.sheet_data[0]
+                csv_header = csv_rows[0]
+                if current_header == csv_header:
+                    self.sheet_data.extend(csv_rows[1:])
+                    print(f"CSV data appended. Total {len(self.sheet_data)} rows.")
+                else:
+                    expected_header = self.config_manager.get_column_config().headers
+                    if csv_header == expected_header:
+                        self.sheet_data = csv_rows
+                        print("CSV header matches config. Replaced existing data and headers.")
+                    else:
+                        print("Warning: CSV header doesn't match existing data. Appending data rows only.")
+                        target_len = len(current_header)
+                        for row in csv_rows[1:]:
+                            if len(row) < target_len:
+                                row = row + [""] * (target_len - len(row))
+                            elif len(row) > target_len:
+                                row = row[:target_len]
+                            self.sheet_data.append(row)
+
+            self._invalidate_caches()
+            self._update_column_indices()
+            self._initialize_selected_columns()
+        except Exception as e:
+            print(f"Error loading CSV from bytes: {e}")
 
     def load_qr_data(self, qr_string_data: str) -> None:
         """
@@ -830,6 +947,7 @@ class AnalizadorRobot:
                 print(f"Row added: {row_data}")
 
         print(f"QR data processed. {new_rows_added} rows added. Total: {len(self.sheet_data)} rows.")
+        self._invalidate_caches()
         self._update_column_indices()
         self._initialize_selected_columns()
 
@@ -886,11 +1004,14 @@ class AnalizadorRobot:
         if not sheet_data:
             return
         self.sheet_data = sheet_data
+        self._invalidate_caches()
         self._update_column_indices()
         self._initialize_selected_columns()
 
     def get_team_data_grouped(self) -> Dict[str, List[List[str]]]:
         """Group rows by team number."""
+        if self._team_data_grouped_cache is not None:
+            return self._team_data_grouped_cache
         if len(self.sheet_data) < 2:
             return {}
         team_number_col_name = "Team Number"
@@ -906,7 +1027,8 @@ class AnalizadorRobot:
                 team_number = row[team_col_idx].strip()
                 if team_number:
                     team_rows_map[team_number].append(row)
-        return dict(team_rows_map)
+        self._team_data_grouped_cache = dict(team_rows_map)
+        return self._team_data_grouped_cache
 
     def _generate_stat_key(self, col_name: str, stat_type: str) -> str:
         """Generate a standardized key for statistics."""
@@ -944,6 +1066,8 @@ class AnalizadorRobot:
 
     def get_detailed_team_stats(self) -> List[Dict[str, Any]]:
         """Process and return detailed statistics for all teams."""
+        if self._detailed_stats_cache is not None:
+            return self._detailed_stats_cache
         if len(self.sheet_data) < 2:
             return []
         team_data_grouped = self.get_team_data_grouped()
@@ -1034,7 +1158,7 @@ class AnalizadorRobot:
 
             decode_bonus_by_row_id: Dict[int, float] = {}
             if self._has_decode_columns():
-                decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
+                decode_bonus_by_row_id = self._get_cached_endgame_bonus()
 
             for row in rows:
                 match_score = 0.0
@@ -1148,6 +1272,7 @@ class AnalizadorRobot:
             detailed_stats_list.append(team_stats)
         
         detailed_stats_list.sort(key=lambda x: (x.get('overall_avg', 0.0), -x.get('overall_std', float('inf'))), reverse=True)
+        self._detailed_stats_cache = detailed_stats_list
         return detailed_stats_list
 
     def get_defensive_robot_ranking(self) -> List[Dict[str, Any]]:
@@ -1255,6 +1380,7 @@ class AnalizadorRobot:
         if not self.sheet_data:
             self.sheet_data = [list(self.default_column_names)]
 
+        self._invalidate_caches()
         self._update_column_indices()
         self._initialize_selected_columns()
         print("Configuration reloaded successfully.")
@@ -1307,8 +1433,8 @@ class AnalizadorRobot:
             return 0.0
 
         decode_bonus_by_row_id: Dict[int, float] = {}
-        if self._has_decode_columns() and len(self.sheet_data) > 1:
-            decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
+        if self._has_decode_columns():
+            decode_bonus_by_row_id = self._get_cached_endgame_bonus()
         
         phases = self._split_rows_into_phases(rows)
         phase_weights = self.robot_valuation_phase_weights
@@ -1445,8 +1571,8 @@ class AnalizadorRobot:
         
         perf: Dict[str, List[tuple]] = {}
         decode_bonus_by_row_id: Dict[int, float] = {}
-        if self._has_decode_columns() and len(self.sheet_data) > 1:
-            decode_bonus_by_row_id = self._decode_endgame_bonus_by_row_id(self.sheet_data[1:])
+        if self._has_decode_columns():
+            decode_bonus_by_row_id = self._get_cached_endgame_bonus()
         for row in self.sheet_data[1:]:
             if team_col >= len(row) or match_col >= len(row):
                 continue

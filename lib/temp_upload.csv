@@ -1,41 +1,61 @@
-Scouter Name,Match Number,Robot Position,Team Number,Starting Side (Relative),No Show,Left Launch Line (LEAVE),Artifacts Scored (CLASSIFIED) (Auto),Artifacts Scored (OVERFLOW) (Auto),Artifacts Placed in Depot (Auto),Pattern Matches at End of Auto (0-9),Auto Strategy,Died/Stopped Moving in Auto,Artifacts Scored (CLASSIFIED) (Teleop),Artifacts Scored (OVERFLOW) (Teleop),Artifacts Placed in Depot (Teleop),How many artifacts failed to score?,Pattern Matches at End of Match (0-9),Cycle Focus,Played Defense,Was Defended Heavily,Died/Stopped Moving in Teleop,Returned to Base,Climbed On Top of Another Robot,Tipped/Fell Over,Broke / Major Failure,Card
-AM,1,Red-1,23619,LEFT,No,Yes,3,2,1,4,Top-side cycles,No,12,6,4,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,1,Red-2,7421,RIGHT,No,Yes,2,1,2,3,Safe auto,No,10,4,3,0,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,1,Blue-1,9876,LEFT,No,No,1,0,1,2,Defensive auto,Yes,8,3,2,2,5,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,1,Blue-2,13579,RIGHT,No,Yes,2,2,0,3,Center cycles,No,11,5,3,1,6,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,2,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,13,7,5,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,2,Red-2,7421,LEFT,No,Yes,2,2,1,4,Safe auto,No,9,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,2,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,4,3,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
-DS,2,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,3,Red-1,23619,LEFT,No,Yes,3,3,2,4,Top-side cycles,No,14,6,5,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,3,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,3,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,3,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Red
-DS,3,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,4,Red-1,23619,RIGHT,No,Yes,4,2,2,5,Top-side cycles,No,15,7,6,1,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,4,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,0,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,4,Blue-1,9876,RIGHT,No,No,1,0,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,4,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,5,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,5,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,5,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,5,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,6,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,6,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,6,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
-DS,6,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,7,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,7,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,7,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,7,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,8,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,8,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,8,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
-DS,8,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,9,Red-1,23619,LEFT,No,Yes,3,2,2,4,Top-side cycles,No,13,6,5,1,7,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,9,Red-2,7421,RIGHT,No,Yes,1,2,1,3,Safe auto,No,9,4,3,2,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,9,Blue-1,9876,LEFT,No,No,0,1,1,1,Defensive auto,Yes,6,2,2,3,4,Defense,Yes,Yes,Yes,No,No,Yes,No,Yellow
-DS,9,Blue-2,13579,RIGHT,No,Yes,2,2,2,4,Center cycles,No,11,6,4,0,7,Fast cycles,No,No,No,Yes,No,No,No,None
-AM,10,Red-1,23619,RIGHT,No,Yes,4,1,2,5,Top-side cycles,No,14,7,6,0,8,Fast cycles,Yes,No,No,Yes,No,No,No,None
-BN,10,Red-2,7421,LEFT,No,Yes,2,1,2,3,Safe auto,No,10,5,4,1,6,Balanced,No,Yes,No,Yes,Yes,No,No,None
-CR,10,Blue-1,9876,RIGHT,No,No,1,1,1,2,Defensive auto,Yes,7,3,2,2,5,Defense,Yes,Yes,Yes,No,No,No,No,Yellow
-DS,10,Blue-2,13579,LEFT,No,Yes,3,2,1,4,Center cycles,No,12,5,4,1,7,Fast cycles,No,No,No,Yes,No,No,No,None
+Scouter Name,Match Number,Robot Position,Team Number,Starting Position,Is HP True to your team?,Shoot Time (Auto),HP Scored (Auto),Climb Position (Auto),Stuck in Tower If Climbed? (Auto),Auton Quality,Shoot Time (Teleop),Pass Time,HP Scored (Teleop),Penalty Counter,Climb,Jammed over balls?,Died,Driver Quality,Do you want it on our alliance?
+Marco,1,Blue 1,7421,Middle,True,4.52,12,Middle,False,Excellent,18.30,22.10,32,0,L3,False,False,Excellent,True
+Sofia,1,Blue 2,3826,Outpost Side,True,7.30,7,Side,False,Good,22.50,32.40,18,1,L2,False,False,Good,True
+Carlos,1,Blue 3,6647,Depot Side,False,0.00,1,Side,False,Bad,62.40,72.30,4,2,Didn't Climb,True,True,Bad,False
+Ana,1,Red 1,4145,Middle,True,8.50,6,Middle,True,Average,28.40,38.20,15,0,L2,False,False,Good,True
+Luis,1,Red 2,5985,Depot Side,False,6.80,8,Side,False,Good,25.10,28.70,22,0,L1,True,False,Average,False
+Diego,1,Red 3,3472,Outpost Side,False,11.20,4,Side,True,Average,38.60,52.30,10,1,L1,True,False,Average,False
+Marco,2,Blue 1,2412,Outpost Side,True,9.80,3,Side,False,Bad,42.30,45.80,12,1,Didn't Climb,False,True,Average,True
+Sofia,2,Blue 2,1678,Middle,True,5.10,11,Middle,False,Good,15.40,18.50,35,0,L3,False,False,Excellent,True
+Carlos,2,Blue 3,254,Outpost Side,True,3.80,13,Middle,False,Excellent,19.80,25.30,30,0,L3,False,False,Good,True
+Ana,2,Red 1,971,Depot Side,False,15.20,0,Side,False,Did Nothing,55.80,65.10,2,1,Didn't Climb,True,False,Did Nothing,False
+Luis,2,Red 2,3310,Outpost Side,False,0.00,0,Side,False,Did Nothing,72.10,68.90,0,3,Failed Climb Attempt,False,True,Did Nothing,False
+Diego,2,Red 3,1114,Depot Side,False,13.40,5,Middle,True,Average,35.80,62.10,8,2,L1,True,False,Bad,False
+Marco,3,Blue 1,7421,Middle,True,3.80,13,Middle,False,Excellent,16.20,19.50,34,0,L3,False,False,Excellent,True
+Sofia,3,Blue 2,4145,Outpost Side,True,9.20,5,Middle,False,Good,31.60,45.10,20,1,L2,False,False,Good,True
+Carlos,3,Blue 3,1678,Middle,True,4.20,14,Middle,False,Excellent,12.50,16.80,38,1,L2,False,False,Excellent,True
+Ana,3,Red 1,3826,Depot Side,True,6.10,8,Side,False,Good,26.30,35.80,19,0,L2,False,False,Good,True
+Luis,3,Red 2,5985,Outpost Side,True,7.90,5,Side,True,Average,23.80,35.80,14,2,L1,False,False,Average,False
+Diego,3,Red 3,2412,Depot Side,False,13.40,2,Side,True,Bad,44.50,65.20,7,1,Didn't Climb,True,False,Bad,False
+Marco,4,Blue 1,254,Middle,True,4.80,12,Side,False,Excellent,14.20,19.20,33,0,L3,False,False,Good,True
+Sofia,4,Blue 2,3472,Depot Side,False,9.40,3,Middle,False,Average,44.50,49.70,11,2,L1,True,False,Average,False
+Carlos,4,Blue 3,971,Outpost Side,False,18.40,0,Side,False,Did Nothing,58.90,58.70,1,1,Didn't Climb,True,True,Did Nothing,False
+Ana,4,Red 1,6647,Depot Side,False,0.00,2,Side,False,Bad,70.20,80.40,6,3,Didn't Climb,True,False,Bad,False
+Luis,4,Red 2,3310,Middle,False,12.80,1,Side,False,Bad,65.30,75.20,5,2,Didn't Climb,False,False,Bad,False
+Diego,4,Red 3,1114,Outpost Side,True,10.20,4,Side,False,Average,47.10,41.60,15,1,L1,False,True,Average,False
+Marco,5,Blue 1,7421,Middle,True,5.60,10,Middle,True,Good,17.60,28.40,29,0,L3,False,False,Excellent,True
+Sofia,5,Blue 2,2412,Outpost Side,False,12.30,4,Side,False,Average,36.70,55.40,9,1,Failed Climb Attempt,True,False,Average,False
+Carlos,5,Blue 3,3310,Depot Side,False,0.00,1,Side,False,Bad,75.20,84.10,3,2,Didn't Climb,True,True,Did Nothing,False
+Ana,5,Red 1,254,Middle,True,4.20,14,Middle,False,Excellent,12.50,16.80,38,0,L3,False,False,Excellent,True
+Luis,5,Red 2,1114,Outpost Side,False,10.60,4,Middle,False,Average,48.20,38.90,14,0,L1,False,False,Average,False
+Diego,5,Red 3,6647,Depot Side,False,16.50,0,Side,True,Did Nothing,66.70,61.50,7,1,Didn't Climb,True,False,Bad,False
+Marco,6,Blue 1,5985,Outpost Side,True,6.40,7,Middle,False,Good,26.30,29.60,17,0,L2,False,False,Good,True
+Sofia,6,Blue 2,1678,Middle,True,3.50,13,Middle,False,Excellent,20.10,24.60,36,0,L3,False,False,Excellent,True
+Carlos,6,Blue 3,3826,Depot Side,True,8.10,6,Side,False,Average,29.70,42.30,17,1,L1,False,False,Average,True
+Ana,6,Red 1,4145,Middle,False,7.50,9,Side,False,Good,24.20,36.50,21,1,L2,True,False,Good,False
+Luis,6,Red 2,3472,Outpost Side,False,14.10,3,Side,False,Bad,33.90,65.20,8,0,Didn't Climb,False,False,Average,False
+Diego,6,Red 3,971,Depot Side,False,0.00,0,Middle,False,Did Nothing,72.10,78.60,2,2,Didn't Climb,True,False,Did Nothing,False
+Marco,7,Blue 1,7421,Middle,True,4.90,11,Middle,False,Excellent,13.80,17.30,31,0,L3,True,False,Excellent,True
+Sofia,7,Blue 2,1114,Outpost Side,True,11.80,5,Side,False,Average,40.20,58.90,13,1,L1,False,False,Average,True
+Carlos,7,Blue 3,5985,Depot Side,False,7.50,6,Middle,False,Good,27.90,31.20,16,0,L1,False,False,Good,False
+Ana,7,Red 1,2412,Middle,False,10.20,2,Side,True,Bad,47.10,41.60,8,2,Didn't Climb,True,True,Bad,False
+Luis,7,Red 2,3826,Outpost Side,True,6.90,7,Middle,False,Good,21.40,44.80,23,0,L2,False,False,Good,True
+Diego,7,Red 3,254,Middle,True,4.10,15,Middle,False,Excellent,11.90,21.40,40,0,L3,False,False,Excellent,True
+Marco,8,Blue 1,4145,Middle,True,6.90,8,Middle,False,Good,27.90,31.20,21,0,L2,False,False,Good,True
+Sofia,8,Blue 2,3310,Outpost Side,False,14.70,1,Side,False,Bad,53.40,47.30,4,3,Didn't Climb,False,True,Did Nothing,False
+Carlos,8,Blue 3,6647,Depot Side,False,0.00,2,Middle,False,Did Nothing,75.80,57.30,3,2,Didn't Climb,True,False,Did Nothing,False
+Ana,8,Red 1,1678,Middle,True,4.80,10,Middle,False,Good,16.70,26.90,27,1,L3,False,False,Good,True
+Luis,8,Red 2,971,Outpost Side,False,0.00,0,Side,False,Did Nothing,66.70,84.10,0,2,Didn't Climb,True,True,Did Nothing,False
+Diego,8,Red 3,3472,Depot Side,False,13.70,2,Side,True,Bad,37.80,47.30,9,1,L1,False,False,Bad,False
+Marco,9,Blue 1,7421,Depot Side,True,5.20,14,Middle,False,Excellent,16.70,26.90,37,1,L3,False,False,Excellent,True
+Sofia,9,Blue 2,971,Outpost Side,False,0.00,0,Side,False,Did Nothing,53.40,78.60,1,2,Didn't Climb,True,False,Did Nothing,False
+Carlos,9,Blue 3,4145,Middle,True,7.90,7,Side,False,Average,23.80,35.80,19,2,L2,True,False,Average,False
+Ana,9,Red 1,5985,Depot Side,False,6.40,6,Middle,False,Good,26.30,29.60,13,1,L2,False,False,Average,True
+Luis,9,Red 2,1114,Outpost Side,True,13.70,3,Side,False,Average,37.80,47.30,10,0,L1,False,False,Average,True
+Diego,9,Red 3,3310,Middle,False,0.00,1,Side,False,Bad,75.80,57.30,5,2,Didn't Climb,False,False,Bad,False
+Marco,10,Blue 1,254,Middle,True,3.50,15,Middle,False,Excellent,11.90,21.40,40,0,L3,False,False,Excellent,True
+Sofia,10,Blue 2,1678,Middle,True,4.90,11,Side,False,Good,13.80,17.30,31,0,L2,False,False,Good,True
+Carlos,10,Blue 3,2412,Outpost Side,False,10.20,3,Side,False,Bad,40.20,58.90,8,1,Didn't Climb,False,True,Bad,False
+Ana,10,Red 1,7421,Middle,True,4.10,12,Middle,False,Excellent,12.50,16.80,33,0,L3,False,False,Excellent,True
+Luis,10,Red 2,3826,Depot Side,True,6.90,9,Middle,False,Good,21.40,44.80,20,0,L2,False,False,Good,True
+Diego,10,Red 3,6647,Outpost Side,False,0.00,0,Side,False,Did Nothing,62.40,72.30,5,1,Didn't Climb,True,False,Did Nothing,False
