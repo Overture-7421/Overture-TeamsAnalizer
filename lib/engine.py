@@ -73,6 +73,8 @@ class AnalizadorRobot:
 
         # Column indices map for quick access
         self._column_indices: Dict[str, int] = {}
+        self._decode_column_lookup_cache: Dict[tuple, Optional[str]] = {}
+        self._has_decode_columns_cache: Optional[bool] = None
         self._update_column_indices()
 
         # User-configurable column selections
@@ -91,8 +93,6 @@ class AnalizadorRobot:
         self._team_data_grouped_cache: Optional[Dict[str, List[List[str]]]] = None
         self._detailed_stats_cache: Optional[List[Dict[str, Any]]] = None
         self._endgame_bonus_cache: Optional[Dict[int, float]] = None
-        self._decode_column_lookup_cache: Dict[tuple, Optional[str]] = {}
-        self._has_decode_columns_cache: Optional[bool] = None
         self._data_version: int = 0
 
         # Hot-reload configuration
