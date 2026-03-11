@@ -5,6 +5,7 @@ Ported from legacy/qr_scanner.py for the modern lib/ architecture.
 This module provides QR code scanning functionality using opencv-python and pyzbar.
 """
 
+import platform
 import time
 from typing import Callable, Dict, List, Optional, Set
 
@@ -60,6 +61,16 @@ def _ensure_numpy():
     return _np
 
 
+def _open_camera(cv2, camera_index: int):
+    """Open a VideoCapture with a platform-specific backend to avoid obsensor errors."""
+    if platform.system() == "Windows":
+        return cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
+    elif platform.system() == "Linux":
+        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
+    else:
+        return cv2.VideoCapture(camera_index)
+
+
 def play_beep():
     """Play a beep sound when a QR code is detected (platform-dependent)."""
     try:
@@ -82,7 +93,7 @@ def test_camera(camera_index: int = 0) -> bool:
     """
     cv2 = _ensure_cv2()
     try:
-        cap = cv2.VideoCapture(camera_index)
+        cap = _open_camera(cv2, camera_index)
         if not cap.isOpened():
             return False
         
@@ -120,7 +131,7 @@ def scan_qr_codes(
     np = _ensure_numpy()
     
     # Initialize the camera
-    cap = cv2.VideoCapture(camera_index)
+    cap = _open_camera(cv2, camera_index)
     if not cap.isOpened():
         print("Error: Could not open camera.")
         return []
@@ -237,7 +248,7 @@ def get_camera_frame(camera_index: int = 0):
     """
     cv2 = _ensure_cv2()
     
-    cap = cv2.VideoCapture(camera_index)
+    cap = _open_camera(cv2, camera_index)
     if not cap.isOpened():
         return False, None
     
@@ -263,7 +274,7 @@ class QRScannerSession:
         
     def __enter__(self):
         cv2 = _ensure_cv2()
-        self.cap = cv2.VideoCapture(self.camera_index)
+        self.cap = _open_camera(cv2, self.camera_index)
         if not self.cap.isOpened():
             raise RuntimeError("Could not open camera")
         return self
