@@ -1,5 +1,6 @@
 # Requisitos para la versión web del Alliance Simulator
 streamlit>=1.28.0
+streamlit-autorefresh>=1.0.1
 pandas>=2.0.0
 numpy>=1.24.0
 matplotlib>=3.7.0

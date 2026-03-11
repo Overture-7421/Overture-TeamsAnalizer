@@ -419,7 +419,7 @@ def _format_metric_value(metric: dict, value: float) -> str:
     return f"{value:.2f}"
 
 def _safe_autorefresh(interval_ms: int, key: str) -> None:
-    """Safely trigger periodic reruns if streamlit-autorefresh is available."""
+    """Trigger periodic reruns using streamlit-autorefresh."""
     try:
         import importlib
         module = importlib.import_module("streamlit_autorefresh")
@@ -427,7 +427,10 @@ def _safe_autorefresh(interval_ms: int, key: str) -> None:
         if st_autorefresh:
             st_autorefresh(interval=interval_ms, key=key)
     except Exception:
-        return
+        st.warning(
+            "⚠️ **Auto-refresh unavailable** — scanned codes won't appear automatically. "
+            "Install with: `pip install streamlit-autorefresh`, then restart the app."
+        )
 
 # Helper functions
 def load_csv_data(uploaded_file):
