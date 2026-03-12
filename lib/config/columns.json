@@ -28,11 +28,6 @@
             "key": "starting_position",
             "type": "dropdown",
             "options": ["Outpost Side", "Middle", "Depot Side"]
-        },
-        {
-            "label": "Is HP True to your team?",
-            "key": "teleop_hp_true",
-            "type": "switch"
         }
     ],
     "AUTONOMOUS": [
@@ -40,11 +35,6 @@
             "label": "Shoot Time",
             "key": "auton_shoot_time",
             "type": "chrono"
-        },
-        {
-            "label": "HP Scored",
-            "key": "auto_hp_scored",
-            "type": "counter"
         },
         {
             "label": "Climb Position",
@@ -74,11 +64,6 @@
             "label": "Pass Time",
             "key": "teleop_pass_time",
             "type": "chrono"
-        },
-        {
-            "label": "HP Scored",
-            "key": "teleop_hp_scored",
-            "type": "counter"
         },
         {
             "label": "Penalty Counter",
@@ -121,15 +106,12 @@
         "Robot Position",
         "Team Number",
         "Starting Position",
-        "Is HP True to your team?",
         "Shoot Time (Auto)",
-        "HP Scored (Auto)",
         "Climb Position (Auto)",
         "Stuck in Tower If Climbed? (Auto)",
         "Auton Quality",
         "Shoot Time (Teleop)",
-        "Pass Time",
-        "HP Scored (Teleop)",
+        "Pass Time (Teleop)",
         "Penalty Counter",
         "Climb",
         "Jammed over balls?",
@@ -138,21 +120,14 @@
         "Do you want it on our alliance?"
     ],
     "column_configuration": {
-        "numeric_for_overall": [
-            "HP Scored (Auto)",
-            "HP Scored (Teleop)"
-        ],
         "stats_columns": [
             "Starting Position",
-            "Is HP True to your team?",
             "Shoot Time (Auto)",
-            "HP Scored (Auto)",
             "Climb Position (Auto)",
             "Stuck in Tower If Climbed? (Auto)",
             "Auton Quality",
             "Shoot Time (Teleop)",
-            "Pass Time",
-            "HP Scored (Teleop)",
+            "Pass Time (Teleop)",
             "Penalty Counter",
             "Climb",
             "Jammed over balls?",
@@ -161,7 +136,6 @@
             "Do you want it on our alliance?"
         ],
         "mode_boolean_columns": [
-            "Is HP True to your team?",
             "Stuck in Tower If Climbed? (Auto)",
             "Jammed over balls?",
             "Died",
@@ -169,15 +143,13 @@
         ],
         "autonomous_columns": [
             "Shoot Time (Auto)",
-            "HP Scored (Auto)",
             "Climb Position (Auto)",
             "Stuck in Tower If Climbed? (Auto)",
             "Auton Quality"
         ],
         "teleop_columns": [
             "Shoot Time (Teleop)",
-            "Pass Time",
-            "HP Scored (Teleop)",
+            "Pass Time (Teleop)",
             "Penalty Counter"
         ],
         "endgame_columns": [
@@ -190,12 +162,7 @@
     },
     "streamlit_config": {
         "overall_rankings": {
-            "average_columns": [
-                {"column": "HP Scored (Auto)", "label": "Auto HP Scored"},
-                {"column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
-            ],
             "rate_columns": [
-                {"columns": ["Is HP True to your team?"], "label": "HP True Rate (%)"},
                 {"columns": ["Stuck in Tower If Climbed? (Auto)"], "label": "Auto Stuck Rate (%)"},
                 {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"},
                 {"columns": ["Died"], "label": "Died Rate (%)"},
@@ -217,48 +184,32 @@
             "compare_metrics": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
-                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"},
                 {"type": "rate", "columns": ["Died"], "label": "Died Rate", "format": "percent"}
             ],
             "radar_categories": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
-                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"},
                 {"type": "consistency", "label": "Consistency"}
             ],
             "bar_metrics": [
                 {"type": "overall_avg", "label": "Overall Avg"},
-                {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored"},
-                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored"}
+                {"type": "robot_valuation", "label": "Robot Valuation"}
             ],
             "comparison_table": [
                 {"type": "overall_avg", "label": "Overall Avg"},
                 {"type": "overall_std", "label": "Overall Std"},
-                {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "avg", "column": "HP Scored (Auto)", "label": "Auto HP Scored Avg"},
-                {"type": "avg", "column": "HP Scored (Teleop)", "label": "Teleop HP Scored Avg"}
+                {"type": "robot_valuation", "label": "Robot Valuation"}
             ]
         },
         "match_trend": {
-            "auto": {
-                "hp_scored": "HP Scored (Auto)"
-            },
-            "teleop": {
-                "hp_scored": "HP Scored (Teleop)"
-            },
             "endgame": {
                 "tower_climb": "Climb"
             }
         }
     },
     "foreshadowing_columns": {
-        "auto_fuel": "HP Scored (Auto)",
         "auto_leave": "",
         "auto_tower_l1": "",
-        "teleop_fuel": "HP Scored (Teleop)",
         "endgame_tower_climb": "Climb"
     },
     "robot_valuation": {
