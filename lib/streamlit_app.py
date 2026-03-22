@@ -52,7 +52,6 @@ ROOT_DIR = APP_DIR.parent
 # ── Module-level constants ──────────────────────────────────────────────────
 _POST_MATCH_MAX_ENTRIES = 200       # Hard cap for post-match session state list
 _POST_MATCH_UPLOAD_MAX_BYTES = 2 * 1024 * 1024  # 2 MB upload guard
-_DUMMY_DATA_SEED = 42               # Random seed for repeatable dummy data
 
 
 def load_app_config():
@@ -658,6 +657,86 @@ def get_pm_contribution_mode(team_number) -> str:
     if not contribs:
         return ""
     return Counter(contribs).most_common(1)[0][0]
+
+
+def get_pm_avg_pts_contribution(team_number) -> float:
+    """Return the average individual points contribution for a team from post-match data.
+
+    Applies the same rules as the Qualitative Metrics tab:
+    - 'Dedicated to passing' / 'Dedicated to defend' → match excluded from average
+    - 'Did not score any points' → 0 pts
+    - 'Scored few points' → 5% of alliance pts
+    - 'Scored ~30% of alliance score' → 30% of alliance pts
+    - 'Scored ~50% of alliance score' → 50% of alliance pts
+    - 'Scored ~75% of alliance score' → 75% of alliance pts
+    - 'Scored almost all alliance score' → 90% of alliance pts
+    - If ALL alliance members share the same base-level label
+      ('Did not score any points', 'Scored few points', or
+      'Scored ~30% of alliance score') → alliance_pts / num_alliance_teams
+    """
+    pm_data = st.session_state.get("post_match_data", [])
+    if not pm_data:
+        return 0.0
+    try:
+        target = int(team_number)
+    except (TypeError, ValueError):
+        return 0.0
+    if target == 0:
+        return 0.0
+
+    _EVEN_SPLIT = frozenset({
+        "Did not score any points",
+        "Scored few points",
+        "Scored ~30% of alliance score",
+    })
+    _PCT = {
+        "Did not score any points":         0.00,
+        "Scored few points":                0.05,
+        "Scored ~30% of alliance score":    0.30,
+        "Scored ~50% of alliance score":    0.50,
+        "Scored ~75% of alliance score":    0.75,
+        "Scored almost all alliance score": 0.90,
+    }
+
+    pts_list = []
+    for entry in pm_data:
+        team_nums = entry.get("team_numbers", [])
+        num_teams = entry.get("num_teams", 6)
+        half = num_teams // 2
+        all_contribs = entry.get("contributions", [])
+
+        for slot_idx, contrib in enumerate(all_contribs):
+            slot_team = team_nums[slot_idx] if slot_idx < len(team_nums) else None
+            if slot_team is None:
+                continue
+            try:
+                if int(slot_team) != target:
+                    continue
+            except (TypeError, ValueError):
+                continue
+
+            is_red = slot_idx < half
+            alliance_pts = entry["red_points"] if is_red else entry["blue_points"]
+            alliance_contribs = [
+                all_contribs[i]
+                for i in (range(half) if is_red else range(half, num_teams))
+                if i < len(all_contribs)
+            ]
+
+            if contrib in ("Dedicated to passing", "Dedicated to defend"):
+                continue
+            elif (
+                contrib in _EVEN_SPLIT
+                and alliance_contribs
+                and all(c == contrib for c in alliance_contribs)
+            ):
+                pts_list.append(alliance_pts / len(alliance_contribs))
+            else:
+                pct = _PCT.get(contrib)
+                if pct is not None:
+                    pts_list.append(alliance_pts * pct)
+
+    return sum(pts_list) / len(pts_list) if pts_list else 0.0
 
 
 def get_foreshadowing_team_options():
@@ -1416,7 +1495,7 @@ elif page == "📈 Team Statistics":
 
             base_columns = [
                 'Rank', 'Team', 'Matches',
-                'Robot Valuation', 'Contribution Mode', 'Points Avg', 'Points Std'
+                'Robot Valuation', 'Contribution Mode', 'Avg Pts Contribution', 'Points Avg', 'Points Std'
             ]
             avg_labels = [label for _, label in average_columns]
             rate_labels = [label for _, label in rate_columns]
@@ -1435,6 +1514,7 @@ elif page == "📈 Team Statistics":
                     'Matches': len(team_data_grouped.get(team_num, [])),
                     'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
                     'Contribution Mode': get_pm_contribution_mode(team_num),
+                    'Avg Pts Contribution': round(get_pm_avg_pts_contribution(team_num), 2),
                     'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
                     'Points Std': round(team_stat.get('overall_std', 0.0), 2),
                 }
@@ -1504,7 +1584,8 @@ elif page == "📈 Team Statistics":
                 selected_teams = st.multiselect(
                     "Select Teams to Compare (2 or more)",
                     options=all_teams,
-                    default=all_teams[:2] if len(all_teams) >= 2 else []
+                    default=all_teams[:2] if len(all_teams) >= 2 else [],
+                    format_func=lambda x: get_team_display_label(x)
                 )
                 
                 if len(selected_teams) >= 2:
@@ -1526,7 +1607,7 @@ elif page == "📈 Team Statistics":
                         team_stat = next((s for s in stats if s.get('team') == team_num), None)
                         if team_stat:
                             with cols[idx]:
-                                team_name = str(team_num)
+                                team_name = get_team_display_label(team_num)
                                 team_rows = team_data_grouped.get(team_num, [])
                                 st.markdown(f"**{team_name}**")
                                 for metric in compare_metrics:
@@ -1535,6 +1616,8 @@ elif page == "📈 Team Statistics":
                                         continue
                                     value = _metric_value(team_stat, team_rows, metric)
                                     st.metric(label, _format_metric_value(metric, value))
+                                avg_contrib = get_pm_avg_pts_contribution(team_num)
+                                st.metric("Avg Pts Contribution", f"{avg_contrib:.2f}")
 
                     if radar_metrics:
                         st.markdown("#### Performance Radar Chart")
@@ -1563,7 +1646,7 @@ elif page == "📈 Team Statistics":
                                 r=values + [values[0]] if values else [0],
                                 theta=categories + [categories[0]] if categories else [],
                                 fill='toself',
-                                name=f"Team {team_num}",
+                                name=get_team_display_label(team_num),
                                 line=dict(color=colors[idx % len(colors)])
                             ))
 
@@ -1592,7 +1675,7 @@ elif page == "📈 Team Statistics":
                                     continue
                                 value = _metric_value(team_stat, team_rows, metric)
                                 bar_data.append({
-                                    'Team': f"Team {team_num}",
+                                    'Team': get_team_display_label(team_num),
                                     'Metric': label,
                                     'Value': value
                                 })
@@ -1631,8 +1714,13 @@ elif page == "📈 Team Statistics":
                                     continue
                                 team_rows = team_data_grouped.get(team_num, [])
                                 table_rows[label][team_num] = _metric_value(team_stat, team_rows, metric)
+                        table_rows["Avg Pts Contribution"] = {
+                            team_num: round(get_pm_avg_pts_contribution(team_num), 2)
+                            for team_num in selected_teams
+                        }
                         if table_rows:
                             comparison_table = pd.DataFrame(table_rows).T
+                            comparison_table.columns = [get_team_display_label(c) for c in comparison_table.columns]
                             st.dataframe(comparison_table, use_container_width=True)
                     
                 elif len(selected_teams) == 1:
@@ -1642,7 +1730,7 @@ elif page == "📈 Team Statistics":
             
             else:
                 # Single team selection mode (original behavior)
-                selected_team_num = st.selectbox("Select a Team", options=all_teams)
+                selected_team_num = st.selectbox("Select a Team", options=all_teams, format_func=lambda x: get_team_display_label(x))
 
                 
                 if selected_team_num:
@@ -1668,6 +1756,7 @@ elif page == "📈 Team Statistics":
                                 formatted_metrics[key] = round(float(value), 3)
                             else:
                                 formatted_metrics[key] = value
+                        formatted_metrics['Avg Pts Contribution'] = round(get_pm_avg_pts_contribution(selected_team_num), 2)
 
                         metrics_df = pd.DataFrame.from_dict(formatted_metrics, orient='index', columns=['Value'])
                         metrics_df.index.name = 'Metric'
@@ -1932,12 +2021,12 @@ elif page == "🤝 Alliance Selector":
                     # Captain selection
                     available_captains = selector.get_available_captains(i)
                     
-                    captain_options = {team.team: str(team.team) for team in available_captains}
+                    captain_options = {team.team: get_team_display_label(team.team) for team in available_captains}
                     captain_options[0] = "Auto"
-                    
+
                     # Ensure current captain is in the list
                     if a.captain and a.captain not in captain_options:
-                        captain_options[a.captain] = str(a.captain)
+                        captain_options[a.captain] = get_team_display_label(a.captain)
 
                     selected_captain = st.selectbox(
                             f"Captain A{a.allianceNumber}",
@@ -1958,9 +2047,9 @@ elif page == "🤝 Alliance Selector":
                     # Pick 1 and Pick 2 selection
                     available_teams = selector.get_available_teams(a.captainRank, 'pick1')
                     
-                    team_options = {str(team.team): str(team.team) for team in available_teams}
+                    team_options = {str(team.team): get_team_display_label(team.team) for team in available_teams}
                     if a.pick1 and str(a.pick1) not in team_options:
-                        team_options[str(a.pick1)] = str(a.pick1)
+                        team_options[str(a.pick1)] = get_team_display_label(a.pick1)
                     team_options["0"] = "None"
 
                     # Pick 1
@@ -1984,9 +2073,9 @@ elif page == "🤝 Alliance Selector":
 
                     # Pick 2 — build available teams excluding already-selected picks
                     available_teams2 = selector.get_available_teams(a.captainRank, 'pick2')
-                    team_options2 = {str(team.team): str(team.team) for team in available_teams2}
+                    team_options2 = {str(team.team): get_team_display_label(team.team) for team in available_teams2}
                     if a.pick2 and str(a.pick2) not in team_options2:
-                        team_options2[str(a.pick2)] = str(a.pick2)
+                        team_options2[str(a.pick2)] = get_team_display_label(a.pick2)
                     team_options2["0"] = "None"
 
                     options_list2 = list(team_options2.keys())
@@ -2430,7 +2519,7 @@ elif page == "🏆 Honor Roll System":
                     
                     # Format title with team number
                     team_name = ""
-                    title_str = f"Team {team_num}"
+                    title_str = get_team_display_label(team_num)
                     
                     lines = []
                     lines.append(f"  Image: {team_image_base64}")
@@ -2573,7 +2662,7 @@ elif page == "🏆 Honor Roll System":
             team_numbers_list.append(team_num)
             ranking_data.append({
                 "Rank": rank,
-                "Team": str(team_num),
+                "Team": get_team_display_label(team_num),
                 "Final Points": results.final_points,
                 "Honor Roll": round(results.honor_roll_score, 1),
                 "Curved Score": round(results.curved_score, 1),
@@ -2592,6 +2681,7 @@ elif page == "🏆 Honor Roll System":
             selected_detail_team = st.selectbox(
                 "Select a team to view detailed breakdown",
                 options=team_numbers_list,
+                format_func=lambda x: get_team_display_label(x),
                 key="team_detail_selector"
             )
             
@@ -2623,7 +2713,7 @@ elif page == "🏆 Honor Roll System":
                         textposition='auto'
                     ))
                     fig.update_layout(
-                        title=f"Team {selected_detail_team} Score Breakdown",
+                        title=f"{get_team_display_label(selected_detail_team)} Score Breakdown",
                         yaxis_title="Score",
                         height=300,
                         template="plotly_dark"
@@ -2937,6 +3027,7 @@ elif page == "📊 Post-Match":
     CONTRIBUTION_OPTIONS = [
         "Did not score any points",
         "Dedicated to passing",
+        "Dedicated to defend",
         "Scored few points",
         "Scored ~30% of alliance score",
         "Scored ~50% of alliance score",
@@ -2954,40 +3045,11 @@ elif page == "📊 Post-Match":
         counts = Counter(values)
         return counts.most_common(1)[0][0]
 
-    # ── Dummy data generator ────────────────────────────────────────────────
-    # Team numbers from data/teams_2026mxmo.json (2026 MXMO participants)
-    _DUMMY_TEAMS = [
-        3354, 3472, 3478, 3480, 3522, 3794, 3933, 4010, 4371, 4584,
-        4635, 4723, 4775, 4782, 5133, 5887, 5932, 5959, 6017, 6106,
-        6170, 6200, 6348, 6606, 6652, 6676, 6702, 6832, 7102, 7421,
-        7546, 8740, 8741, 9053, 9060, 9213, 9280, 9282, 10225, 10529,
-        10565, 10931, 11065,
-    ]
-
-    def _generate_dummy_data() -> list:
-        import random
-        random.seed(_DUMMY_DATA_SEED)
-        dummy = []
-        for m in range(1, 13):
-            r_pts = random.randint(40, 150)
-            b_pts = random.randint(40, 150)
-            contribs = [random.choice(CONTRIBUTION_OPTIONS) for _ in range(6)]
-            match_teams = random.sample(_DUMMY_TEAMS, 6)
-            dummy.append({
-                "match_number": m,
-                "red_points": r_pts,
-                "blue_points": b_pts,
-                "num_teams": 6,
-                "team_numbers": match_teams,
-                "contributions": contribs,
-            })
-        return dummy
-
     tab_entry, tab_metrics = st.tabs(["📝 Match Entry", "📈 Qualitative Metrics"])
 
     with tab_entry:
-        # ── Top toolbar: Save / Upload / Dummy ─────────────────────────────
-        toolbar_col1, toolbar_col2, toolbar_col3, toolbar_col4 = st.columns([2, 2, 2, 2])
+        # ── Top toolbar: Save / Upload ──────────────────────────────────────
+        toolbar_col1, toolbar_col2, toolbar_col3 = st.columns([2, 2, 2])
         with toolbar_col1:
             # Download as JSON
             if st.session_state.post_match_data:
@@ -3042,27 +3104,23 @@ elif page == "📊 Post-Match":
                 help="Upload a previously saved post_match_data.json file"
             )
             if pm_upload is not None:
-                try:
-                    raw_bytes = pm_upload.read()
-                    if len(raw_bytes) > _POST_MATCH_UPLOAD_MAX_BYTES:
-                        st.error("File too large (max 2 MB).")
-                    else:
-                        loaded_data = json.loads(raw_bytes.decode("utf-8"))
-                        if isinstance(loaded_data, list):
-                            st.session_state.post_match_data = loaded_data[-_POST_MATCH_MAX_ENTRIES:]
-                            st.success(f"Loaded {len(loaded_data)} matches.")
-                            st.rerun()
+                upload_id = f"{pm_upload.name}_{pm_upload.size}"
+                if st.session_state.get("_pm_upload_processed_id") != upload_id:
+                    try:
+                        raw_bytes = pm_upload.read()
+                        if len(raw_bytes) > _POST_MATCH_UPLOAD_MAX_BYTES:
+                            st.error("File too large (max 2 MB).")
                         else:
-                            st.error("Invalid format: expected a JSON array.")
-                except Exception as _ex:
-                    st.error(f"Error loading file: {_ex}")
-
-        with toolbar_col4:
-            if st.button("🎲 Load Dummy Data", use_container_width=True, key="pm_dummy_btn",
-                         help="Populate with 12 randomised example matches for testing"):
-                st.session_state.post_match_data = _generate_dummy_data()
-                st.success("Dummy data loaded!")
-                st.rerun()
+                            loaded_data = json.loads(raw_bytes.decode("utf-8"))
+                            if isinstance(loaded_data, list):
+                                st.session_state.post_match_data = loaded_data[-_POST_MATCH_MAX_ENTRIES:]
+                                st.session_state._pm_upload_processed_id = upload_id
+                                st.success(f"Loaded {len(loaded_data)} matches.")
+                                st.rerun()
+                            else:
+                                st.error("Invalid format: expected a JSON array.")
+                    except Exception as _ex:
+                        st.error(f"Error loading file: {_ex}")
 
         st.markdown("---")
         st.markdown("### Record Post-Match Data")
@@ -3071,9 +3129,9 @@ elif page == "📊 Post-Match":
             pm_col1, pm_col2 = st.columns(2)
             with pm_col1:
                 pm_match_number = st.number_input("Match Number", min_value=1, value=1, step=1)
-                pm_red_points = st.number_input("Red Alliance Points", min_value=0, value=0, step=1)
+                pm_red_points = st.number_input("Red Alliance Points", min_value=0, value=0, step=1, key="pm_red_points")
             with pm_col2:
-                pm_blue_points = st.number_input("Blue Alliance Points", min_value=0, value=0, step=1)
+                pm_blue_points = st.number_input("Blue Alliance Points", min_value=0, value=0, step=1, key="pm_blue_points")
                 pm_num_teams = st.number_input(
                     "Number of Teams That Participated",
                     min_value=1, max_value=6, value=6, step=1,
@@ -3157,28 +3215,67 @@ elif page == "📊 Post-Match":
         if not pm_data:
             st.info(
                 "No post-match data yet. Record matches in the **Match Entry** tab, "
-                "upload a saved file, or click **🎲 Load Dummy Data** to explore."
+                "or upload a previously saved JSON file."
             )
         else:
             # ── Build per-team lookup: team_id → contributions and alliance points ──
             team_contrib_map: dict = {}
             team_pts_map: dict = {}
+            team_contrib_pts_map: dict = {}
+
+            # Contributions that trigger an even 3-way split when ALL alliance members share it
+            _EVEN_SPLIT_CONTRIBS = frozenset({
+                "Did not score any points",
+                "Scored few points",
+                "Scored ~30% of alliance score",
+            })
+            # Individual percentage of alliance points awarded per contribution label
+            _CONTRIB_PCT = {
+                "Did not score any points":         0.00,
+                "Scored few points":                0.05,
+                "Scored ~30% of alliance score":    0.30,
+                "Scored ~50% of alliance score":    0.50,
+                "Scored ~75% of alliance score":    0.75,
+                "Scored almost all alliance score": 0.90,
+            }
+
             for entry in pm_data:
                 team_nums = entry.get("team_numbers", [])
                 num_teams_entry = entry.get("num_teams", 6)
-                for slot_idx, contrib in enumerate(entry.get("contributions", [])):
+                half = num_teams_entry // 2
+                all_contribs = entry.get("contributions", [])
+
+                red_contribs  = [all_contribs[i] for i in range(half)             if i < len(all_contribs)]
+                blue_contribs = [all_contribs[i] for i in range(half, num_teams_entry) if i < len(all_contribs)]
+
+                for slot_idx, contrib in enumerate(all_contribs):
                     team_id = (
                         team_nums[slot_idx]
                         if slot_idx < len(team_nums)
                         else f"Slot {slot_idx + 1}"
                     )
-                    alliance_pts = (
-                        entry["red_points"]
-                        if slot_idx < num_teams_entry // 2
-                        else entry["blue_points"]
-                    )
+                    is_red = slot_idx < half
+                    alliance_pts = entry["red_points"] if is_red else entry["blue_points"]
+                    alliance_contribs = red_contribs if is_red else blue_contribs
+
                     team_contrib_map.setdefault(team_id, []).append(contrib)
                     team_pts_map.setdefault(team_id, []).append(alliance_pts)
+
+                    # Individual average points contribution calculation
+                    if contrib in ("Dedicated to passing", "Dedicated to defend"):
+                        ind_pts = None  # exclude match from average
+                    elif (
+                        contrib in _EVEN_SPLIT_CONTRIBS
+                        and len(alliance_contribs) > 0
+                        and all(c == contrib for c in alliance_contribs)
+                    ):
+                        ind_pts = alliance_pts / len(alliance_contribs)
+                    else:
+                        pct = _CONTRIB_PCT.get(contrib)
+                        ind_pts = alliance_pts * pct if pct is not None else None
+
+                    if ind_pts is not None:
+                        team_contrib_pts_map.setdefault(team_id, []).append(ind_pts)
 
             # ── Qualitative Stats table ──────────────────────────────────────────
             st.markdown("#### 📊 Qualitative Stats")
@@ -3201,10 +3298,13 @@ elif page == "📊 Post-Match":
                 pts = team_pts_map.get(team_id, [])
                 avg_pts = sum(pts) / len(pts) if pts else 0.0
                 std_pts = _pts_std(pts)
+                contrib_pts_list = team_contrib_pts_map.get(team_id, [])
+                avg_contrib_pts = sum(contrib_pts_list) / len(contrib_pts_list) if contrib_pts_list else 0.0
                 qual_rows.append({
                     "Team": get_team_display_label(team_id),
                     "Matches": len(contribs),
                     "Contribution Mode": mode_val,
+                    "Avg Pts Contribution": round(avg_contrib_pts, 2),
                     "Pts Avg": round(avg_pts, 2),
                     "Pts Std": round(std_pts, 2),
                     "Weight": _CONTRIB_WEIGHTS.get(mode_val, 0),

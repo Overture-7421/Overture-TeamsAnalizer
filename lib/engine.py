@@ -393,6 +393,8 @@ class AnalizadorRobot:
         
         def parse_value(val: Any) -> Optional[float]:
             """Parse a value to float, handling booleans and strings."""
+            if self._is_missing_placeholder(val):
+                return None
             if isinstance(val, str):
                 val_lower = val.lower()
                 if val_lower in ['true', 'yes', 'y', '1', 'si', 'sí']:
@@ -502,13 +504,11 @@ class AnalizadorRobot:
         return row[idx]
 
     def _decode_parse_float(self, value: Any) -> Optional[float]:
-        if value is None:
+        if self._is_missing_placeholder(value):
             return None
         if isinstance(value, (int, float)):
             return float(value)
         s = str(value).strip()
-        if not s:
-            return None
         s_lower = s.lower()
         if s_lower in {"true", "yes", "y", "1", "si", "sí"}:
             return 1.0
@@ -520,6 +520,8 @@ class AnalizadorRobot:
             return None
 
     def _decode_parse_bool(self, value: Any) -> bool:
+        if self._is_missing_placeholder(value):
+            return False
         parsed = self._decode_parse_float(value)
         if parsed is not None:
             return parsed > 0
@@ -958,6 +960,15 @@ class AnalizadorRobot:
             return 0.0
         return sum(values) / len(values)
 
+    def _is_missing_placeholder(self, value: Any) -> bool:
+        """Return True when a value is empty or a schema placeholder for missing data."""
+        if value is None:
+            return True
+        text = str(value).strip()
+        if not text:
+            return True
+        return text.lower() in {"none", "none value"}
+
     def _standard_deviation(self, values: List[float]) -> float:
         """Calculate the standard deviation of a list of numbers."""
         if not values or len(values) < 1:
@@ -973,7 +984,7 @@ class AnalizadorRobot:
         """Calculate the mode of a list of strings."""
         if not values:
             return 'N/A'
-        non_empty_values = [v for v in values if str(v).strip()]
+        non_empty_values = [v for v in values if not self._is_missing_placeholder(v)]
         if not non_empty_values:
             return 'N/A'
         
@@ -988,6 +999,8 @@ class AnalizadorRobot:
         false_like = {'false', 'no', 'n', '0', 'falso'}
         bools = []
         for s in str_vals:
+            if self._is_missing_placeholder(s):
+                continue
             lv = s.lower()
             if lv in true_like:
                 bools.append(1.0)

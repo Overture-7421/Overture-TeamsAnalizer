@@ -214,8 +214,9 @@ class ConfigManager:
         
         # Check for new format indicators
         new_format_indicators = {
-            "Scouter Name", "HP Scored (Auto)", "HP Scored (Teleop)",
-            "Climb", "Auton Quality", "Driver Quality"
+            "Scouter Name", "Match Number", "Team Number",
+            "Shoot Time (Auto)", "Pass Time (Auto)", "Penalty Counter",
+            "Climb", "Auton Complexity", "Quality Chasis/Driver Movement"
         }
         
         if len(new_format_indicators.intersection(headers_set)) >= 3:

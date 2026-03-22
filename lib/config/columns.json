@@ -1,57 +1,82 @@
-{
-    "version": "0.1.0",
+﻿{
+    "version": "0.1.1",
     "category": "FRC",
     "PREMATCH": [
         {
             "label": "Scouter Name",
             "key": "scouter_name",
-            "type": "text"
+            "type": "text",
+            "required": true
         },
         {
             "label": "Match Number",
             "key": "match_number",
-            "type": "number"
+            "type": "number",
+            "required": true,
+            "allowZero": false
         },
         {
             "label": "Robot Position",
             "key": "robot_position",
             "type": "dropdown",
-            "options": ["Blue 1", "Blue 2", "Blue 3", "Red 1", "Red 2", "Red 3"]
+            "options": ["Blue 1", "Blue 2", "Blue 3", "Red 1", "Red 2", "Red 3"],
+            "required": true
         },
         {
             "label": "Team Number",
             "key": "team_number",
-            "type": "number"
+            "type": "number",
+            "required": true,
+            "allowZero": false
         },
         {
             "label": "Starting Position",
             "key": "starting_position",
             "type": "dropdown",
-            "options": ["Outpost Side", "Middle", "Depot Side"]
+            "options": ["Outpost Side", "Middle", "Depot Side"],
+            "required": true
         }
     ],
     "AUTONOMOUS": [
         {
             "label": "Shoot Time",
-            "key": "auton_shoot_time",
+            "key": "auto_shoot_time",
+            "type": "chrono"
+        },
+        {
+            "label": "Pass Time",
+            "key": "auto_pass_time",
             "type": "chrono"
         },
         {
             "label": "Climb Position",
             "key": "auto_climb_position",
             "type": "dropdown",
-            "options": ["Middle", "Side"]
+            "options": ["Middle", "Side", "Didn't Climb", "Failed Climb Attempt", "None"],
+            "required": true
         },
         {
-            "label": "Stuck in Tower If Climbed?",
+            "label": "If climbed, Got stuck in Tower?",
             "key": "auto_descends_stuck",
             "type": "switch"
         },
         {
-            "label": "Auton Quality",
-            "key": "auton_quality",
+            "label": "Auton Complexity",
+            "key": "auto_complexity",
             "type": "dropdown",
-            "options": ["Did Nothing", "Bad", "Average", "Good", "Excellent"]
+            "options": ["Did Nothing", "Only Moved", "Only Shot", "Moves Balls in Middle", "Good", "Excellent"],
+            "required": true
+        },
+        {
+            "label": "Auton Completed?",
+            "key": "auto_completed",
+            "type": "switch"
+        },
+        {
+            "label": "How much missed shots?",
+            "key": "auto_missed_shots",
+            "type": "dropdown",
+            "options": ["0%(ask before)", "10%", "25%", "50%", "75%", "100%"]
         }
     ],
     "TELEOP": [
@@ -69,6 +94,19 @@
             "label": "Penalty Counter",
             "key": "teleop_penalty",
             "type": "counter"
+        },
+        {
+            "label": "How much missed shots?",
+            "key": "teleop_missed_shots",
+            "type": "dropdown",
+            "options": ["0%(ask before)", "10%", "25%", "50%", "75%", "100%"]
+        },
+        {
+            "label": "Quality Chasis/Driver Movement",
+            "key": "teleop_chassis_movement",
+            "type": "dropdown",
+            "options": ["None", "Bad", "Mid", "High"],
+            "required": true
         }
     ],
     "ENDGAME": [
@@ -76,7 +114,8 @@
             "label": "Climb",
             "key": "endgame_climb",
             "type": "dropdown",
-            "options": ["Didn't Climb", "L1", "L2", "L3", "Failed Climb Attempt"]
+            "options": ["None", "Didn't Climb", "L1", "L2", "L3", "Failed Climb Attempt"],
+            "required": true
         },
         {
             "label": "Jammed over balls?",
@@ -84,20 +123,34 @@
             "type": "switch"
         },
         {
+            "label": "Bulldozing?",
+            "key": "endgame_bulldozing",
+            "type": "dropdown",
+            "options": ["None", "Bad", "Mid", "High", "BestOfEvent"],
+            "required": true
+        },
+        {
+            "label": "Defended?",
+            "key": "endgame_defended",
+            "type": "dropdown",
+            "options": ["None", "Bad", "Mid", "High", "BestOfEvent", "Trobots(PreguntaAntesDePoner)"],
+            "required": true
+        },
+        {
+            "label": "Chasis Type",
+            "key": "endgame_chassis_type",
+            "type": "dropdown",
+            "options": ["Tank", "Mecanum", "Swerve"]
+        },
+        {
             "label": "Died",
             "key": "teleop_died",
             "type": "switch"
         },
         {
-            "label": "Driver Quality",
-            "key": "driver_quality",
-            "type": "dropdown",
-            "options": ["Did Nothing", "Bad", "Average", "Good", "Excellent"]
-        },
-        {
-            "label": "Do you want it on our alliance?",
-            "key": "scout_alliance_preference",
-            "type": "switch"
+            "label": "Comments? (Keep it short)",
+            "key": "endgame_comments",
+            "type": "text"
         }
     ],
     "headers": [
@@ -107,109 +160,206 @@
         "Team Number",
         "Starting Position",
         "Shoot Time (Auto)",
+        "Pass Time (Auto)",
         "Climb Position (Auto)",
-        "Stuck in Tower If Climbed? (Auto)",
-        "Auton Quality",
+        "If climbed, Got stuck in Tower? (Auto)",
+        "Auton Complexity",
+        "Auton Completed?",
+        "How much missed shots? (Auto)",
         "Shoot Time (Teleop)",
         "Pass Time (Teleop)",
         "Penalty Counter",
+        "How much missed shots? (Teleop)",
+        "Quality Chasis/Driver Movement",
         "Climb",
         "Jammed over balls?",
+        "Bulldozing?",
+        "Defended?",
+        "Chasis Type",
         "Died",
-        "Driver Quality",
-        "Do you want it on our alliance?"
+        "Comments? (Keep it short)"
     ],
     "column_configuration": {
         "stats_columns": [
             "Starting Position",
             "Shoot Time (Auto)",
+            "Pass Time (Auto)",
             "Climb Position (Auto)",
-            "Stuck in Tower If Climbed? (Auto)",
-            "Auton Quality",
+            "If climbed, Got stuck in Tower? (Auto)",
+            "Auton Complexity",
+            "Auton Completed?",
+            "How much missed shots? (Auto)",
             "Shoot Time (Teleop)",
             "Pass Time (Teleop)",
             "Penalty Counter",
+            "How much missed shots? (Teleop)",
+            "Quality Chasis/Driver Movement",
             "Climb",
             "Jammed over balls?",
+            "Bulldozing?",
+            "Defended?",
+            "Chasis Type",
             "Died",
-            "Driver Quality",
-            "Do you want it on our alliance?"
+            "Comments? (Keep it short)"
         ],
         "mode_boolean_columns": [
-            "Stuck in Tower If Climbed? (Auto)",
+            "If climbed, Got stuck in Tower? (Auto)",
+            "Auton Completed?",
             "Jammed over balls?",
-            "Died",
-            "Do you want it on our alliance?"
+            "Died"
         ],
         "autonomous_columns": [
             "Shoot Time (Auto)",
+            "Pass Time (Auto)",
             "Climb Position (Auto)",
-            "Stuck in Tower If Climbed? (Auto)",
-            "Auton Quality"
+            "If climbed, Got stuck in Tower? (Auto)",
+            "Auton Complexity",
+            "Auton Completed?",
+            "How much missed shots? (Auto)"
         ],
         "teleop_columns": [
             "Shoot Time (Teleop)",
             "Pass Time (Teleop)",
-            "Penalty Counter"
+            "Penalty Counter",
+            "How much missed shots? (Teleop)",
+            "Quality Chasis/Driver Movement"
         ],
         "endgame_columns": [
             "Climb",
             "Jammed over balls?",
+            "Bulldozing?",
+            "Defended?",
+            "Chasis Type",
             "Died",
-            "Driver Quality",
-            "Do you want it on our alliance?"
+            "Comments? (Keep it short)"
         ]
     },
     "streamlit_config": {
         "overall_rankings": {
+            "average_columns": [
+                {
+                    "column": "Shoot Time (Auto)",
+                    "label": "Auto Shoot Time"
+                },
+                {
+                    "column": "Shoot Time (Teleop)",
+                    "label": "Teleop Shoot Time"
+                },
+                {
+                    "column": "Penalty Counter",
+                    "label": "Penalties"
+                }
+            ],
             "rate_columns": [
-                {"columns": ["Stuck in Tower If Climbed? (Auto)"], "label": "Auto Stuck Rate (%)"},
-                {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"},
-                {"columns": ["Died"], "label": "Died Rate (%)"},
-                {"columns": ["Do you want it on our alliance?"], "label": "Alliance Preference Rate (%)"}
+                {
+                    "columns": ["If climbed, Got stuck in Tower? (Auto)"],
+                    "label": "Auto Stuck Rate (%)"
+                },
+                {
+                    "columns": ["Jammed over balls?"],
+                    "label": "Jammed Rate (%)"
+                },
+                {
+                    "columns": ["Died"],
+                    "label": "Died Rate (%)"
+                }
             ]
         },
         "simplified_ranking": {
             "rate_columns": [
-                {"columns": ["Died"], "label": "Died Rate (%)"},
-                {"columns": ["Jammed over balls?"], "label": "Jammed Rate (%)"}
+                {
+                    "columns": ["Died"],
+                    "label": "Died Rate (%)"
+                },
+                {
+                    "columns": ["Jammed over balls?"],
+                    "label": "Jammed Rate (%)"
+                }
             ],
             "mode_columns": [
-                {"column": "Auton Quality", "label": "Auton Quality"},
-                {"column": "Driver Quality", "label": "Driver Quality"},
-                {"column": "Climb", "label": "Climb Mode"}
+                {
+                    "column": "Auton Complexity",
+                    "label": "Auton Complexity"
+                },
+                {
+                    "column": "Quality Chasis/Driver Movement",
+                    "label": "Driver Movement"
+                },
+                {
+                    "column": "Climb",
+                    "label": "Climb Mode"
+                }
             ]
         },
         "detailed_stats": {
             "compare_metrics": [
-                {"type": "overall_avg", "label": "Overall Avg"},
-                {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "rate", "columns": ["Died"], "label": "Died Rate", "format": "percent"}
+                {
+                    "type": "overall_avg",
+                    "label": "Overall Avg"
+                },
+                {
+                    "type": "robot_valuation",
+                    "label": "Robot Valuation"
+                },
+                {
+                    "type": "rate",
+                    "columns": ["Died"],
+                    "label": "Died Rate",
+                    "format": "percent"
+                }
             ],
             "radar_categories": [
-                {"type": "overall_avg", "label": "Overall Avg"},
-                {"type": "robot_valuation", "label": "Robot Valuation"},
-                {"type": "consistency", "label": "Consistency"}
+                {
+                    "type": "overall_avg",
+                    "label": "Overall Avg"
+                },
+                {
+                    "type": "robot_valuation",
+                    "label": "Robot Valuation"
+                },
+                {
+                    "type": "consistency",
+                    "label": "Consistency"
+                }
             ],
             "bar_metrics": [
-                {"type": "overall_avg", "label": "Overall Avg"},
-                {"type": "robot_valuation", "label": "Robot Valuation"}
+                {
+                    "type": "overall_avg",
+                    "label": "Overall Avg"
+                },
+                {
+                    "type": "robot_valuation",
+                    "label": "Robot Valuation"
+                }
             ],
             "comparison_table": [
-                {"type": "overall_avg", "label": "Overall Avg"},
-                {"type": "overall_std", "label": "Overall Std"},
-                {"type": "robot_valuation", "label": "Robot Valuation"}
+                {
+                    "type": "overall_avg",
+                    "label": "Overall Avg"
+                },
+                {
+                    "type": "overall_std",
+                    "label": "Overall Std"
+                },
+                {
+                    "type": "robot_valuation",
+                    "label": "Robot Valuation"
+                }
             ]
         },
         "match_trend": {
+            "teleop": {
+                "hp_scored": "Penalty Counter"
+            },
             "endgame": {
                 "tower_climb": "Climb"
             }
         }
     },
     "foreshadowing_columns": {
-        "auto_leave": "",
-        "auto_tower_l1": "",
+        "auto_leave": "Auton Completed?",
+        "auto_tower_l1": "Climb Position (Auto)",
+        "teleop_fuel": "Penalty Counter",
         "endgame_tower_climb": "Climb"
     },
     "robot_valuation": {
@@ -225,7 +375,7 @@
         ]
     },
     "metadata": {
-        "total_columns": 20,
+        "total_columns": 24,
         "description": "FRC REBUILT 2026 Competition Column Configuration"
     }
 }
