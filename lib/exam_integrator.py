@@ -15,11 +15,64 @@ Each exam CSV has:
 - Final feedback column
 """
 
-import pandas as pd
-from datetime import datetime
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
 import os
+import re
+import unicodedata
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
+
+import pandas as pd
+
+
+EXAM_SCHEMA_VERSION = "2.0.1"
+
+EXAM_QUESTIONNAIRES = {
+    "programming": {
+        "label": "Programación",
+        "field_aliases": {
+            "prog_path_planner": ["prog_path_planner", "path planner"],
+            "prog_auto_change": ["prog_auto_change", "cambiar un autonomo", "cambiar un autónomo"],
+            "prog_auto_reliability": ["prog_auto_reliability", "si su autonomo se prueba 10 veces", "si su autónomo se prueba 10 veces"],
+            "prog_odometry_type": ["prog_odometry_type", "odometria", "odometría"],
+            "prog_drive_orient": ["prog_drive_orient", "orientacion de control", "orientación de control"],
+        },
+    },
+    "mechanical": {
+        "label": "Mecánica",
+        "field_aliases": {
+            "mech_checklist": ["mech_checklist", "checklist", "rutina del robot antes de cada partida"],
+            "mech_spare_parts": ["mech_spare_parts", "repuestos de sus mecanismos", "spare parts"],
+            "mech_std_bolts": ["mech_std_bolts", "tornilleria estandarizada", "tornillería estandarizada"],
+            "mech_problem_mechanism": ["mech_problem_mechanism", "cual mecanismo mas les da problema", "cuál mecanismo más les da problema"],
+            "mech_chassis_type": ["mech_chassis_type", "que tipo de chasis usan", "qué tipo de chasis usan"],
+            "mech_ball_capacity": ["mech_ball_capacity", "cuantas pelotas le caben", "cuántas pelotas le caben"],
+        },
+    },
+    "electrical": {
+        "label": "Eléctrica",
+        "field_aliases": {
+            "elec_canivore": ["elec_canivore", "canivore"],
+            "elec_ethernet_cables": ["elec_ethernet_cables", "cables ethernet"],
+            "elec_radio_location": ["elec_radio_location", "donde se encuentra el radio del robot", "radio del robot"],
+            "elec_cable_replace": ["elec_cable_replace", "que tan fácil es cambiar un cable que se rompa", "que tan facil es cambiar un cable que se rompa"],
+            "elec_battery_peak": ["elec_battery_peak", "battery peak"],
+        },
+    },
+    "competences": {
+        "label": "Competencias",
+        "field_aliases": {
+            "comp_batteries": ["comp_batteries", "cuantas pilas cuenta el equipo", "cuántas pilas cuenta el equipo"],
+            "comp_bumper_time": ["comp_bumper_time", "cuanto tiempo tardan en cambiar los bumpers", "cuánto tiempo tardan en cambiar los bumpers"],
+            "comp_drivers_needed": ["comp_drivers_needed", "es necesario tener a los drivers para arreglarlo"],
+            "comp_balls_per_second": ["comp_balls_per_second", "cuantas pelotas por segundo se disparan", "cuántas pelotas por segundo se disparan"],
+            "comp_mentors_vs_students": ["comp_mentors_vs_students", "hay más mentores que alumnos en el pit"],
+        },
+    },
+}
+
+YES_VALUES = {"si", "sí", "yes", "true", "1", "cumple"}
+NO_VALUES = {"no", "false", "0", "no cumple"}
 
 
 @dataclass
@@ -48,6 +101,222 @@ class ExamDataIntegrator:
             "competencies": {}
         }
         self.scouting_comments: Dict[str, List[str]] = {}  # team_number -> list of comments
+
+    def _normalize_text(self, value: Any) -> str:
+        text = "" if value is None else str(value).strip().lower()
+        text = unicodedata.normalize("NFKD", text)
+        text = "".join(char for char in text if not unicodedata.combining(char))
+        return re.sub(r"\s+", " ", text)
+
+    def _parse_number(self, value: Any) -> Optional[float]:
+        try:
+            text = self._normalize_text(value).replace(",", ".")
+            match = re.search(r"-?\d+(?:\.\d+)?", text)
+            if match:
+                return float(match.group(0))
+        except (TypeError, ValueError):
+            pass
+        return None
+
+    def _find_matching_column(self, columns: List[str], aliases: List[str]) -> str:
+        normalized_columns = {self._normalize_text(column): column for column in columns}
+        for alias in aliases:
+            alias_norm = self._normalize_text(alias)
+            if alias_norm in normalized_columns:
+                return normalized_columns[alias_norm]
+            for normalized_column, original_column in normalized_columns.items():
+                if alias_norm and (alias_norm in normalized_column or normalized_column in alias_norm):
+                    return original_column
+        return ""
+
+    def _get_field_value(self, row: pd.Series, columns: List[str], aliases: List[str]) -> Tuple[Any, str]:
+        column = self._find_matching_column(columns, aliases)
+        if column:
+            return row[column], column
+        return None, ""
+
+    def _parse_yes_no(self, value: Any, yes_scores_high: bool = True) -> Optional[float]:
+        normalized = self._normalize_text(value)
+        if normalized in YES_VALUES:
+            return 100.0 if yes_scores_high else 0.0
+        if normalized in NO_VALUES:
+            return 0.0 if yes_scores_high else 100.0
+        return None
+
+    def _score_from_option_map(self, value: Any, score_map: Dict[str, float]) -> Optional[float]:
+        normalized = self._normalize_text(value)
+        return score_map.get(normalized)
+
+    def _score_numeric_range(self, value: Any, minimum: float, maximum: float, reverse: bool = False) -> Optional[float]:
+        parsed = self._parse_number(value)
+        if parsed is None:
+            return None
+        if maximum <= minimum:
+            return 0.0
+        bounded = max(minimum, min(maximum, parsed))
+        ratio = (bounded - minimum) / (maximum - minimum)
+        if reverse:
+            ratio = 1.0 - ratio
+        return ratio * 100.0
+
+    def _collect_questionnaire_fields(self, exam_type: str, row: pd.Series, columns: List[str]) -> Tuple[Dict[str, Dict[str, Any]], List[float], Dict[str, Any]]:
+        questionnaire = EXAM_QUESTIONNAIRES.get(exam_type, {})
+        field_aliases = questionnaire.get("field_aliases", {})
+        answers: Dict[str, Dict[str, Any]] = {}
+        field_scores: List[float] = []
+        score_map: Dict[str, Any] = {}
+
+        def store(field_key: str, column: str, value: Any, score: Optional[float]) -> None:
+            answers[field_key] = {
+                "column": column,
+                "value": value,
+                "score": score,
+            }
+            if score is not None:
+                field_scores.append(score)
+                score_map[field_key] = score
+
+        if exam_type == "programming":
+            value, column = self._get_field_value(row, columns, field_aliases.get("prog_path_planner", []))
+            store("prog_path_planner", column, value, self._parse_yes_no(value))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("prog_auto_change", []))
+            store("prog_auto_change", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Sencillo"): 100.0,
+                self._normalize_text("Difícil"): 0.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("prog_auto_reliability", []))
+            store("prog_auto_reliability", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Menos de 5"): 0.0,
+                self._normalize_text("Menos de 10"): 50.0,
+                self._normalize_text("10 veces siempre"): 100.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("prog_odometry_type", []))
+            store("prog_odometry_type", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Encoders de llanta"): 40.0,
+                self._normalize_text("Estimación por swerve"): 60.0,
+                self._normalize_text("Corrección por april tag"): 80.0,
+                self._normalize_text("Fusión de sensores"): 100.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("prog_drive_orient", []))
+            store("prog_drive_orient", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Orientación de robot"): 60.0,
+                self._normalize_text("Orientación de Cancha"): 85.0,
+                self._normalize_text("Ambas"): 100.0,
+            }))
+
+        elif exam_type == "mechanical":
+            value, column = self._get_field_value(row, columns, field_aliases.get("mech_checklist", []))
+            store("mech_checklist", column, value, self._parse_yes_no(value))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("mech_spare_parts", []))
+            store("mech_spare_parts", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Tenemos para todos los mecanismos"): 100.0,
+                self._normalize_text("Tenemos solo para varios"): 50.0,
+                self._normalize_text("No tenemos ningún repuesto"): 0.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("mech_std_bolts", []))
+            store("mech_std_bolts", column, value, self._parse_yes_no(value))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("mech_problem_mechanism", []))
+            store("mech_problem_mechanism", column, value, None)
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("mech_chassis_type", []))
+            store("mech_chassis_type", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Tank"): 65.0,
+                self._normalize_text("Mecanum"): 75.0,
+                self._normalize_text("Swerve"): 100.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("mech_ball_capacity", []))
+            store("mech_ball_capacity", column, value, self._score_numeric_range(value, 0.0, 12.0))
+
+        elif exam_type == "electrical":
+            value, column = self._get_field_value(row, columns, field_aliases.get("elec_canivore", []))
+            store("elec_canivore", column, value, self._parse_yes_no(value))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("elec_ethernet_cables", []))
+            store("elec_ethernet_cables", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Hechos por nosotros"): 100.0,
+                self._normalize_text("Comprados"): 60.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("elec_radio_location", []))
+            store("elec_radio_location", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Expuesto como el nuestro"): 40.0,
+                self._normalize_text("Escondido de muchas cosas"): 100.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("elec_cable_replace", []))
+            store("elec_cable_replace", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Sencillo"): 100.0,
+                self._normalize_text("Difícil"): 0.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("elec_battery_peak", []))
+            store("elec_battery_peak", column, value, self._parse_yes_no(value))
+
+        elif exam_type == "competences":
+            value, column = self._get_field_value(row, columns, field_aliases.get("comp_batteries", []))
+            store("comp_batteries", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Menos de 5"): 30.0,
+                self._normalize_text("Menos de 10"): 65.0,
+                self._normalize_text("Más de 10"): 100.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("comp_bumper_time", []))
+            store("comp_bumper_time", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Menos de 1 minuto"): 100.0,
+                self._normalize_text("Menos de 2 minutos"): 70.0,
+                self._normalize_text("Más de 2 minutos"): 20.0,
+            }))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("comp_drivers_needed", []))
+            store("comp_drivers_needed", column, value, self._parse_yes_no(value, yes_scores_high=False))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("comp_balls_per_second", []))
+            store("comp_balls_per_second", column, value, self._score_numeric_range(value, 0.0, 3.0))
+
+            value, column = self._get_field_value(row, columns, field_aliases.get("comp_mentors_vs_students", []))
+            store("comp_mentors_vs_students", column, value, self._score_from_option_map(value, {
+                self._normalize_text("Son más mentores"): 60.0,
+                self._normalize_text("Son más alumnos"): 100.0,
+            }))
+
+        questionnaire_score = sum(field_scores) / len(field_scores) if field_scores else None
+        return answers, field_scores, {"questionnaire_score": questionnaire_score, "score_map": score_map}
+
+    def _extract_common_fields(self, row: pd.Series, columns: List[str]) -> Dict[str, Any]:
+        team_value, team_column = self._get_field_value(row, columns, [
+            "Team NUMBER",
+            "Team Number",
+            "Número de equipo",
+            "Numero de equipo",
+            "team_number",
+        ])
+        examiner_value, examiner_column = self._get_field_value(row, columns, [
+            "Nombre del examinador",
+            "examiner_name",
+            "Examiner Name",
+        ])
+        feeling_value, feeling_column = self._get_field_value(row, columns, [
+            "Como examinador, ¿cómo te sentiste evaluando a este equipo?",
+            "examiner_feeling",
+            "Examiner Feeling",
+        ])
+
+        return {
+            "team_number": str(team_value).strip() if team_value is not None else "",
+            "team_column": team_column,
+            "examiner_name": examiner_value,
+            "examiner_column": examiner_column,
+            "examiner_feeling": feeling_value,
+            "feeling_column": feeling_column,
+        }
     
     def _parse_score(self, score_str: str) -> Tuple[float, float]:
         """
@@ -89,29 +358,40 @@ class ExamDataIntegrator:
         """
         Clean CSV data and deduplicate by team number, keeping latest entry.
         """
-        # Standard column names
-        timestamp_col = "Marca temporal"
-        team_col = "Team NUMBER"
-        score_col = "Puntuación"
-        
-        if timestamp_col not in df.columns or team_col not in df.columns:
-            raise ValueError(f"Required columns not found. Expected: {timestamp_col}, {team_col}")
-        
-        # Parse timestamps
-        df["_parsed_timestamp"] = df[timestamp_col].apply(self._parse_timestamp)
-        
-        # Convert team number to string
+        columns = list(df.columns)
+        timestamp_col = self._find_matching_column(columns, [
+            "Marca temporal",
+            "Timestamp",
+            "marca temporal",
+        ])
+        team_col = self._find_matching_column(columns, [
+            "Team NUMBER",
+            "Team Number",
+            "Número de equipo",
+            "Numero de equipo",
+            "team_number",
+        ])
+
+        if not team_col:
+            raise ValueError("Required columns not found. Expected a team number column.")
+
+        if timestamp_col:
+            df["_parsed_timestamp"] = df[timestamp_col].apply(self._parse_timestamp)
+        else:
+            df["_parsed_timestamp"] = datetime.min
+
         df[team_col] = df[team_col].astype(str)
-        
-        # Sort by timestamp descending and keep first (latest) for each team
         df = df.sort_values("_parsed_timestamp", ascending=False)
         df = df.drop_duplicates(subset=[team_col], keep="first")
+
+        if not timestamp_col:
+            df = df.reset_index(drop=True)
         
         return df
     
     def _get_feedback_column(self, df: pd.DataFrame) -> str:
         """Find the feedback column (usually the last question about examiner experience)"""
-        feedback_keywords = ["examinador", "sentiste", "evaluar"]
+        feedback_keywords = ["examinador", "sentiste", "evaluar", "examiner_feeling"]
         for col in df.columns:
             col_lower = col.lower()
             if any(keyword in col_lower for keyword in feedback_keywords):
@@ -141,30 +421,56 @@ class ExamDataIntegrator:
         """
         df = pd.read_csv(csv_path)
         df = self._clean_and_deduplicate(df)
-        
-        team_col = "Team NUMBER"
-        score_col = "Puntuación"
-        feedback_col = self._get_feedback_column(df)
+        columns = list(df.columns)
+        common = self._extract_common_fields(df.iloc[0] if not df.empty else pd.Series(dtype=object), columns) if not df.empty else {
+            "team_number": "",
+            "team_column": "",
+            "examiner_feeling": "",
+            "feeling_column": "",
+        }
+        team_col = common["team_column"] or self._find_matching_column(columns, [
+            "Team NUMBER",
+            "Team Number",
+            "Número de equipo",
+            "Numero de equipo",
+            "team_number",
+        ])
+        score_col = self._find_matching_column(columns, ["Puntuación", "Puntuacion", "Score", "score"])
+        feedback_col = common["feeling_column"] or self._get_feedback_column(df)
         
         results = {}
         
         for _, row in df.iterrows():
-            team_number = str(row[team_col])
-            raw_score, max_score = self._parse_score(row[score_col])
-            normalized = self._normalize_score(raw_score, max_score)
-            
-            feedback = str(row[feedback_col]) if feedback_col else ""
+            common_fields = self._extract_common_fields(row, columns)
+            team_number = common_fields["team_number"]
+            if not team_number and team_col:
+                team_number = str(row[team_col]).strip()
+            raw_score, max_score = self._parse_score(row[score_col]) if score_col else (0.0, 1.0)
+            normalized = self._normalize_score(raw_score, max_score) if score_col else 0.0
+
+            feedback = str(row[feedback_col]) if feedback_col else common_fields.get("examiner_feeling", "")
             self._add_comment(team_number, f"[Programación] {feedback}")
-            
-            # Extract additional details from specific columns
-            details = {}
+
+            answers, field_scores, derived = self._collect_questionnaire_fields("programming", row, columns)
+            questionnaire_score = derived.get("questionnaire_score")
+
+            details = {
+                "schema_version": EXAM_SCHEMA_VERSION,
+                "questionnaire": EXAM_QUESTIONNAIRES["programming"]["label"],
+                "reported_score": normalized,
+                "questionnaire_score": questionnaire_score,
+                "field_scores": derived.get("score_map", {}),
+                "answers": answers,
+                "common_fields": common_fields,
+            }
             for col in df.columns:
-                if col not in [team_col, score_col, "Marca temporal", "_parsed_timestamp"]:
-                    details[col] = row[col]
-            
+                if col not in [team_col, score_col, "Marca temporal", "Timestamp", "_parsed_timestamp"]:
+                    details.setdefault("raw_columns", {})[col] = row[col]
+
+            final_score = questionnaire_score if questionnaire_score is not None else normalized
             result = ExamResult(
                 team_number=team_number,
-                score=normalized,
+                score=final_score,
                 max_score=max_score,
                 raw_score=raw_score,
                 timestamp=row["_parsed_timestamp"],
@@ -191,30 +497,58 @@ class ExamDataIntegrator:
         """
         df = pd.read_csv(csv_path)
         df = self._clean_and_deduplicate(df)
-        
-        team_col = "Team NUMBER"
-        score_col = "Puntuación"
-        feedback_col = self._get_feedback_column(df)
+        columns = list(df.columns)
+        common = self._extract_common_fields(df.iloc[0] if not df.empty else pd.Series(dtype=object), columns) if not df.empty else {
+            "team_number": "",
+            "team_column": "",
+            "examiner_feeling": "",
+            "feeling_column": "",
+        }
+        team_col = common["team_column"] or self._find_matching_column(columns, [
+            "Team NUMBER",
+            "Team Number",
+            "Número de equipo",
+            "Numero de equipo",
+            "team_number",
+        ])
+        score_col = self._find_matching_column(columns, ["Puntuación", "Puntuacion", "Score", "score"])
+        feedback_col = common["feeling_column"] or self._get_feedback_column(df)
         
         results = {}
         
         for _, row in df.iterrows():
-            team_number = str(row[team_col])
-            raw_score, max_score = self._parse_score(row[score_col])
-            normalized = self._normalize_score(raw_score, max_score)
-            
-            feedback = str(row[feedback_col]) if feedback_col else ""
-            self._add_comment(team_number, f"[Mecánico] {feedback}")
-            
-            # Extract details
-            details = {}
+            common_fields = self._extract_common_fields(row, columns)
+            team_number = common_fields["team_number"]
+            if not team_number and team_col:
+                team_number = str(row[team_col]).strip()
+            raw_score, max_score = self._parse_score(row[score_col]) if score_col else (0.0, 1.0)
+            normalized = self._normalize_score(raw_score, max_score) if score_col else 0.0
+
+            feedback = str(row[feedback_col]) if feedback_col else common_fields.get("examiner_feeling", "")
+            self._add_comment(team_number, f"[Mecánica] {feedback}")
+
+            answers, field_scores, derived = self._collect_questionnaire_fields("mechanical", row, columns)
+            questionnaire_score = derived.get("questionnaire_score")
+            score_lookup = derived.get("score_map", {})
+
+            details = {
+                "schema_version": EXAM_SCHEMA_VERSION,
+                "questionnaire": EXAM_QUESTIONNAIRES["mechanical"]["label"],
+                "reported_score": normalized,
+                "questionnaire_score": questionnaire_score,
+                "field_scores": score_lookup,
+                "answers": answers,
+                "common_fields": common_fields,
+            }
             for col in df.columns:
-                if col not in [team_col, score_col, "Marca temporal", "_parsed_timestamp"]:
-                    details[col] = row[col]
+                if col not in [team_col, score_col, "Marca temporal", "Timestamp", "_parsed_timestamp"]:
+                    details.setdefault("raw_columns", {})[col] = row[col]
+
+            final_score = questionnaire_score if questionnaire_score is not None else normalized
             
             result = ExamResult(
                 team_number=team_number,
-                score=normalized,
+                score=final_score,
                 max_score=max_score,
                 raw_score=raw_score,
                 timestamp=row["_parsed_timestamp"],
@@ -240,37 +574,67 @@ class ExamDataIntegrator:
         """
         df = pd.read_csv(csv_path)
         df = self._clean_and_deduplicate(df)
-        
-        team_col = "Team NUMBER"
-        score_col = "Puntuación"
-        feedback_col = self._get_feedback_column(df)
+        columns = list(df.columns)
+        common = self._extract_common_fields(df.iloc[0] if not df.empty else pd.Series(dtype=object), columns) if not df.empty else {
+            "team_number": "",
+            "team_column": "",
+            "examiner_feeling": "",
+            "feeling_column": "",
+        }
+        team_col = common["team_column"] or self._find_matching_column(columns, [
+            "Team NUMBER",
+            "Team Number",
+            "Número de equipo",
+            "Numero de equipo",
+            "team_number",
+        ])
+        score_col = self._find_matching_column(columns, ["Puntuación", "Puntuacion", "Score", "score"])
+        feedback_col = common["feeling_column"] or self._get_feedback_column(df)
         
         results = {}
         
         for _, row in df.iterrows():
-            team_number = str(row[team_col])
-            raw_score, max_score = self._parse_score(row[score_col])
-            normalized = self._normalize_score(raw_score, max_score)
-            
-            feedback = str(row[feedback_col]) if feedback_col else ""
-            self._add_comment(team_number, f"[Eléctrico] {feedback}")
-            
-            # Check modem placement for driver station score
-            modem_score = 0
+            common_fields = self._extract_common_fields(row, columns)
+            team_number = common_fields["team_number"]
+            if not team_number and team_col:
+                team_number = str(row[team_col]).strip()
+            raw_score, max_score = self._parse_score(row[score_col]) if score_col else (0.0, 1.0)
+            normalized = self._normalize_score(raw_score, max_score) if score_col else 0.0
+
+            feedback = str(row[feedback_col]) if feedback_col else common_fields.get("examiner_feeling", "")
+            self._add_comment(team_number, f"[Eléctrica] {feedback}")
+
+            answers, field_scores, derived = self._collect_questionnaire_fields("electrical", row, columns)
+            questionnaire_score = derived.get("questionnaire_score")
+            score_lookup = derived.get("score_map", {})
+
+            layout_scores = [
+                score_lookup.get("elec_radio_location"),
+                score_lookup.get("elec_cable_replace"),
+                score_lookup.get("elec_canivore"),
+            ]
+            layout_scores = [score for score in layout_scores if score is not None]
+            driver_station_score = sum(layout_scores) / len(layout_scores) if layout_scores else questionnaire_score
+
+            details = {
+                "schema_version": EXAM_SCHEMA_VERSION,
+                "questionnaire": EXAM_QUESTIONNAIRES["electrical"]["label"],
+                "reported_score": normalized,
+                "questionnaire_score": questionnaire_score,
+                "field_scores": score_lookup,
+                "driver_station_score": driver_station_score,
+                "answers": answers,
+                "common_fields": common_fields,
+            }
             for col in df.columns:
-                if "módem" in col.lower() or "modem" in col.lower():
-                    if str(row[col]).lower().strip() == "cumple":
-                        modem_score = 100
-                    break
-            
-            details = {"modem_score": modem_score}
-            for col in df.columns:
-                if col not in [team_col, score_col, "Marca temporal", "_parsed_timestamp"]:
-                    details[col] = row[col]
+                if col not in [team_col, score_col, "Marca temporal", "Timestamp", "_parsed_timestamp"]:
+                    details.setdefault("raw_columns", {})[col] = row[col]
+
+            final_score = questionnaire_score if questionnaire_score is not None else normalized
             
             result = ExamResult(
                 team_number=team_number,
-                score=normalized,
+                score=final_score,
                 max_score=max_score,
                 raw_score=raw_score,
                 timestamp=row["_parsed_timestamp"],
@@ -298,50 +662,58 @@ class ExamDataIntegrator:
         """
         df = pd.read_csv(csv_path)
         df = self._clean_and_deduplicate(df)
-        
-        team_col = "Team NUMBER"
-        score_col = "Puntuación"
-        feedback_col = self._get_feedback_column(df)
+        columns = list(df.columns)
+        common = self._extract_common_fields(df.iloc[0] if not df.empty else pd.Series(dtype=object), columns) if not df.empty else {
+            "team_number": "",
+            "team_column": "",
+            "examiner_feeling": "",
+            "feeling_column": "",
+        }
+        team_col = common["team_column"] or self._find_matching_column(columns, [
+            "Team NUMBER",
+            "Team Number",
+            "Número de equipo",
+            "Numero de equipo",
+            "team_number",
+        ])
+        score_col = self._find_matching_column(columns, ["Puntuación", "Puntuacion", "Score", "score"])
+        feedback_col = common["feeling_column"] or self._get_feedback_column(df)
         
         results = {}
         
         for _, row in df.iterrows():
-            team_number = str(row[team_col])
-            raw_score, max_score = self._parse_score(row[score_col])
-            normalized = self._normalize_score(raw_score, max_score)
-            
-            feedback = str(row[feedback_col]) if feedback_col else ""
+            common_fields = self._extract_common_fields(row, columns)
+            team_number = common_fields["team_number"]
+            if not team_number and team_col:
+                team_number = str(row[team_col]).strip()
+            raw_score, max_score = self._parse_score(row[score_col]) if score_col else (0.0, 1.0)
+            normalized = self._normalize_score(raw_score, max_score) if score_col else 0.0
+
+            feedback = str(row[feedback_col]) if feedback_col else common_fields.get("examiner_feeling", "")
             self._add_comment(team_number, f"[Competencias] {feedback}")
-            
-            # Extract competency details
+
+            answers, field_scores, derived = self._collect_questionnaire_fields("competences", row, columns)
+            questionnaire_score = derived.get("questionnaire_score")
+            score_lookup = derived.get("score_map", {})
+
             details = {
-                "reliability": False,
-                "commitment": False,
-                "inspection_first": False
+                "schema_version": EXAM_SCHEMA_VERSION,
+                "questionnaire": EXAM_QUESTIONNAIRES["competences"]["label"],
+                "reported_score": normalized,
+                "questionnaire_score": questionnaire_score,
+                "field_scores": score_lookup,
+                "answers": answers,
+                "common_fields": common_fields,
             }
-            
             for col in df.columns:
-                col_lower = col.lower()
-                value = str(row[col]).lower().strip()
-                
-                # Reliability check
-                if "confiable" in col_lower or "confiables" in col_lower:
-                    details["reliability"] = "inspiran confianza" in value
-                
-                # Commitment check  
-                if "compromiso" in col_lower:
-                    details["commitment"] = "cumple" in value or "inspiran" in value
-                
-                # First inspection
-                if "inspección" in col_lower or "inspeccion" in col_lower:
-                    details["inspection_first"] = value == "sí" or value == "si"
-                
-                if col not in [team_col, score_col, "Marca temporal", "_parsed_timestamp"]:
-                    details[col] = row[col]
+                if col not in [team_col, score_col, "Marca temporal", "Timestamp", "_parsed_timestamp"]:
+                    details.setdefault("raw_columns", {})[col] = row[col]
+
+            final_score = questionnaire_score if questionnaire_score is not None else normalized
             
             result = ExamResult(
                 team_number=team_number,
-                score=normalized,
+                score=final_score,
                 max_score=max_score,
                 raw_score=raw_score,
                 timestamp=row["_parsed_timestamp"],
@@ -386,10 +758,14 @@ class ExamDataIntegrator:
             if team_number in results:
                 result = results[team_number]
                 summary["exams"][exam_type] = {
+                    "questionnaire": result.details.get("questionnaire", exam_type.title()),
                     "score": result.score,
+                    "questionnaire_score": result.details.get("questionnaire_score"),
                     "raw_score": result.raw_score,
                     "max_score": result.max_score,
-                    "feedback": result.feedback
+                    "feedback": result.feedback,
+                    "field_scores": result.details.get("field_scores", {}),
+                    "answers": result.details.get("answers", {}),
                 }
         
         # Combine all feedback
@@ -443,36 +819,72 @@ class ExamDataIntegrator:
         """
         # Apply programming exam results
         for team_number, result in self.exam_results["programming"].items():
-            scoring_system.update_autonomous_score(team_number, result.score)
-            # Set driving_skills if score >= 66% (6/9)
-            if result.score >= 66.67:
+            field_scores = result.details.get("field_scores", {})
+            programming_score = result.details.get("questionnaire_score", result.score)
+            scoring_system.update_autonomous_score(team_number, programming_score)
+
+            if programming_score >= 70 or field_scores.get("prog_auto_reliability", 0) >= 100:
                 scoring_system.update_competency(team_number, "driving_skills", True)
+            if field_scores.get("prog_path_planner", 0) >= 100 or field_scores.get("prog_odometry_type", 0) >= 80:
+                scoring_system.update_competency(team_number, "reliability", True)
         
         # Apply mechanical exam results
         for team_number, result in self.exam_results["mechanical"].items():
-            scoring_system.update_mechanical_score(team_number, result.score)
-            # Tools and spare parts are embedded in the overall score
-            scoring_system.update_tools_score(team_number, result.score)
-            scoring_system.update_spare_parts_score(team_number, result.score)
+            field_scores = result.details.get("field_scores", {})
+            mechanical_score = result.details.get("questionnaire_score", result.score)
+            scoring_system.update_mechanical_score(team_number, mechanical_score)
+
+            tools_candidates = [field_scores.get("mech_checklist"), field_scores.get("mech_std_bolts")]
+            tools_candidates = [score for score in tools_candidates if score is not None]
+            tools_score = sum(tools_candidates) / len(tools_candidates) if tools_candidates else mechanical_score
+            scoring_system.update_tools_score(team_number, tools_score)
+
+            spare_parts_score = field_scores.get("mech_spare_parts", mechanical_score)
+            scoring_system.update_spare_parts_score(team_number, spare_parts_score)
+
+            if field_scores.get("mech_checklist", 0) >= 100 and field_scores.get("mech_std_bolts", 0) >= 100:
+                scoring_system.update_competency(team_number, "pasar_inspeccion_primera", True)
         
         # Apply electrical exam results
         for team_number, result in self.exam_results["electrical"].items():
-            scoring_system.update_electrical_score(team_number, result.score)
-            # Driver station from modem placement
-            modem_score = result.details.get("modem_score", 0)
-            scoring_system.update_driver_station_layout_score(team_number, modem_score)
+            field_scores = result.details.get("field_scores", {})
+            electrical_score = result.details.get("questionnaire_score", result.score)
+            scoring_system.update_electrical_score(team_number, electrical_score)
+
+            driver_station_candidates = [
+                field_scores.get("elec_radio_location"),
+                field_scores.get("elec_cable_replace"),
+                field_scores.get("elec_canivore"),
+            ]
+            driver_station_candidates = [score for score in driver_station_candidates if score is not None]
+            driver_station_score = (
+                sum(driver_station_candidates) / len(driver_station_candidates)
+                if driver_station_candidates else electrical_score
+            )
+            scoring_system.update_driver_station_layout_score(team_number, driver_station_score)
+
+            if field_scores.get("elec_canivore", 0) >= 100 and field_scores.get("elec_battery_peak", 0) >= 100:
+                scoring_system.update_competency(team_number, "reliability", True)
         
         # Apply competencies exam results
         for team_number, result in self.exam_results["competencies"].items():
-            scoring_system.update_team_organization_score(team_number, result.score)
-            
-            # Set competencies from details
-            if result.details.get("reliability"):
-                scoring_system.update_competency(team_number, "reliability", True)
-            if result.details.get("commitment"):
+            field_scores = result.details.get("field_scores", {})
+            competencies_score = result.details.get("questionnaire_score", result.score)
+            scoring_system.update_team_organization_score(team_number, competencies_score)
+
+            if field_scores.get("comp_drivers_needed", 0) >= 100:
+                scoring_system.update_competency(team_number, "necessary_drivers_fix", True)
+            if field_scores.get("comp_batteries", 0) >= 65 and field_scores.get("comp_bumper_time", 0) >= 70:
                 scoring_system.update_competency(team_number, "commitment", True)
-            if result.details.get("inspection_first"):
-                scoring_system.update_competency(team_number, "pasar_inspeccion_primera", True)
+            if field_scores.get("comp_balls_per_second", 0) >= 70:
+                scoring_system.update_competency(team_number, "human_player", True)
+            if field_scores.get("comp_mentors_vs_students", 0) >= 100:
+                scoring_system.update_competency(team_number, "team_communication", True)
+
+            if field_scores.get("comp_drivers_needed", 0) >= 100 and field_scores.get("comp_bumper_time", 0) >= 70:
+                scoring_system.update_competency(team_number, "reliability", True)
+            if field_scores.get("comp_balls_per_second", 0) >= 70:
+                scoring_system.update_competency(team_number, "driving_skills", True)
         
         # Add scouting comments to team scores
         for team_number, comments in self.scouting_comments.items():

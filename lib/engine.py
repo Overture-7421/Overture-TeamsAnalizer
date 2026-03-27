@@ -466,8 +466,18 @@ class AnalizadorRobot:
             self._has_decode_columns_cache = True
             return True
 
-        # FRC REBUILT QRS schema markers ("HP Scored" columns + "Climb")
-        qrs_markers = ("hp scored", "shoot time", "pass time", "penalty counter")
+        # FRC REBUILT 2026 schema markers (qualitative QR scouting columns)
+        qrs_markers = (
+            "shoot amount",
+            "pass amount",
+            "climb position",
+            "auton complexity",
+            "quality chasis/driver movement",
+            "quality chassis movement",
+            "bulldozing",
+            "defended",
+            "penalty counter",
+        )
         qrs_matches = sum(1 for h in header_lower if any(m in h for m in qrs_markers))
         result = qrs_matches >= 2
         self._has_decode_columns_cache = result
@@ -519,6 +529,55 @@ class AnalizadorRobot:
         except ValueError:
             return None
 
+    def _decode_parse_score(self, value: Any) -> Optional[float]:
+        """Parse a numeric or qualitative scouting value into a score."""
+        if self._is_missing_placeholder(value):
+            return None
+
+        numeric = self._decode_parse_float(value)
+        if numeric is not None:
+            return numeric
+
+        text = str(value).strip().lower()
+        if not text:
+            return None
+
+        amount_map = [
+            ("too many", 75.0),
+            ("too little", 10.0),
+            ("some", 25.0),
+            ("many", 50.0),
+            ("capitan", 100.0),
+            ("support", 100.0),
+        ]
+        mode_map = [
+            ("did nothing", 0.0),
+            ("none", 0.0),
+            ("didn't climb", 0.0),
+            ("failed climb attempt", 0.0),
+            ("bad", 1.0),
+            ("mid", 2.5),
+            ("middle", 1.0),
+            ("side", 1.0),
+            ("only moved", 1.0),
+            ("only shot", 2.0),
+            ("moves balls in middle", 3.0),
+            ("good", 4.0),
+            ("excellent", 5.0),
+            ("bestofevent", 5.0),
+            ("tank", 1.0),
+            ("mecanum", 2.0),
+            ("swerve", 5.0),
+            ("l1", 1.0),
+            ("l2", 2.0),
+            ("l3", 3.0),
+        ]
+
+        for token, score in amount_map + mode_map:
+            if token in text:
+                return score
+        return None
+
     def _decode_parse_bool(self, value: Any) -> bool:
         if self._is_missing_placeholder(value):
             return False
@@ -536,12 +595,12 @@ class AnalizadorRobot:
         """
         for name in primary:
             if name in self._column_indices:
-                val = self._decode_parse_float(self._decode_get_cell(row, name))
+                val = self._decode_parse_score(self._decode_get_cell(row, name))
                 return val or 0.0
         for kw in fallback:
             col = self._decode_find_column(keywords=kw)
             if col and col in self._column_indices:
-                val = self._decode_parse_float(self._decode_get_cell(row, col))
+                val = self._decode_parse_score(self._decode_get_cell(row, col))
                 return val or 0.0
         return 0.0
 
@@ -625,35 +684,31 @@ class AnalizadorRobot:
         """Compute FRC REBUILT 2026 match points for a single robot/match row.
         
         Scoring:
-        - AUTO: Leave 3pts, HP/FUEL 1pt each, Tower L1 15pts (max 2 robots)
-        - TELEOP: HP/FUEL 1pt each
+        - AUTO: Shoot amount 1pt each, auto climb-position bonus 15pts (when not none/failed)
+        - TELEOP: Shoot amount 1pt each
         - ENDGAME: Climb L1/Level 1=10pts, L2/Level 2=20pts, L3/Level 3=30pts
         """
         # Autonomous
-        auto_leave = 1.0 if self._decode_parse_bool(self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "leave"]) )
-                                                    or self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "moved"]) )) else 0.0
-
-        # Auto HP/FUEL scored
         auto_fuel = self._decode_get_count(
             row,
-            primary=["HP Scored (Auto)", "FUEL Scored (Active HUB) (Auto)", "auto_fuel", "Auto FUEL"],
-            fallback=[["hp", "scored", "auto"], ["hp", "auto"], ["auto", "fuel"],
+            primary=["Shoot amount (Auto)", "auto_shoot_amount", "HP Scored (Auto)", "FUEL Scored (Active HUB) (Auto)", "auto_fuel", "Auto FUEL"],
+            fallback=[["shoot", "amount", "auto"], ["hp", "scored", "auto"], ["hp", "auto"], ["auto", "fuel"],
                       ["auto", "artifact"], ["auto", "classified"]],
         )
 
-        # Auto Tower Level 1 (old schema only)
-        auto_tower_l1 = 1.0 if self._decode_parse_bool(
-            self._decode_get_cell(row, self._decode_find_column(keywords=["auto", "tower"])) or
-            self._decode_get_cell(row, self._decode_find_column(keywords=["tower", "level", "auto"]))
-        ) else 0.0
+        auto_tower_col = next(
+            (name for name in ["Climb Position (Auto)", "auto_climb_position"] if name in self._column_indices),
+            None,
+        ) or self._decode_find_column(keywords=["climb", "position", "auto"]) or self._decode_find_column(keywords=["climb", "auto"])
+        auto_tower_value = str(self._decode_get_cell(row, auto_tower_col) or "").strip().lower()
+        auto_tower_l1 = 1.0 if auto_tower_value and auto_tower_value not in {"none", "didn't climb", "failed climb attempt"} else 0.0
 
-        autonomous = 3.0 * auto_leave + 1.0 * auto_fuel + 15.0 * auto_tower_l1
+        autonomous = 1.0 * auto_fuel + 15.0 * auto_tower_l1
 
-        # TeleOp HP/FUEL scored
         teleop_fuel = self._decode_get_count(
             row,
-            primary=["HP Scored (Teleop)", "FUEL Scored (Active HUB) (Teleop)", "teleop_fuel", "Teleop FUEL"],
-            fallback=[["hp", "scored", "teleop"], ["hp", "teleop"], ["teleop", "fuel"],
+            primary=["Shoot amount (Teleop)", "teleop_shoot_amount", "HP Scored (Teleop)", "FUEL Scored (Active HUB) (Teleop)", "teleop_fuel", "Teleop FUEL"],
+            fallback=[["shoot", "amount", "teleop"], ["hp", "scored", "teleop"], ["hp", "teleop"], ["teleop", "fuel"],
                       ["tele", "fuel"], ["teleop", "artifact"], ["teleop", "classified"]],
         )
 

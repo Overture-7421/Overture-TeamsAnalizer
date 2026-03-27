@@ -1,6 +1,6 @@
 ﻿{
-    "version": "0.1.1",
     "category": "FRC",
+    "version": "0.1.1",
     "PREMATCH": [
         {
             "label": "Scouter Name",
@@ -39,14 +39,17 @@
     ],
     "AUTONOMOUS": [
         {
-            "label": "Shoot Time",
-            "key": "auto_shoot_time",
-            "type": "chrono"
+            "label": "Shoot amount",
+            "key": "auto_shoot_amount",
+            "type": "dropdown",
+            "options": ["None", "Too little (Less than 15)", "Some (15-30)", "Many (30-60)", "Too many (More than 60)"],
+            "required": true
         },
         {
-            "label": "Pass Time",
-            "key": "auto_pass_time",
-            "type": "chrono"
+            "label": "Pass amount",
+            "key": "auto_pass_amount",
+            "type": "dropdown",
+            "options": ["None", "Too little (Less than 15)", "Some (15-30)", "Many (30-60)", "Too many (More than 60)"]
         },
         {
             "label": "Climb Position",
@@ -81,14 +84,17 @@
     ],
     "TELEOP": [
         {
-            "label": "Shoot Time",
-            "key": "teleop_shoot_time",
-            "type": "chrono"
+            "label": "Shoot amount",
+            "key": "teleop_shoot_amount",
+            "type": "dropdown",
+            "options": ["None", "Too little (Less than 35)", "Some (35-60)", "Many (60-90)", "Too many (90-130)", "Capitan (More than 130)"],
+            "required": true
         },
         {
-            "label": "Pass Time",
-            "key": "teleop_pass_time",
-            "type": "chrono"
+            "label": "Pass amount",
+            "key": "teleop_pass_amount",
+            "type": "dropdown",
+            "options": ["None", "Too little (Less than 35)", "Some (35-60)", "Many (60-90)", "Too many (90-130)", "Support (More than 130)"]
         },
         {
             "label": "Penalty Counter",
@@ -105,7 +111,7 @@
             "label": "Quality Chasis/Driver Movement",
             "key": "teleop_chassis_movement",
             "type": "dropdown",
-            "options": ["None", "Bad", "Mid", "High"],
+            "options": ["None", "Bad", "Mid", "Good", "BestOfEvent"],
             "required": true
         }
     ],
@@ -126,21 +132,22 @@
             "label": "Bulldozing?",
             "key": "endgame_bulldozing",
             "type": "dropdown",
-            "options": ["None", "Bad", "Mid", "High", "BestOfEvent"],
+            "options": ["None", "Bad", "Mid", "Good", "BestOfEvent"],
             "required": true
         },
         {
             "label": "Defended?",
             "key": "endgame_defended",
             "type": "dropdown",
-            "options": ["None", "Bad", "Mid", "High", "BestOfEvent", "Trobots(PreguntaAntesDePoner)"],
+            "options": ["None", "Bad", "Mid", "Good", "BestOfEvent", "Trobots(PreguntaAntesDePoner)"],
             "required": true
         },
         {
             "label": "Chasis Type",
             "key": "endgame_chassis_type",
             "type": "dropdown",
-            "options": ["Tank", "Mecanum", "Swerve"]
+            "options": ["Tank", "Mecanum", "Swerve"],
+            "required": true
         },
         {
             "label": "Died",
@@ -148,7 +155,7 @@
             "type": "switch"
         },
         {
-            "label": "Comments? (Keep it short)",
+            "label": "Comments? (Keep it short, only relevant info)",
             "key": "endgame_comments",
             "type": "text"
         }
@@ -159,15 +166,15 @@
         "Robot Position",
         "Team Number",
         "Starting Position",
-        "Shoot Time (Auto)",
-        "Pass Time (Auto)",
+        "Shoot amount (Auto)",
+        "Pass amount (Auto)",
         "Climb Position (Auto)",
         "If climbed, Got stuck in Tower? (Auto)",
         "Auton Complexity",
         "Auton Completed?",
         "How much missed shots? (Auto)",
-        "Shoot Time (Teleop)",
-        "Pass Time (Teleop)",
+        "Shoot amount (Teleop)",
+        "Pass amount (Teleop)",
         "Penalty Counter",
         "How much missed shots? (Teleop)",
         "Quality Chasis/Driver Movement",
@@ -177,20 +184,23 @@
         "Defended?",
         "Chasis Type",
         "Died",
-        "Comments? (Keep it short)"
+        "Comments? (Keep it short, only relevant info)"
     ],
     "column_configuration": {
+        "numeric_for_overall": [
+            "Penalty Counter"
+        ],
         "stats_columns": [
             "Starting Position",
-            "Shoot Time (Auto)",
-            "Pass Time (Auto)",
+            "Shoot amount (Auto)",
+            "Pass amount (Auto)",
             "Climb Position (Auto)",
             "If climbed, Got stuck in Tower? (Auto)",
             "Auton Complexity",
             "Auton Completed?",
             "How much missed shots? (Auto)",
-            "Shoot Time (Teleop)",
-            "Pass Time (Teleop)",
+            "Shoot amount (Teleop)",
+            "Pass amount (Teleop)",
             "Penalty Counter",
             "How much missed shots? (Teleop)",
             "Quality Chasis/Driver Movement",
@@ -200,7 +210,7 @@
             "Defended?",
             "Chasis Type",
             "Died",
-            "Comments? (Keep it short)"
+            "Comments? (Keep it short, only relevant info)"
         ],
         "mode_boolean_columns": [
             "If climbed, Got stuck in Tower? (Auto)",
@@ -209,8 +219,8 @@
             "Died"
         ],
         "autonomous_columns": [
-            "Shoot Time (Auto)",
-            "Pass Time (Auto)",
+            "Shoot amount (Auto)",
+            "Pass amount (Auto)",
             "Climb Position (Auto)",
             "If climbed, Got stuck in Tower? (Auto)",
             "Auton Complexity",
@@ -218,8 +228,8 @@
             "How much missed shots? (Auto)"
         ],
         "teleop_columns": [
-            "Shoot Time (Teleop)",
-            "Pass Time (Teleop)",
+            "Shoot amount (Teleop)",
+            "Pass amount (Teleop)",
             "Penalty Counter",
             "How much missed shots? (Teleop)",
             "Quality Chasis/Driver Movement"
@@ -231,23 +241,15 @@
             "Defended?",
             "Chasis Type",
             "Died",
-            "Comments? (Keep it short)"
+            "Comments? (Keep it short, only relevant info)"
         ]
     },
     "streamlit_config": {
         "overall_rankings": {
             "average_columns": [
                 {
-                    "column": "Shoot Time (Auto)",
-                    "label": "Auto Shoot Time"
-                },
-                {
-                    "column": "Shoot Time (Teleop)",
-                    "label": "Teleop Shoot Time"
-                },
-                {
                     "column": "Penalty Counter",
-                    "label": "Penalties"
+                    "label": "Average Penalties"
                 }
             ],
             "rate_columns": [
@@ -348,6 +350,11 @@
             ]
         },
         "match_trend": {
+            "auto": {
+                "leave": "Auton Completed?",
+                "hp_scored": "Shoot amount (Auto)",
+                "tower_l1": "Climb Position (Auto)"
+            },
             "teleop": {
                 "hp_scored": "Penalty Counter"
             },
@@ -357,22 +364,15 @@
         }
     },
     "foreshadowing_columns": {
+        "auto_fuel": ["Shoot amount (Auto)", "Pass amount (Auto)"],
         "auto_leave": "Auton Completed?",
         "auto_tower_l1": "Climb Position (Auto)",
-        "teleop_fuel": "Penalty Counter",
+        "teleop_fuel": ["Shoot amount (Teleop)", "Pass amount (Teleop)"],
         "endgame_tower_climb": "Climb"
     },
     "robot_valuation": {
-        "phase_weights": [
-            0.2,
-            0.3,
-            0.5
-        ],
-        "phase_names": [
-            "Q1",
-            "Q2",
-            "Q3"
-        ]
+        "phase_weights": [0.2, 0.3, 0.5],
+        "phase_names": ["Q1", "Q2", "Q3"]
     },
     "metadata": {
         "total_columns": 24,

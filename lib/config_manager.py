@@ -37,7 +37,7 @@ def _load_json_cached(filepath: Path) -> Optional[Dict]:
             return _json_file_cache[path_str]
         
         # Load and cache
-        with open(filepath, 'r', encoding='utf-8') as f:
+        with open(filepath, 'r', encoding='utf-8-sig') as f:
             data = json.load(f)
         
         _json_file_cache[path_str] = data
@@ -96,12 +96,12 @@ class ConfigManager:
 
         self._file_column_config = ColumnConfig(
             headers=headers,
-            numeric_for_overall=column_config_data.get("numeric_for_overall", fallback_config.numeric_for_overall if fallback_config else []),
-            stats_columns=column_config_data.get("stats_columns", fallback_config.stats_columns if fallback_config else []),
-            mode_boolean_columns=column_config_data.get("mode_boolean_columns", fallback_config.mode_boolean_columns if fallback_config else []),
-            autonomous_columns=column_config_data.get("autonomous_columns", fallback_config.autonomous_columns if fallback_config else []),
-            teleop_columns=column_config_data.get("teleop_columns", fallback_config.teleop_columns if fallback_config else []),
-            endgame_columns=column_config_data.get("endgame_columns", fallback_config.endgame_columns if fallback_config else [])
+            numeric_for_overall=column_config_data.get("numeric_for_overall", []),
+            stats_columns=column_config_data.get("stats_columns", []),
+            mode_boolean_columns=column_config_data.get("mode_boolean_columns", []),
+            autonomous_columns=column_config_data.get("autonomous_columns", []),
+            teleop_columns=column_config_data.get("teleop_columns", []),
+            endgame_columns=column_config_data.get("endgame_columns", [])
         )
 
         robot_val_data = data.get("robot_valuation", {}) or {}
@@ -215,8 +215,12 @@ class ConfigManager:
         # Check for new format indicators
         new_format_indicators = {
             "Scouter Name", "Match Number", "Team Number",
-            "Shoot Time (Auto)", "Pass Time (Auto)", "Penalty Counter",
-            "Climb", "Auton Complexity", "Quality Chasis/Driver Movement"
+            "Shoot amount", "Pass amount",
+            "Shoot amount (Auto)", "Pass amount (Auto)",
+            "Shoot amount (Teleop)", "Pass amount (Teleop)",
+            "Climb Position", "If climbed, Got stuck in Tower?",
+            "Penalty Counter", "Climb",
+            "Auton Complexity", "Quality Chassis Movement", "Quality Chasis/Driver Movement"
         }
         
         if len(new_format_indicators.intersection(headers_set)) >= 3:

@@ -52,6 +52,290 @@ ROOT_DIR = APP_DIR.parent
 # ── Module-level constants ──────────────────────────────────────────────────
 _POST_MATCH_MAX_ENTRIES = 200       # Hard cap for post-match session state list
 _POST_MATCH_UPLOAD_MAX_BYTES = 2 * 1024 * 1024  # 2 MB upload guard
+_LOCAL_TEAM_NICKNAMES_CACHE = None
+_QUALITY_CHASSIS_LABEL = "Quality Chasis/Driver Movement"
+_QUALITY_CHASSIS_LABEL_LEGACY = "Quality Chassis Movement"
+
+_AUTON_COMPLEXITY_SCORE = {
+    "Did Nothing": 0.0,
+    "Only Moved": 1.0,
+    "Only Shot": 2.0,
+    "Moves Balls in Middle": 3.0,
+    "Good": 4.0,
+    "Excellent": 5.0,
+}
+
+_DEFENSE_SCORE = {
+    "None": 0.0,
+    "Bad": 1.0,
+    "Mid": 2.5,
+    "Good": 4.0,
+    "BestOfEvent": 5.0,
+    "Trobots(PreguntaAntesDePoner)": 0.0,
+}
+
+_BULLDOZE_SCORE = {
+    "None": 0.0,
+    "Bad": 1.0,
+    "Mid": 2.5,
+    "Good": 4.0,
+    "BestOfEvent": 5.0,
+}
+
+_CHASSIS_SCORE = {
+    "Tank": 0.0,
+    "Mecanum": 3.0,
+    "Swerve": 12.0,
+}
+
+_QUALITY_CHASSIS_SCORE = {
+    "None": 0.0,
+    "Bad": 1.0,
+    "Mid": 2.5,
+    "Good": 4.0,
+    "BestOfEvent": 5.0,
+}
+
+
+def _load_local_team_nicknames() -> dict:
+    """Load team nicknames from the local 2026 MXMO roster file."""
+    global _LOCAL_TEAM_NICKNAMES_CACHE
+    if _LOCAL_TEAM_NICKNAMES_CACHE is not None:
+        return _LOCAL_TEAM_NICKNAMES_CACHE
+
+    lookup = {}
+    roster_paths = [ROOT_DIR / "data" / "teams_2026mxmo.json", APP_DIR / "data" / "teams_2026mxmo.json"]
+    for roster_path in roster_paths:
+        if not roster_path.exists():
+            continue
+        try:
+            with open(roster_path, 'r', encoding='utf-8') as f:
+                roster = json.load(f)
+            for team in roster:
+                team_number = team.get("team_number")
+                nickname = team.get("nickname")
+                if team_number and nickname:
+                    lookup[str(team_number)] = nickname
+        except Exception:
+            pass
+        break
+
+    _LOCAL_TEAM_NICKNAMES_CACHE = lookup
+    return lookup
+
+
+def _get_post_match_data_version() -> int:
+    """Return a stable version token for the current post-match data."""
+    pm_data = st.session_state.get("post_match_data", [])
+    try:
+        return hash(json.dumps(pm_data, sort_keys=True, ensure_ascii=False))
+    except Exception:
+        return len(pm_data)
+
+
+def _first_non_empty_mode(team_rows: list, *column_names: str) -> str:
+    """Return the first non-empty mode value from the provided columns."""
+    for column_name in column_names:
+        if not column_name:
+            continue
+        value = get_mode_from_rows(team_rows, column_name)
+        if value:
+            return value
+    return ""
+
+
+def _first_non_zero_rate(team_stat: dict, *column_names) -> float:
+    """Return the first non-zero rate value from the provided stat columns."""
+    for column_name in column_names:
+        if not column_name:
+            continue
+        rate_value = get_rate_from_stat(team_stat, column_name)
+        if rate_value:
+            return float(rate_value)
+    return 0.0
+
+
+def _categorical_score(value: str, score_map: dict[str, float]) -> float:
+    """Convert a categorical mode value into a numeric score."""
+    return float(score_map.get(str(value).strip(), 0.0)) if value else 0.0
+
+
+def _safe_team_number(value: object) -> int:
+    """Convert team identifiers to an integer for deterministic tie-breaking."""
+    try:
+        return int(str(value).strip())
+    except (TypeError, ValueError):
+        return 999999
+
+
+def _get_quality_chassis_mode(team_rows: list) -> str:
+    return _first_non_empty_mode(team_rows, _QUALITY_CHASSIS_LABEL, _QUALITY_CHASSIS_LABEL_LEGACY)
+
+
+def _get_pick_metrics() -> dict:
+    """Return the configured pick metric layout."""
+    return {
+        "first_pick": [
+            {"label": "Contribution Mode", "kind": "contribution_mode"},
+            {"label": "Avg Pts Contribution", "kind": "pm_avg"},
+            {"label": "Pts Std Contribution", "kind": "pm_std"},
+            {"label": "Auto shoot Mode", "kind": "mode", "columns": ["Shoot amount (Auto)"]},
+            {"label": "Auto pass mode", "kind": "mode", "columns": ["Pass amount (Auto)"]},
+            {"label": "Auto Missed Shoots Mode", "kind": "mode", "columns": ["How much missed shots? (Auto)"]},
+            {"label": "Auton Complexity Mode", "kind": "mode", "columns": ["Auton Complexity"]},
+            {"label": "Auton Completed Rate", "kind": "rate", "columns": ["Auton Completed?"]},
+            {"label": "TeleOp Shoot Mode", "kind": "mode", "columns": ["Shoot amount (Teleop)"]},
+            {"label": "TeleOp pass mode", "kind": "mode", "columns": ["Pass amount (Teleop)"]},
+            {"label": "TeleOp Missed Shoots Mode", "kind": "mode", "columns": ["How much missed shots? (Teleop)"]},
+            {"label": "Died rate", "kind": "rate", "columns": ["Died"]},
+            {"label": "Chassis Type Mode", "kind": "mode", "columns": ["Chasis Type"]},
+            {"label": "Auto Climb Mode", "kind": "mode", "columns": ["Climb Position (Auto)"]},
+            {"label": "TeleOp Climb Mode", "kind": "mode", "columns": ["Climb"]},
+            {"label": "Quality Chasis/Driver Movement", "kind": "mode", "columns": [_QUALITY_CHASSIS_LABEL, _QUALITY_CHASSIS_LABEL_LEGACY]},
+        ],
+        "second_pick": [
+            {"label": "Contribution Mode", "kind": "contribution_mode"},
+            {"label": "Auto pass mode", "kind": "mode", "columns": ["Pass amount (Auto)"]},
+            {"label": "Auto Missed Shoots Mode", "kind": "mode", "columns": ["How much missed shots? (Auto)"]},
+            {"label": "Auton Complexity Mode", "kind": "mode", "columns": ["Auton Complexity"]},
+            {"label": "Auton Completed Rate", "kind": "rate", "columns": ["Auton Completed?"]},
+            {"label": "TeleOp pass mode", "kind": "mode", "columns": ["Pass amount (Teleop)"]},
+            {"label": "Defended Mode", "kind": "mode", "columns": ["Defended?"]},
+            {"label": "Bulldozing Mode", "kind": "mode", "columns": ["Bulldozing?"]},
+            {"label": "Penalties", "kind": "avg", "columns": ["Penalty Counter"]},
+            {"label": "Died rate", "kind": "rate", "columns": ["Died"]},
+            {"label": "Chassis Type Mode", "kind": "mode", "columns": ["Chasis Type"]},
+            {"label": "Quality Chasis/Driver Movement", "kind": "mode", "columns": [_QUALITY_CHASSIS_LABEL, _QUALITY_CHASSIS_LABEL_LEGACY]},
+            {"label": "Auto Climb Mode", "kind": "mode", "columns": ["Climb Position (Auto)"]},
+            {"label": "TeleOp Climb Mode", "kind": "mode", "columns": ["Climb"]},
+        ],
+    }
+
+
+def _score_2nd_pick(team_stat: dict, team_rows: list) -> float:
+    """Score teams for 2nd-pick ordering using utility-oriented traits."""
+    auto_complexity = _categorical_score(
+        _first_non_empty_mode(team_rows, "Auton Complexity"),
+        _AUTON_COMPLEXITY_SCORE,
+    )
+    bulldozing = _categorical_score(
+        _first_non_empty_mode(team_rows, "Bulldozing?"),
+        _BULLDOZE_SCORE,
+    )
+    defended = _categorical_score(
+        _first_non_empty_mode(team_rows, "Defended?"),
+        _DEFENSE_SCORE,
+    )
+    chassis = _categorical_score(
+        _first_non_empty_mode(team_rows, "Chasis Type"),
+        _CHASSIS_SCORE,
+    )
+    quality = _categorical_score(_get_quality_chassis_mode(team_rows), _QUALITY_CHASSIS_SCORE)
+    died_penalty = _first_non_zero_rate(team_stat, ("Died",)) * 6.0
+    penalties = compute_numeric_average(team_rows, "Penalty Counter")
+    penalty_penalty = min(5.0, penalties / 3.0)
+    auto_mode = _first_non_empty_mode(team_rows, "Auton Complexity")
+    non_trivial_auto_bonus = 14.0 if auto_mode not in {"", "Did Nothing", "Only Moved"} else 0.0
+    swerve_bonus = 18.0 if _first_non_empty_mode(team_rows, "Chasis Type") == "Swerve" else 0.0
+
+    return (
+        bulldozing * 6.2
+        + defended * 7.4
+        + chassis * 3.0
+        + quality * 3.0
+        + auto_complexity * 1.5
+        + non_trivial_auto_bonus
+        + swerve_bonus
+        - died_penalty
+        - penalty_penalty
+    )
+
+
+def _score_1st_pick(team_stat: dict, team_rows: list, team_num: object) -> float:
+    """Score teams for 1st-pick ordering with strong contribution weighting."""
+    points_avg = float(team_stat.get("overall_avg", 0.0))
+    contribution_avg = float(get_pm_avg_pts_contribution(team_num))
+    died_rate = _first_non_zero_rate(team_stat, ("Died", "Died/Stopped Moving in Teleop"))
+    survival_bonus = max(0.0, 1.0 - died_rate) * 14.0
+    auton_completed_rate = _first_non_zero_rate(team_stat, ("Auton Completed?",))
+    auton_completed_bonus = auton_completed_rate * 12.0
+    auton_complexity = _categorical_score(
+        _first_non_empty_mode(team_rows, "Auton Complexity"),
+        _AUTON_COMPLEXITY_SCORE,
+    )
+    auton_complexity_bonus = auton_complexity * 4.0
+    swerve_bonus = 16.0 if _first_non_empty_mode(team_rows, "Chasis Type") == "Swerve" else 0.0
+
+    return (
+        points_avg * 1.15
+        + contribution_avg * 1.25
+        + survival_bonus
+        + auton_completed_bonus
+        + auton_complexity_bonus
+        + swerve_bonus
+    )
+
+
+def _build_pick_rankings_dataframe(stats: list[dict], title: str) -> pd.DataFrame | None:
+    """Build a pick-specific ranking table from the current team stats."""
+    if not stats:
+        return None
+
+    team_data_grouped = st.session_state.analizador.get_team_data_grouped()
+    metrics_by_pick = _get_pick_metrics()
+    metric_defs = metrics_by_pick.get(title, [])
+    if not metric_defs:
+        return None
+
+    scored_rows = []
+    for team_stat in stats:
+        team_num = team_stat.get("team", "N/A")
+        team_num_int = _safe_team_number(team_num)
+        team_key = str(team_num)
+        team_rows = team_data_grouped.get(team_key, [])
+        if title == "first_pick":
+            score = _score_1st_pick(team_stat, team_rows, team_num)
+        else:
+            score = _score_2nd_pick(team_stat, team_rows)
+        scored_rows.append((score, team_num_int, team_stat, team_rows))
+
+    if title in {"first_pick", "second_pick"}:
+        scored_rows.sort(key=lambda item: (-item[0], item[1]))
+
+    output_rows = []
+    for rank, (_, _, team_stat, team_rows) in enumerate(scored_rows, 1):
+        team_num = team_stat.get("team", "N/A")
+        row = {
+            "Rank": rank,
+            "Team Number": get_team_display_label(team_num),
+        }
+
+        for metric in metric_defs:
+            label = metric.get("label")
+            kind = metric.get("kind")
+            columns = metric.get("columns") or []
+            if not label or not kind:
+                continue
+
+            if kind == "contribution_mode":
+                row[label] = get_pm_contribution_mode(team_num)
+            elif kind == "pm_avg":
+                row[label] = round(get_pm_avg_pts_contribution(team_num), 2)
+            elif kind == "pm_std":
+                row[label] = round(get_pm_std_pts_contribution(team_num), 2)
+            elif kind == "mode":
+                row[label] = _first_non_empty_mode(team_rows, *columns)
+            elif kind == "rate":
+                rate_value = _first_non_zero_rate(team_stat, *columns) * 100.0
+                row[label] = round(rate_value, 2)
+            elif kind == "avg":
+                row[label] = round(compute_numeric_average(team_rows, columns[0]), 2) if columns else 0.0
+            else:
+                row[label] = ""
+
+        output_rows.append(row)
+
+    return pd.DataFrame(output_rows)
 
 
 def load_app_config():
@@ -222,6 +506,17 @@ def _init_session_state():
     # Initialize analizador
     if 'analizador' not in st.session_state:
         st.session_state.analizador = AnalizadorRobot()
+
+    if not st.session_state.post_match_data:
+        default_pm_path = ROOT_DIR / "data" / "default_post_match_data.json"
+        if default_pm_path.exists():
+            try:
+                with open(default_pm_path, 'r', encoding='utf-8') as f:
+                    loaded_pm = json.load(f)
+                if isinstance(loaded_pm, list):
+                    st.session_state.post_match_data = loaded_pm[-_POST_MATCH_MAX_ENTRIES:]
+            except Exception:
+                pass
     
     # Auto-detect and reset old FTC data if current config is FRC
     if not st.session_state.auto_decode_reset_done:
@@ -454,8 +749,10 @@ def load_csv_data(uploaded_file):
 def get_team_stats_dataframe():
     """Get team statistics as a pandas DataFrame (cached by data version)."""
     version = st.session_state.analizador._data_version
+    pm_version = _get_post_match_data_version()
+    cache_version = (version, pm_version)
     if (st.session_state._cached_team_stats_df is not None
-            and st.session_state._cached_team_stats_df_version == version):
+            and st.session_state._cached_team_stats_df_version == cache_version):
         return st.session_state._cached_team_stats_df
 
     stats = st.session_state.analizador.get_detailed_team_stats()
@@ -463,11 +760,6 @@ def get_team_stats_dataframe():
         return None
     
     team_data_grouped = st.session_state.analizador.get_team_data_grouped()
-    
-    streamlit_cfg = get_streamlit_config()
-    simplified_cfg = streamlit_cfg.get("simplified_ranking", {})
-    rate_columns = simplified_cfg.get("rate_columns", [])
-    mode_columns = simplified_cfg.get("mode_columns", [])
 
     # Convert to DataFrame with selected columns for simplified view
     df_data = []
@@ -475,34 +767,42 @@ def get_team_stats_dataframe():
         team_num = team_stat.get('team', 'N/A')
         team_key = str(team_num)
         team_rows = team_data_grouped.get(team_key, [])
+        points_avg = round(float(team_stat.get('overall_avg', 0.0)), 2)
 
         row = {
-            'Team': get_team_display_label(team_num),
-            'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
-            'Points Std': round(team_stat.get('overall_std', 0.0), 2),
-            'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
+            '_team_num_sort': _safe_team_number(team_num),
+            'Team Number': get_team_display_label(team_num),
+            'Points Avg': points_avg,
+            'Contribution Mode': get_pm_contribution_mode(team_num),
+            'Avg Pts Contribution': round(get_pm_avg_pts_contribution(team_num), 2),
+            'Pts Std Contribution': round(get_pm_std_pts_contribution(team_num), 2),
+            'Auto Shoot Mode': get_mode_from_rows(team_rows, 'Shoot amount (Auto)'),
+            'Auto Pass Mode': get_mode_from_rows(team_rows, 'Pass amount (Auto)'),
+            'Auto Missed Shoots Mode': get_mode_from_rows(team_rows, 'How much missed shots? (Auto)'),
+            'Auton Complexity Mode': get_mode_from_rows(team_rows, 'Auton Complexity'),
+            'Auton Completed Rate': round(get_rate_from_stat(team_stat, ('Auton Completed?',)) * 100.0, 2),
+            'TeleOp Shoot Mode': get_mode_from_rows(team_rows, 'Shoot amount (Teleop)'),
+            'TeleOp Pass Mode': get_mode_from_rows(team_rows, 'Pass amount (Teleop)'),
+            'TeleOp Missed Shoots Mode': get_mode_from_rows(team_rows, 'How much missed shots? (Teleop)'),
+            'Defended Mode': get_mode_from_rows(team_rows, 'Defended?'),
+            'Bulldozing Mode': get_mode_from_rows(team_rows, 'Bulldozing?'),
+            'Penalties': round(compute_numeric_average(team_rows, 'Penalty Counter'), 2),
+            'Died rate': round(get_rate_from_stat(team_stat, ('Died',)) * 100.0, 2),
+            'Chassis Type Mode': get_mode_from_rows(team_rows, 'Chasis Type'),
+            'Auto Climb Mode': get_mode_from_rows(team_rows, 'Climb Position (Auto)'),
+            'TeleOp Climb Mode': get_mode_from_rows(team_rows, 'Climb'),
+            'Quality Chasis/Driver Movement': _get_quality_chassis_mode(team_rows),
         }
-
-        for rate_cfg in rate_columns:
-            label = rate_cfg.get("label")
-            columns = rate_cfg.get("columns") or []
-            if not label:
-                continue
-            rate_value = get_rate_from_stat(team_stat, tuple(columns)) * 100.0
-            row[label] = round(rate_value, 2)
-
-        for mode_cfg in mode_columns:
-            label = mode_cfg.get("label")
-            column = mode_cfg.get("column")
-            if not label or not column:
-                continue
-            row[label] = get_mode_from_rows(team_rows, column)
 
         df_data.append(row)
 
     result = pd.DataFrame(df_data)
+    if not result.empty and 'Points Avg' in result.columns:
+        result = result.sort_values(by=['Points Avg', '_team_num_sort'], ascending=[False, True]).reset_index(drop=True)
+        result = result.drop(columns=['_team_num_sort'])
+        result.insert(0, 'Rank', result.index + 1)
     st.session_state._cached_team_stats_df = result
-    st.session_state._cached_team_stats_df_version = version
+    st.session_state._cached_team_stats_df_version = cache_version
     return result
 
 def create_alliance_selector_teams():
@@ -515,18 +815,46 @@ def create_alliance_selector_teams():
     stats = st.session_state.analizador.get_detailed_team_stats()
     if not stats:
         return []
+
+    team_data_grouped = st.session_state.analizador.get_team_data_grouped()
+    team_entries = []
+    for stat in stats:
+        team_num = stat.get('team', 0)
+        team_key = str(team_num)
+        team_rows = team_data_grouped.get(team_key, [])
+        team_entries.append({
+            'stat': stat,
+            'team_num': team_num,
+            'team_num_int': _safe_team_number(team_num),
+            'points_avg': float(stat.get('overall_avg', 0.0)),
+            'pick1_score': _score_1st_pick(stat, team_rows, team_num),
+            'pick2_score': _score_2nd_pick(stat, team_rows),
+        })
+
+    captain_sorted = sorted(team_entries, key=lambda item: (-item['points_avg'], item['team_num_int']))
+    pick1_sorted = sorted(team_entries, key=lambda item: (-item['pick1_score'], item['team_num_int']))
+    pick2_sorted = sorted(team_entries, key=lambda item: (-item['pick2_score'], item['team_num_int']))
+
+    captain_rank_by_team = {str(item['team_num']): idx for idx, item in enumerate(captain_sorted, 1)}
+    pick1_rank_by_team = {str(item['team_num']): idx for idx, item in enumerate(pick1_sorted, 1)}
+    pick2_rank_by_team = {str(item['team_num']): idx for idx, item in enumerate(pick2_sorted, 1)}
     
     teams = []
-    for rank, stat in enumerate(stats, 1):
+    for stat in stats:
         team_num = stat.get('team', 0)
+        team_key = str(team_num)
         overall_avg = stat.get('overall_avg', 0)
         robot_val = stat.get('RobotValuation', 0)
+        team_rows = team_data_grouped.get(team_key, [])
         
         # Get phase scores
         phase_scores = st.session_state.analizador.calculate_team_phase_scores(int(team_num))
-        death_rate = get_rate_from_stat(stat, ("Died/Stopped Moving in Teleop",))
-        defended_rate = get_rate_from_stat(stat, ("Was Defended Heavily",))
-        defense_rate = get_rate_from_stat(stat, ("Played Defense",))
+        death_rate = get_rate_from_stat(stat, ("Died", "Died/Stopped Moving in Teleop"))
+        defended_rate = get_rate_from_stat(stat, ("Defended?", "Was Defended Heavily"))
+        defense_rate = max(
+            get_rate_from_stat(stat, ("Defended?", "Played Defense")),
+            get_rate_from_stat(stat, ("Bulldozing?", "Was Defended Heavily")),
+        )
         
         team_name = get_team_display_label(team_num)
 
@@ -546,6 +874,12 @@ def create_alliance_selector_teams():
             defended_rate=defended_rate,
             defense_rate=defense_rate,
             algae_score=0.0
+            ,
+            captain_rank=captain_rank_by_team.get(team_key),
+            pick1_rank=pick1_rank_by_team.get(team_key),
+            pick2_rank=pick2_rank_by_team.get(team_key),
+            pick1_score=_score_1st_pick(stat, team_rows, team_num),
+            pick2_score=_score_2nd_pick(stat, team_rows),
         ))
 
     st.session_state._cached_alliance_teams = teams
@@ -624,10 +958,13 @@ def get_team_display_label(team_number):
     """Return formatted team label with TBA nickname when available."""
     num_str = str(team_number)
     tba = st.session_state.get('tba_manager')
+    nickname = None
     if tba:
         nickname = tba.get_team_nickname(num_str)
-        if nickname and nickname != num_str:
-            return f"{num_str} - {nickname}"
+    if not nickname:
+        nickname = _load_local_team_nicknames().get(num_str)
+    if nickname and nickname != num_str:
+        return f"{num_str} - {nickname}"
     return num_str
 
 
@@ -659,37 +996,24 @@ def get_pm_contribution_mode(team_number) -> str:
     return Counter(contribs).most_common(1)[0][0]
 
 
-def get_pm_avg_pts_contribution(team_number) -> float:
-    """Return the average individual points contribution for a team from post-match data.
-
-    Applies the same rules as the Qualitative Metrics tab:
-    - 'Dedicated to passing' / 'Dedicated to defend' → match excluded from average
-    - 'Did not score any points' → 0 pts
-    - 'Scored few points' → 5% of alliance pts
-    - 'Scored ~30% of alliance score' → 30% of alliance pts
-    - 'Scored ~50% of alliance score' → 50% of alliance pts
-    - 'Scored ~75% of alliance score' → 75% of alliance pts
-    - 'Scored almost all alliance score' → 90% of alliance pts
-    - If ALL alliance members share the same base-level label
-      ('Did not score any points', 'Scored few points', or
-      'Scored ~30% of alliance score') → alliance_pts / num_alliance_teams
-    """
+def get_pm_contribution_points(team_number) -> list:
+    """Return the per-match points contributions used for post-match stats."""
     pm_data = st.session_state.get("post_match_data", [])
     if not pm_data:
-        return 0.0
+        return []
     try:
         target = int(team_number)
     except (TypeError, ValueError):
-        return 0.0
+        return []
     if target == 0:
-        return 0.0
+        return []
 
-    _EVEN_SPLIT = frozenset({
+    even_split = frozenset({
         "Did not score any points",
         "Scored few points",
         "Scored ~30% of alliance score",
     })
-    _PCT = {
+    pct_map = {
         "Did not score any points":         0.00,
         "Scored few points":                0.05,
         "Scored ~30% of alliance score":    0.30,
@@ -725,18 +1049,42 @@ def get_pm_avg_pts_contribution(team_number) -> float:
 
             if contrib in ("Dedicated to passing", "Dedicated to defend"):
                 continue
-            elif (
-                contrib in _EVEN_SPLIT
-                and alliance_contribs
-                and all(c == contrib for c in alliance_contribs)
-            ):
+            elif contrib in even_split and alliance_contribs and all(c == contrib for c in alliance_contribs):
                 pts_list.append(alliance_pts / len(alliance_contribs))
             else:
-                pct = _PCT.get(contrib)
+                pct = pct_map.get(contrib)
                 if pct is not None:
                     pts_list.append(alliance_pts * pct)
 
+    return pts_list
+
+
+def get_pm_avg_pts_contribution(team_number) -> float:
+    """Return the average individual points contribution for a team from post-match data.
+
+    Applies the same rules as the Qualitative Metrics tab:
+    - 'Dedicated to passing' / 'Dedicated to defend' → match excluded from average
+    - 'Did not score any points' → 0 pts
+    - 'Scored few points' → 5% of alliance pts
+    - 'Scored ~30% of alliance score' → 30% of alliance pts
+    - 'Scored ~50% of alliance score' → 50% of alliance pts
+    - 'Scored ~75% of alliance score' → 75% of alliance pts
+    - 'Scored almost all alliance score' → 90% of alliance pts
+    - If ALL alliance members share the same base-level label
+      ('Did not score any points', 'Scored few points', or
+      'Scored ~30% of alliance score') → alliance_pts / num_alliance_teams
+    """
+    pts_list = get_pm_contribution_points(team_number)
     return sum(pts_list) / len(pts_list) if pts_list else 0.0
+
+
+def get_pm_std_pts_contribution(team_number) -> float:
+    """Return the sample standard deviation of per-match contribution points."""
+    pts_list = get_pm_contribution_points(team_number)
+    if len(pts_list) < 2:
+        return 0.0
+    mean = sum(pts_list) / len(pts_list)
+    return ((sum((value - mean) ** 2 for value in pts_list)) / (len(pts_list) - 1)) ** 0.5
 
 
 def get_foreshadowing_team_options():
@@ -1459,89 +1807,43 @@ elif page == "📈 Team Statistics":
     st.markdown("<div class='main-header'>📈 Team Statistics</div>", unsafe_allow_html=True)
     
     stats = st.session_state.analizador.get_detailed_team_stats()
+    team_data_grouped = st.session_state.analizador.get_team_data_grouped()
     
     if not stats:
         st.info("No team statistics available. Please load data first.")
     else:
         # Create tabs for different views
-        tab1, tab2, tab3 = st.tabs(["📊 Points Rankings", "🔍 Detailed Stats", "📋 Simplified Ranking"])
+        tab1, tab2, tab3, tab4, tab5 = st.tabs([
+            "📊 Points Rankings",
+            "🔍 Detailed Stats",
+            "📋 Simplified Ranking",
+            "🥇 1st Pick",
+            "🥈 2nd Pick",
+        ])
         
         with tab1:
             st.markdown("### Team Points Rankings")
-            
-            team_data_grouped = st.session_state.analizador.get_team_data_grouped()
 
-            streamlit_cfg = get_streamlit_config()
-            overall_cfg = streamlit_cfg.get("overall_rankings", {})
-            average_columns_cfg = overall_cfg.get("average_columns", [])
-            rate_columns_cfg = overall_cfg.get("rate_columns", [])
+            team_stats_df = get_team_stats_dataframe()
 
-            analyzer = st.session_state.analizador
-            available_columns = set(analyzer._column_indices.keys())
-
-            average_columns = []
-            for item in average_columns_cfg:
-                column = item.get("column")
-                label = item.get("label")
-                if column and label and column in available_columns:
-                    average_columns.append((column, label))
-
-            rate_columns = []
-            for item in rate_columns_cfg:
-                label = item.get("label")
-                columns = item.get("columns") or []
-                if label and columns:
-                    rate_columns.append((tuple(columns), label))
-
-            base_columns = [
-                'Rank', 'Team', 'Matches',
-                'Robot Valuation', 'Contribution Mode', 'Avg Pts Contribution', 'Points Avg', 'Points Std'
-            ]
-            avg_labels = [label for _, label in average_columns]
-            rate_labels = [label for _, label in rate_columns]
-            columns_order = (
-                base_columns
-                + avg_labels
-                + rate_labels
-            )
-
-            df_rows = []
-            for rank, team_stat in enumerate(stats, 1):
-                team_num = team_stat.get('team', 'N/A')
-                row = {
-                    'Rank': rank,
-                    'Team': get_team_display_label(team_num),
-                    'Matches': len(team_data_grouped.get(team_num, [])),
-                    'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
-                    'Contribution Mode': get_pm_contribution_mode(team_num),
-                    'Avg Pts Contribution': round(get_pm_avg_pts_contribution(team_num), 2),
-                    'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
-                    'Points Std': round(team_stat.get('overall_std', 0.0), 2),
-                }
-
-                for source_col, label in average_columns:
-                    row[label] = compute_numeric_average(team_data_grouped.get(team_num, []), source_col)
-
-                for source_candidates, label in rate_columns:
-                    rate_value = get_rate_from_stat(team_stat, source_candidates) * 100.0
-                    row[label] = rate_value
-
-                df_rows.append(row)
-
-            df = pd.DataFrame(df_rows)
-
-            if not df.empty:
-                df = df[columns_order]
-                _non_float_cols = {'Rank', 'Team', 'Matches', 'Contribution Mode'}
-                float_columns = [col for col in columns_order if col not in _non_float_cols]
-                styled_df = df.style.format({col: "{:.2f}" for col in float_columns})
-                st.dataframe(styled_df, use_container_width=True, height=520)
+            if team_stats_df is not None and not team_stats_df.empty:
+                st.dataframe(team_stats_df, use_container_width=True, height=520, hide_index=True)
 
                 # Visualization
                 st.markdown("### Performance Visualization")
+                chart_df = pd.DataFrame([
+                    {
+                        'Rank': rank,
+                        'Team': get_team_display_label(team_stat.get('team', 'N/A')),
+                        'Points Avg': round(team_stat.get('overall_avg', 0.0), 2),
+                        'Robot Valuation': round(team_stat.get('RobotValuation', 0.0), 2),
+                        'Points Std': round(team_stat.get('overall_std', 0.0), 2),
+                    }
+                    for rank, team_stat in enumerate(stats, 1)
+                ])
                 px, go = _ensure_plotly()
                 fig = px.scatter(
-                    df,
+                    chart_df,
                     x='Points Avg',
                     y='Robot Valuation',
                     size='Points Std',
@@ -1944,6 +2246,26 @@ elif page == "📈 Team Statistics":
                 st.dataframe(df_simple, use_container_width=True, height=600)
             else:
                 st.info("No data to display.")
+
+        with tab4:
+            st.markdown("### 1st Pick Rankings")
+            st.caption("This view follows the normal ranking order and displays the pick metrics requested for the first alliance selection slot.")
+
+            first_pick_df = _build_pick_rankings_dataframe(stats, "first_pick")
+            if first_pick_df is not None and not first_pick_df.empty:
+                st.dataframe(first_pick_df, use_container_width=True, height=600, hide_index=True)
+            else:
+                st.info("No 1st pick ranking data available.")
+
+        with tab5:
+            st.markdown("### 2nd Pick Rankings")
+            st.caption("This view sorts teams by a custom utility score that emphasizes defense, bulldozing, autonomous breadth, chassis, and driver movement.")
+
+            second_pick_df = _build_pick_rankings_dataframe(stats, "second_pick")
+            if second_pick_df is not None and not second_pick_df.empty:
+                st.dataframe(second_pick_df, use_container_width=True, height=600, hide_index=True)
+            else:
+                st.info("No 2nd pick ranking data available.")
 
 elif page == "🤝 Alliance Selector":
     st.markdown("<div class='main-header'>🤝 Alliance Selector</div>", unsafe_allow_html=True)

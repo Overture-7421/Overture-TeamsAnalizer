@@ -1,0 +1,156 @@
+[
+  {
+    "match_number": 1,
+    "red_points": 167,
+    "blue_points": 189,
+    "num_teams": 6,
+    "team_numbers": [
+      6170,
+      6017,
+      9282,
+      6106,
+      6652,
+      4371
+    ],
+    "contributions": [
+      "Scored ~75% of alliance score",
+      "Dedicated to passing",
+      "Scored almost all alliance score",
+      "Scored almost all alliance score",
+      "Scored few points",
+      "Scored ~75% of alliance score"
+    ]
+  },
+  {
+    "match_number": 2,
+    "red_points": 127,
+    "blue_points": 91,
+    "num_teams": 6,
+    "team_numbers": [
+      11065,
+      6348,
+      3354,
+      10529,
+      9280,
+      4775
+    ],
+    "contributions": [
+      "Scored ~30% of alliance score",
+      "Scored ~75% of alliance score",
+      "Scored few points",
+      "Scored ~75% of alliance score",
+      "Scored few points",
+      "Scored few points"
+    ]
+  },
+  {
+    "match_number": 3,
+    "red_points": 216,
+    "blue_points": 92,
+    "num_teams": 6,
+    "team_numbers": [
+      5959,
+      6676,
+      4782,
+      4723,
+      3933,
+      3480
+    ],
+    "contributions": [
+      "Scored ~30% of alliance score",
+      "Scored almost all alliance score",
+      "Scored almost all alliance score",
+      "Scored ~30% of alliance score",
+      "Scored few points",
+      "Scored ~50% of alliance score"
+    ]
+  },
+  {
+    "match_number": 4,
+    "red_points": 176,
+    "blue_points": 189,
+    "num_teams": 6,
+    "team_numbers": [
+      4010,
+      9053,
+      3794,
+      9060,
+      5932,
+      7421
+    ],
+    "contributions": [
+      "Scored almost all alliance score",
+      "Scored ~50% of alliance score",
+      "Scored ~30% of alliance score",
+      "Scored ~75% of alliance score",
+      "Scored ~75% of alliance score",
+      "Scored ~30% of alliance score"
+    ]
+  },
+  {
+    "match_number": 5,
+    "red_points": 145,
+    "blue_points": 201,
+    "num_teams": 6,
+    "team_numbers": [
+      8741,
+      7102,
+      8740,
+      3522,
+      10931,
+      10565
+    ],
+    "contributions": [
+      "Dedicated to defend",
+      "Scored ~75% of alliance score",
+      "Scored almost all alliance score",
+      "Scored ~75% of alliance score",
+      "Scored ~75% of alliance score",
+      "Scored ~50% of alliance score"
+    ]
+  },
+  {
+    "match_number": 6,
+    "red_points": 237,
+    "blue_points": 154,
+    "num_teams": 6,
+    "team_numbers": [
+      5133,
+      10225,
+      4635,
+      6606,
+      6702,
+      6200
+    ],
+    "contributions": [
+      "Scored ~75% of alliance score",
+      "Scored almost all alliance score",
+      "Scored ~75% of alliance score",
+      "Scored ~30% of alliance score",
+      "Scored ~75% of alliance score",
+      "Scored ~50% of alliance score"
+    ]
+  },
+  {
+    "match_number": 7,
+    "red_points": 151,
+    "blue_points": 140,
+    "num_teams": 6,
+    "team_numbers": [
+      7546,
+      4584,
+      3472,
+      9213,
+      6832,
+      5887
+    ],
+    "contributions": [
+      "Scored few points",
+      "Scored ~50% of alliance score",
+      "Scored almost all alliance score",
+      "Scored ~30% of alliance score",
+      "Scored ~50% of alliance score",
+      "Scored ~50% of alliance score"
+    ]
+  }
+]

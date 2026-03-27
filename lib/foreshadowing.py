@@ -90,11 +90,11 @@ def _get_foreshadowing_columns() -> Dict[str, str]:
         return _foreshadowing_columns_cache
     
     defaults = {
-        "auto_fuel": "FUEL Scored (Active HUB) (Auto)",
-        "auto_leave": "Left Launch Line (LEAVE)",
-        "auto_tower_l1": "Tower Level 1 - Auto",
-        "teleop_fuel": "FUEL Scored (Active HUB) (Teleop)",
-        "endgame_tower_climb": "Tower Climb Level"
+        "auto_fuel": ["Shoot amount (Auto)", "Pass amount (Auto)"],
+        "auto_leave": "Auton Completed?",
+        "auto_tower_l1": "Climb Position (Auto)",
+        "teleop_fuel": ["Shoot amount (Teleop)", "Pass amount (Teleop)"],
+        "endgame_tower_climb": "Climb"
     }
     data = _load_columns_config_from_json() or {}
     overrides = data.get("foreshadowing_columns", {}) or {}
@@ -263,17 +263,66 @@ class TeamStatsExtractor:
                     return None
             return None
 
-        def _avg_numeric(col_name: str) -> float:
-            col_idx = indices.get(col_name)
-            if col_idx is None:
-                return 0.0
+        def _parse_qualitative(value: Any) -> Optional[float]:
+            numeric = _parse_numeric(value)
+            if numeric is not None:
+                return numeric
+            if value is None:
+                return None
+            text = str(value).strip().lower()
+            if not text:
+                return None
+            amount_map = [
+                ("too many", 75.0),
+                ("too little", 10.0),
+                ("some", 25.0),
+                ("many", 50.0),
+                ("capitan", 100.0),
+                ("support", 100.0),
+            ]
+            mode_map = [
+                ("did nothing", 0.0),
+                ("none", 0.0),
+                ("didn't climb", 0.0),
+                ("failed climb attempt", 0.0),
+                ("bad", 1.0),
+                ("mid", 2.5),
+                ("middle", 1.0),
+                ("side", 1.0),
+                ("only moved", 1.0),
+                ("only shot", 2.0),
+                ("moves balls in middle", 3.0),
+                ("good", 4.0),
+                ("excellent", 5.0),
+                ("bestofevent", 5.0),
+                ("tank", 1.0),
+                ("mecanum", 2.0),
+                ("swerve", 5.0),
+                ("l1", 1.0),
+                ("l2", 2.0),
+                ("l3", 3.0),
+            ]
+            for token, score in amount_map + mode_map:
+                if token in text:
+                    return score
+            return None
+
+        def _avg_numeric(col_name: Any) -> float:
+            col_names = list(col_name) if isinstance(col_name, (list, tuple)) else [col_name]
             values = []
             for row in team_rows:
-                if col_idx >= len(row):
-                    continue
-                val = _parse_numeric(row[col_idx])
-                if val is not None:
-                    values.append(val)
+                row_total = 0.0
+                found = False
+                for candidate in col_names:
+                    col_idx = indices.get(candidate)
+                    if col_idx is None or col_idx >= len(row):
+                        continue
+                    val = _parse_qualitative(row[col_idx])
+                    if val is not None:
+                        row_total += val
+                        found = True
+                if found:
+                    values.append(row_total)
             return sum(values) / len(values) if values else 0.0
 
         def _parse_bool(value: Any) -> bool:
@@ -299,11 +348,27 @@ class TeamStatsExtractor:
                 values.append(1.0 if _parse_bool(row[col_idx]) else 0.0)
             return sum(values) / len(values) if values else 0.0
 
-        perf.auto_fuel = _avg_numeric(self.columns_map.get("auto_fuel", "HP Scored (Auto)"))
-        p_tower_l1_col = self.columns_map.get("auto_tower_l1", "")
-        perf.p_auto_tower_l1 = _rate_bool(p_tower_l1_col) if p_tower_l1_col else 0.0
+        def _presence_rate(col_name: str, reject_values: Optional[set[str]] = None) -> float:
+            col_idx = indices.get(col_name)
+            if col_idx is None:
+                return 0.0
+            reject_values = reject_values or set()
+            values = []
+            for row in team_rows:
+                if col_idx >= len(row):
+                    continue
+                text = str(row[col_idx]).strip().lower()
+                if not text or text in reject_values:
+                    values.append(0.0)
+                else:
+                    values.append(1.0)
+            return sum(values) / len(values) if values else 0.0
 
-        perf.teleop_fuel = _avg_numeric(self.columns_map.get("teleop_fuel", "HP Scored (Teleop)"))
+        perf.auto_fuel = _avg_numeric(self.columns_map.get("auto_fuel", ["Shoot amount (Auto)", "Pass amount (Auto)"]))
+        p_tower_l1_col = self.columns_map.get("auto_tower_l1", "")
+        perf.p_auto_tower_l1 = _presence_rate(p_tower_l1_col, {"none", "didn't climb", "failed climb attempt"}) if p_tower_l1_col else 0.0
+
+        perf.teleop_fuel = _avg_numeric(self.columns_map.get("teleop_fuel", ["Shoot amount (Teleop)", "Pass amount (Teleop)"]))
 
         perf.p_leave_auto_zone = _rate_bool(self.columns_map.get("auto_leave", "")) or 0.5
         perf.climb_distribution = self._extract_climb_distribution(team_rows)
