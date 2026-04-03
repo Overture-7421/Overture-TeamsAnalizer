@@ -39,6 +39,11 @@
     ],
     "AUTONOMOUS": [
         {
+            "label": "Shoot Time",
+            "key": "auto_shoot_time",
+            "type": "text"
+        },
+        {
             "label": "Shoot amount",
             "key": "auto_shoot_amount",
             "type": "dropdown",
@@ -83,6 +88,16 @@
         }
     ],
     "TELEOP": [
+        {
+            "label": "Shoot Time",
+            "key": "teleop_shoot_time",
+            "type": "text"
+        },
+        {
+            "label": "Pass Time",
+            "key": "teleop_pass_time",
+            "type": "text"
+        },
         {
             "label": "Shoot amount",
             "key": "teleop_shoot_amount",
@@ -166,6 +181,7 @@
         "Robot Position",
         "Team Number",
         "Starting Position",
+        "Shoot Time (Auto)",
         "Shoot amount (Auto)",
         "Pass amount (Auto)",
         "Climb Position (Auto)",
@@ -173,6 +189,8 @@
         "Auton Complexity",
         "Auton Completed?",
         "How much missed shots? (Auto)",
+        "Shoot Time (Teleop)",
+        "Pass Time (Teleop)",
         "Shoot amount (Teleop)",
         "Pass amount (Teleop)",
         "Penalty Counter",
@@ -375,7 +393,7 @@
         "phase_names": ["Q1", "Q2", "Q3"]
     },
     "metadata": {
-        "total_columns": 24,
+        "total_columns": 27,
         "description": "FRC REBUILT 2026 Competition Column Configuration"
     }
 }
