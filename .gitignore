@@ -48,6 +48,9 @@ Thumbs.db
 # Streamlit
 .streamlit/
 
+# Release artifacts
+releases/
+
 # Temporary files
 /tmp/
 *.tmp
