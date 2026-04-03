@@ -48,3 +48,15 @@ dist\OvertureTeamsAnalyzer\OvertureTeamsAnalyzer.exe
 
 - This package includes `lib`, `data`, and `config` folders required by the app.
 - If QR scanning fails on a target machine, install required camera/decoder runtime dependencies (for example, ZBar where needed by `pyzbar`).
+
+## Zip Distribution
+
+To create a shareable zip archive after building:
+
+```cmd
+scripts\zip_windows_release.cmd
+```
+
+Output archive:
+
+- `releases\OvertureTeamsAnalyzer-windows.zip`

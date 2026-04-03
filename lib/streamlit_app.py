@@ -26,6 +26,7 @@ def _ensure_plotly():
 # Core imports (lightweight)
 import json
 import os
+import platform
 import threading
 import queue
 import time
@@ -456,6 +457,7 @@ def _init_session_state():
         'app_config': APP_CONFIG,
         # QR Scanner state
         'qr_scanner_thread': None,
+        'qr_scanner_stop_event': None,
         'qr_scanner_running': False,
         'qr_scanner_selected_camera': 0,
         'qr_available_cameras': [],
@@ -1487,15 +1489,18 @@ if page == "📁 Data Management":
                             )
                     elif kind == "DONE":
                         st.session_state.qr_scanner_running = False
+                        st.session_state.qr_scanner_stop_event = None
                         st.session_state.qr_scanner_status = "stopped"
                         st.session_state.qr_last_scan_ts = 0.0
                     elif kind == "ERROR":
                         st.session_state.qr_scanner_running = False
+                        st.session_state.qr_scanner_stop_event = None
                         st.session_state.qr_scanner_status = f"error:{payload}"
 
                 t = st.session_state.qr_scanner_thread
                 if st.session_state.qr_scanner_running and t and not t.is_alive():
                     st.session_state.qr_scanner_running = False
+                    st.session_state.qr_scanner_stop_event = None
                     if not st.session_state.qr_scanner_status:
                         st.session_state.qr_scanner_status = "stopped"
                 return drained, auto_updated
@@ -1510,7 +1515,10 @@ if page == "📁 Data Management":
             _is_error = _raw_status.startswith("error:")
 
             if _is_running:
-                st.success("🟢 **Scanner is running** — point your QR code at the camera window.")
+                if platform.system() == "Darwin":
+                    st.success("🟢 **Scanner is running** — on macOS the preview window is disabled for stability.")
+                else:
+                    st.success("🟢 **Scanner is running** — point your QR code at the camera window.")
             elif _is_error:
                 st.error(f"🔴 **Scanner error:** {_raw_status.removeprefix('error:')}")
             else:
@@ -1621,14 +1629,17 @@ if page == "📁 Data Management":
                             break
                     camera_index = int(st.session_state.qr_scanner_selected_camera)
                     debounce = float(st.session_state.qr_scanner_debounce_seconds)
+                    stop_event = threading.Event()
+                    st.session_state.qr_scanner_stop_event = stop_event
 
-                    def _worker(out_queue: "queue.Queue", cam_idx: int, deb: float):
+                    def _worker(out_queue: "queue.Queue", cam_idx: int, deb: float, stop_evt: threading.Event):
                         try:
                             scanned = scan_qr_codes(
                                 update_callback=lambda data: out_queue.put(("SCAN", data)),
                                 camera_index=cam_idx,
                                 debounce_seconds=deb,
-                                show_window=True,
+                                show_window=(platform.system() != "Darwin"),
+                                stop_event=stop_evt,
                             )
                             out_queue.put(("DONE", scanned))
                         except Exception as _ex:
@@ -1639,7 +1650,7 @@ if page == "📁 Data Management":
                     st.session_state.qr_last_scan_ts = time.time()
                     _t = threading.Thread(
                         target=_worker,
-                        args=(st.session_state.qr_scanner_queue, camera_index, debounce),
+                        args=(st.session_state.qr_scanner_queue, camera_index, debounce, stop_event),
                         daemon=True,
                     )
                     st.session_state.qr_scanner_thread = _t
@@ -1653,9 +1664,12 @@ if page == "📁 Data Management":
                     use_container_width=True,
                     key="qr_stop_btn"
                 ):
-                    st.session_state.qr_scanner_status = (
-                        "Focus the scanner window and press **Q** to stop."
-                    )
+                    stop_evt = st.session_state.qr_scanner_stop_event
+                    if stop_evt and hasattr(stop_evt, "set"):
+                        stop_evt.set()
+                        st.session_state.qr_scanner_status = "Stopping scanner..."
+                    else:
+                        st.session_state.qr_scanner_status = "Scanner stop requested."
                     st.rerun()
 
             with ctrl_col3:

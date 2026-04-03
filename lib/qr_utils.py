@@ -120,13 +120,39 @@ def _draw_qr_overlay(cv2, np, frame, points):
 # ---------------------------------------------------------------------------
 
 def _open_camera(cv2, camera_index: int):
-    """Open VideoCapture with a platform-specific backend to avoid obsensor errors."""
-    if platform.system() == "Windows":
-        return cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
-    elif platform.system() == "Linux":
-        return cv2.VideoCapture(camera_index, cv2.CAP_V4L2)
+    """Open VideoCapture with platform-appropriate backend fallbacks."""
+    system = platform.system()
+    if system == "Windows":
+        backends = [cv2.CAP_DSHOW, cv2.CAP_ANY]
+    elif system == "Linux":
+        backends = [cv2.CAP_V4L2, cv2.CAP_ANY]
+    elif system == "Darwin":
+        backends = [getattr(cv2, "CAP_AVFOUNDATION", cv2.CAP_ANY), cv2.CAP_ANY]
     else:
-        return cv2.VideoCapture(camera_index)
+        backends = [cv2.CAP_ANY]
+
+    for backend in backends:
+        try:
+            cap = cv2.VideoCapture(camera_index, backend)
+        except Exception:
+            continue
+        if cap.isOpened():
+            return cap
+        cap.release()
+
+    return cv2.VideoCapture(camera_index)
+
+
+def _safe_read_frame(cv2, cap):
+    """Read one frame while safely handling OpenCV backend exceptions."""
+    try:
+        return cap.read()
+    except Exception as exc:
+        if hasattr(cv2, "error") and isinstance(exc, cv2.error):
+            print(f"OpenCV camera read error: {exc}")
+        else:
+            print(f"Camera read error: {exc}")
+        return False, None
 
 
 def play_beep():
@@ -144,16 +170,21 @@ def play_beep():
 
 def test_camera(camera_index: int = 0) -> bool:
     cv2 = _ensure_cv2()
+    cap = None
     try:
         cap = _open_camera(cv2, camera_index)
         if not cap.isOpened():
             return False
-        ret, frame = cap.read()
-        cap.release()
+        if platform.system() == "Darwin":
+            time.sleep(0.2)
+        ret, frame = _safe_read_frame(cv2, cap)
         return ret and frame is not None
     except Exception as e:
         print(f"Error testing camera: {e}")
         return False
+    finally:
+        if cap is not None:
+            cap.release()
 
 
 def scan_qr_codes(
@@ -161,7 +192,8 @@ def scan_qr_codes(
     camera_index: int = 0,
     debounce_seconds: float = 2.0,
     show_window: bool = True,
-    stop_on_first_scan: bool = False
+    stop_on_first_scan: bool = False,
+    stop_event=None,
 ) -> List[str]:
     cv2 = _ensure_cv2()
     np = _ensure_numpy()
@@ -185,12 +217,20 @@ def scan_qr_codes(
 
     try:
         while True:
-            ret, frame = cap.read()
+            if stop_event is not None and hasattr(stop_event, "is_set") and stop_event.is_set():
+                print("Stop signal received. Exiting scanner...")
+                break
+
+            ret, frame = _safe_read_frame(cv2, cap)
             if not ret:
                 print("Error: Can't receive frame (stream end?). Exiting...")
                 break
 
-            results = _decode_frame(frame)
+            try:
+                results = _decode_frame(frame)
+            except Exception as decode_exc:
+                print(f"QR decode error: {decode_exc}")
+                results = []
             current_time = time.time()
 
             for qr in results:
@@ -222,15 +262,23 @@ def scan_qr_codes(
                     _draw_qr_overlay(cv2, np, frame, qr.points)
 
             if show_window:
-                cv2.imshow('QR Code Scanner - Press Q to quit', frame)
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                try:
+                    cv2.imshow('QR Code Scanner - Press Q to quit', frame)
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        break
+                except Exception as win_exc:
+                    print(f"OpenCV preview window error: {win_exc}")
+                    print("Disabling preview window and continuing scanner loop.")
+                    show_window = False
             else:
                 time.sleep(0.01)
     finally:
         cap.release()
         if show_window:
-            cv2.destroyAllWindows()
+            try:
+                cv2.destroyAllWindows()
+            except Exception:
+                pass
 
     print(f"Scanner stopped. Found {len(newly_scanned_data)} new QR codes.")
     return newly_scanned_data
@@ -246,7 +294,7 @@ def get_camera_frame(camera_index: int = 0):
     if not cap.isOpened():
         return False, None
     try:
-        ret, frame = cap.read()
+        ret, frame = _safe_read_frame(cv2, cap)
         return ret, frame if ret else None
     finally:
         cap.release()
@@ -277,7 +325,8 @@ class QRScannerSession:
     def scan_frame(self) -> Optional[str]:
         if not self.cap:
             return None
-        ret, frame = self.cap.read()
+        cv2 = _ensure_cv2()
+        ret, frame = _safe_read_frame(cv2, self.cap)
         if not ret:
             return None
 
@@ -297,7 +346,7 @@ class QRScannerSession:
 
         if not self.cap:
             return None, None
-        ret, frame = self.cap.read()
+        ret, frame = _safe_read_frame(cv2, self.cap)
         if not ret:
             return None, None
 

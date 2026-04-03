@@ -8,12 +8,18 @@
 - `documentation/windows_executable_build.md`: Build and run guide for the Windows `.exe` package.
 - `scripts/build_macos_executable.sh`: One-command macOS build script for creating a distributable executable package.
 - `documentation/macos_executable_build.md`: Build and run guide for the macOS executable package.
+- `scripts/zip_windows_release.cmd`: One-command Windows zip packaging script for the built distribution.
+- `scripts/zip_macos_release.sh`: One-command macOS zip packaging script for the built distribution.
 
 ### Changed
 - `documentation/README.md`: Added a Build & Packaging section linking to the Windows executable guide.
 - `documentation/README.md`: Added a Build & Packaging link for the macOS executable guide.
 - `requirements_web.txt`: Marked `evdev` as Linux-only via environment marker to avoid Windows installation failures.
 - `scripts/streamlit_launcher.py`: Added `--global.developmentMode=false` to avoid `server.port` runtime conflict in frozen builds.
+
+### Fixed
+- `lib/qr_utils.py`: Added safer camera backend fallback and defensive handling for OpenCV camera read/window exceptions (including macOS C++ backend exceptions).
+- `lib/streamlit_app.py`: QR scanner now uses a stop event for clean shutdown and disables OpenCV preview window on macOS background thread for improved camera stability.
 
 ## [2026-03-01] — FRC REBUILT 2026 Season Update
 

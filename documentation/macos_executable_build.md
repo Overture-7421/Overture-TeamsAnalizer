@@ -53,3 +53,16 @@ export OVERTURE_PORT=8502
 - This package includes `lib`, `data`, and `config` folders required by the app.
 - If the app is blocked by Gatekeeper, run from Terminal and allow execution in macOS Security settings if prompted.
 - If QR scanning fails on a target machine, install required camera/decoder runtime dependencies (for example, ZBar where needed by `pyzbar`).
+
+## Zip Distribution
+
+To create a shareable zip archive after building:
+
+```bash
+chmod +x scripts/zip_macos_release.sh
+./scripts/zip_macos_release.sh
+```
+
+Output archive:
+
+- `releases/OvertureTeamsAnalyzer-macos.zip`
