@@ -23,6 +23,11 @@ Welcome to the documentation for the **Overture Teams Analyzer** — an FRC scou
 - [Systemd Services Configuration](./systemd_services.md) - Autostart services configuration for Linux
 - [HID Scanner Configuration](./hid_scanner_configuration.md) - Configuring barcode/QR scanners as HID devices
 
+### Build & Packaging
+
+- [Windows Executable Build](./windows_executable_build.md) - Build a distributable `.exe` package with PyInstaller
+- [macOS Executable Build](./macos_executable_build.md) - Build a distributable macOS executable package with PyInstaller
+
 ## Quick Start
 
 ### For Desktop Users (GUI)

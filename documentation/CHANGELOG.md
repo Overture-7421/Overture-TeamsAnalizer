@@ -1,5 +1,20 @@
 # Changelog
 
+## [2026-04-03] — Windows Executable Packaging
+
+### Added
+- `scripts/streamlit_launcher.py`: Streamlit launcher wrapper compatible with source and PyInstaller-frozen execution.
+- `scripts/build_windows_exe.cmd`: One-command Windows build script for creating a distributable executable package.
+- `documentation/windows_executable_build.md`: Build and run guide for the Windows `.exe` package.
+- `scripts/build_macos_executable.sh`: One-command macOS build script for creating a distributable executable package.
+- `documentation/macos_executable_build.md`: Build and run guide for the macOS executable package.
+
+### Changed
+- `documentation/README.md`: Added a Build & Packaging section linking to the Windows executable guide.
+- `documentation/README.md`: Added a Build & Packaging link for the macOS executable guide.
+- `requirements_web.txt`: Marked `evdev` as Linux-only via environment marker to avoid Windows installation failures.
+- `scripts/streamlit_launcher.py`: Added `--global.developmentMode=false` to avoid `server.port` runtime conflict in frozen builds.
+
 ## [2026-03-01] — FRC REBUILT 2026 Season Update
 
 ### Removed

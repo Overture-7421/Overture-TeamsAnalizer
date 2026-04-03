@@ -16,7 +16,7 @@ You are the specialized developer agent for the Overture-TeamsAnalizer. Your goa
 - **Game Type:** FIRST Tech Challenge (FTC).
 - **Alliance Structure:** ALWAYS assume 2 robots per alliance (Captain and 1st Pick). Never use FRC 3-robot logic.
 - **API Standard:** Use **The Orange Alliance (TOA) API** exclusively. 
-- **Core Manager:** All API interactions must go through `lib/toa_manager.py`. Never use The Blue Alliance (TBA) logic or libraries.
+- **Core Manager:** All API interactions must go through `lib/ftc_scout_manager.py`. Never use The Blue Alliance (TBA) logic or libraries.
 
 ## 2. Scoring Logic (DECODE Season)
 When calculating robot "Overall" performance or statistics, follow the "DECODE" point values:
