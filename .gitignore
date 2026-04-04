@@ -86,3 +86,4 @@ data/tba_teams_*.json
 data/events_*.json
 data/teams_*.json
 data/hid_interceptor.log
+.agents/skills

@@ -9,8 +9,15 @@ from typing import Dict, List
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
-SCOUTING_OUTPUT = DATA_DIR / "default_scouting.csv"
-POST_MATCH_OUTPUT = DATA_DIR / "default_post_match_data.json"
+EXAMPLE_DIR = ROOT / "archivos ejemplo"
+SCOUTING_OUTPUTS = [
+    DATA_DIR / "default_scouting.csv",
+    EXAMPLE_DIR / "default_scouting.csv",
+]
+POST_MATCH_OUTPUTS = [
+    DATA_DIR / "default_post_match_data.json",
+    EXAMPLE_DIR / "default_post_match_data.json",
+]
 ROSTER_FILE = DATA_DIR / "teams_2026mxmo.json"
 COLUMNS_FILE = ROOT / "lib" / "config" / "columns.json"
 
@@ -234,16 +241,19 @@ def main() -> None:
 
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    with open(SCOUTING_OUTPUT, "w", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(headers)
-        writer.writerows(scouting_rows)
+    for scouting_output in SCOUTING_OUTPUTS:
+        scouting_output.parent.mkdir(parents=True, exist_ok=True)
+        with open(scouting_output, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.writer(handle)
+            writer.writerow(headers)
+            writer.writerows(scouting_rows)
+        print(f"Wrote {len(scouting_rows)} scouting rows to {scouting_output}")
 
-    with open(POST_MATCH_OUTPUT, "w", encoding="utf-8") as handle:
-        json.dump(post_match_entries, handle, indent=2, ensure_ascii=False)
-
-    print(f"Wrote {len(scouting_rows)} scouting rows to {SCOUTING_OUTPUT}")
-    print(f"Wrote {len(post_match_entries)} post-match entries to {POST_MATCH_OUTPUT}")
+    for post_match_output in POST_MATCH_OUTPUTS:
+        post_match_output.parent.mkdir(parents=True, exist_ok=True)
+        with open(post_match_output, "w", encoding="utf-8") as handle:
+            json.dump(post_match_entries, handle, indent=2, ensure_ascii=False)
+        print(f"Wrote {len(post_match_entries)} post-match entries to {post_match_output}")
 
 
 if __name__ == "__main__":

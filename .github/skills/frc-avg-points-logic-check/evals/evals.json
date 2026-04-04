@@ -1,0 +1,31 @@
+{
+  "skill_name": "frc-avg-points-logic-check",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Audit Points Avg for FRC 2026 REBUILT in this repo and report mismatches against the game manual scoring table.",
+      "expected_output": "A severity-ordered findings list with code-level fixes for overall_avg and Points Avg display paths.",
+      "files": [
+        "lib/engine.py",
+        "lib/streamlit_app.py",
+        "lib/config/columns.json"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Validate Avg Pts Contribution logic for labels Dedicated to passing/defend and even-split behavior, then propose patch if denominator is wrong.",
+      "expected_output": "A precise audit of contribution label mapping, exclusion handling, denominator correctness, and a minimal patch.",
+      "files": [
+        "lib/streamlit_app.py"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Given current post-match contribution labels and alliance scores, compute expected Avg Pts Contribution manually for one team and compare against function output.",
+      "expected_output": "Worked numeric example with manual computation and pass/fail statement against current implementation.",
+      "files": [
+        "lib/streamlit_app.py"
+      ]
+    }
+  ]
+}
