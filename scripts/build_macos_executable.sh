@@ -41,7 +41,6 @@ echo "Building executable with PyInstaller ..."
   --onedir \
   --specpath "build" \
   --name "OvertureTeamsAnalyzer" \
-  --add-data "$ROOT_DIR/streamlit_app.py:." \
   --add-data "$ROOT_DIR/lib:lib" \
   --add-data "$ROOT_DIR/data:data" \
   --add-data "$ROOT_DIR/config:config" \

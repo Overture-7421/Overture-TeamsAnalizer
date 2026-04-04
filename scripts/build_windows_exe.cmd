@@ -46,7 +46,6 @@ echo Building executable with PyInstaller ...
   --onedir ^
   --specpath "build" ^
   --name "OvertureTeamsAnalyzer" ^
-  --add-data "%CD%\streamlit_app.py;." ^
   --add-data "%CD%\lib;lib" ^
   --add-data "%CD%\data;data" ^
   --add-data "%CD%\config;config" ^

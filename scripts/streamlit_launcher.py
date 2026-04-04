@@ -19,16 +19,19 @@ def _bundle_root() -> Path:
 
 
 def _resolve_app_path(bundle_root: Path) -> Path:
-    """Locate the root Streamlit entrypoint in source or frozen layouts."""
-    direct_path = bundle_root / "streamlit_app.py"
-    if direct_path.exists():
-        return direct_path
+    """Locate the Streamlit implementation entrypoint in source or frozen layouts."""
+    exe_dir = Path(sys.executable).resolve().parent
+    candidates = [
+        bundle_root / "lib" / "streamlit_app.py",
+        bundle_root / "streamlit_app.py",
+        exe_dir / "lib" / "streamlit_app.py",
+        exe_dir / "streamlit_app.py",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
 
-    exe_neighbor = Path(sys.executable).resolve().parent / "streamlit_app.py"
-    if exe_neighbor.exists():
-        return exe_neighbor
-
-    raise FileNotFoundError("Could not find streamlit_app.py in bundled files")
+    raise FileNotFoundError("Could not find bundled lib/streamlit_app.py")
 
 
 def main() -> int:
