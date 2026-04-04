@@ -157,10 +157,33 @@ def _safe_read_frame(cv2, cap):
 
 def play_beep():
     """Play a beep sound when a QR code is detected (platform-dependent)."""
+    system = platform.system()
     try:
-        import winsound
-        winsound.Beep(1000, 200)
-    except ImportError:
+        if system == "Windows":
+            import winsound
+            winsound.Beep(1000, 200)
+            return
+
+        if system == "Darwin":
+            import os
+            import subprocess
+
+            sound_candidates = (
+                "/System/Library/Sounds/Glass.aiff",
+                "/System/Library/Sounds/Ping.aiff",
+            )
+            for sound_path in sound_candidates:
+                if os.path.exists(sound_path):
+                    subprocess.Popen(
+                        ["afplay", sound_path],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    return
+
+        # Fallback for non-Windows systems.
+        print("\a", end="", flush=True)
+    except Exception:
         pass
 
 
