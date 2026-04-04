@@ -1,17 +1,18 @@
 ---
-description: "Change scouting columns config and verify engine plus Streamlit views stay stable"
+description: "Change scouting columns config and verify engine plus Streamlit logic stay stable"
 name: "Update Columns Config And Validate"
 argument-hint: "Describe the exact column changes to apply"
 agent: "agent"
 ---
 
 Related skill: `columns-config-validation`. Load and follow [skill instructions](../skills/columns-config-validation/SKILL.md).
+Follow-up skill for UI checks: [streamlit-postchange-visual-validation](../skills/streamlit-postchange-visual-validation/SKILL.md).
 
 Read [project instructions](../copilot-instructions.md) first and follow them strictly.
 
 Use the prompt arguments as the requested column changes.
 
-Goal: apply column configuration changes safely, debug logic that may break, and verify that app outputs still render correctly.
+Goal: apply column configuration changes safely and debug logic breakage; run visual verification as a dedicated follow-up workflow.
 
 Required workflow:
 1. Treat [lib/config/columns.json](../../lib/config/columns.json) as the authoritative schema file.
@@ -21,14 +22,8 @@ Required workflow:
    - Data loading and parsing still work.
    - Stats computation still runs.
    - No obvious runtime errors from updated columns.
-5. Validate data display correctness in these areas:
-   - Team stats
-   - Detail stats
-   - Foreshadowing
-   - Alliance selector
-   - Any other view directly dependent on scouting columns
-6. If issues are found, fix them and re-run validation until stable.
-7. Keep backward compatibility unless the requested schema change explicitly breaks it.
+5. Keep backward compatibility unless the requested schema change explicitly breaks it.
+6. Hand off visual verification to [streamlit-postchange-visual-validation](../skills/streamlit-postchange-visual-validation/SKILL.md).
 
 Output format:
 - Summary of requested column changes applied.
@@ -37,10 +32,7 @@ Output format:
 - Validation checklist with pass/fail for:
   - Engine logic
   - Streamlit app stability
-  - Team stats
-  - Detail stats
-  - Foreshadowing
-  - Alliance selector
+- Visual verification handoff status.
 - Remaining risks or manual checks to run in Streamlit.
 
 Constraints:

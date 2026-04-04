@@ -1,6 +1,6 @@
 ---
 name: columns-config-validation
-description: "Update lib/config/columns.json and safely propagate scouting schema changes through engine and Streamlit views. Use when changing columns config, debugging engine.py or streamlit_app.py after schema edits, and validating Team Stats, Detail Stats, Foreshadowing, or Alliance Selector displays."
+description: "Update lib/config/columns.json and safely propagate scouting schema changes through engine and Streamlit logic. Use when changing columns config and debugging engine.py or streamlit_app.py after schema edits."
 argument-hint: "Describe the requested column changes and compatibility expectations"
 ---
 
@@ -8,13 +8,13 @@ argument-hint: "Describe the requested column changes and compatibility expectat
 
 ## When To Use
 - You need to add, remove, rename, reorder, or relabel scouting columns.
-- You suspect schema updates may break parsing, scoring, or UI rendering.
-- You want a full validation pass after column changes.
+- You suspect schema updates may break parsing or scoring logic.
+- You need schema and logic propagation before UI-specific verification.
 
 ## Inputs
 - Requested column changes.
 - Whether backward compatibility is required.
-- Any expected display changes in stats or scouting views.
+- Any expected downstream logic impact.
 
 ## Procedure
 1. Read [project instructions](../../copilot-instructions.md) first.
@@ -27,13 +27,14 @@ argument-hint: "Describe the requested column changes and compatibility expectat
 5. Run the validation checklist in [validation-checklist](./references/validation-checklist.md).
 6. If failures appear, patch code and rerun validation until stable.
 7. Keep naming and labels backward-compatible unless explicitly asked to break compatibility.
+8. After schema and logic are stable, hand off UI checks to [streamlit-postchange-visual-validation](../streamlit-postchange-visual-validation/SKILL.md).
 
 ## Output Contract
 - Requested change summary.
 - Files changed.
 - Debug fixes applied.
-- Validation checklist with pass or fail per section.
-- Residual risks and manual Streamlit checks.
+- Logic validation checklist with pass or fail per section.
+- UI validation handoff recommendation.
 
 ## Guardrails
 - Keep Python changes small and modular.
