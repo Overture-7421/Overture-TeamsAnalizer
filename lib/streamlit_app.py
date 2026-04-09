@@ -2439,113 +2439,57 @@ elif page == "🏆 Honor Roll System":
     
     # Exam Import Section
     with st.expander("📥 Import Exam Data", expanded=False):
-        st.markdown("Upload exam CSV files to integrate scores into the Honor Roll System.")
-        
-        exam_col1, exam_col2 = st.columns(2)
-        
-        with exam_col1:
-            programming_file = st.file_uploader(
-                "Upload Programming Exam (.csv)", 
-                type=['csv'], 
-                key="programming_exam_upload",
-                help="CSV file with programming/autonomous exam results"
-            )
-            mechanical_file = st.file_uploader(
-                "Upload Mechanical Exam (.csv)", 
-                type=['csv'], 
-                key="mechanical_exam_upload",
-                help="CSV file with mechanical exam results"
-            )
-        
-        with exam_col2:
-            electrical_file = st.file_uploader(
-                "Upload Electrical Exam (.csv)", 
-                type=['csv'], 
-                key="electrical_exam_upload",
-                help="CSV file with electrical exam results"
-            )
-            competencies_file = st.file_uploader(
-                "Upload Competencies Exam (.csv)", 
-                type=['csv'], 
-                key="competencies_exam_upload",
-                help="CSV file with competencies/soft skills exam results"
-            )
-        
+        st.markdown("Upload the unified pit-scouting CSV to integrate scores into the Honor Roll System.")
+
+        unified_file = st.file_uploader(
+            "Upload Pit Scouting CSV (.csv)",
+            type=['csv'],
+            key="unified_exam_upload",
+            help="Single CSV with all exam sections (mech_*, prog_*, elec_*, comp_*)"
+        )
+
         if st.button("🔄 Process Exams", type="primary", use_container_width=True):
-            if not any([programming_file, mechanical_file, electrical_file, competencies_file]):
-                st.warning("Please upload at least one exam file to process.")
+            if unified_file is None:
+                st.warning("Please upload a pit-scouting CSV file to process.")
             else:
                 try:
-                    with st.spinner("Processing exam files..."):
+                    with st.spinner("Processing exam file..."):
                         integrator = ExamDataIntegrator()
-                        results_summary = []
-                        
-                        # Process Programming Exam
-                        if programming_file is not None:
-                            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
-                                tmp.write(programming_file.getvalue())
-                                tmp_path = tmp.name
-                            prog_results = integrator.integrate_programming_exam(tmp_path)
-                            os.unlink(tmp_path)
-                            results_summary.append(f"✅ Programming: {len(prog_results)} teams")
-                        
-                        # Process Mechanical Exam
-                        if mechanical_file is not None:
-                            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
-                                tmp.write(mechanical_file.getvalue())
-                                tmp_path = tmp.name
-                            mech_results = integrator.integrate_mechanical_exam(tmp_path)
-                            os.unlink(tmp_path)
-                            results_summary.append(f"✅ Mechanical: {len(mech_results)} teams")
-                        
-                        # Process Electrical Exam
-                        if electrical_file is not None:
-                            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
-                                tmp.write(electrical_file.getvalue())
-                                tmp_path = tmp.name
-                            elec_results = integrator.integrate_electrical_exam(tmp_path)
-                            os.unlink(tmp_path)
-                            results_summary.append(f"✅ Electrical: {len(elec_results)} teams")
-                        
-                        # Process Competencies Exam
-                        if competencies_file is not None:
-                            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
-                                tmp.write(competencies_file.getvalue())
-                                tmp_path = tmp.name
-                            comp_results = integrator.integrate_competencies_exam(tmp_path)
-                            os.unlink(tmp_path)
-                            results_summary.append(f"✅ Competencies: {len(comp_results)} teams")
-                        
+
+                        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
+                            tmp.write(unified_file.getvalue())
+                            tmp_path = tmp.name
+
+                        all_results = integrator.integrate_unified_exam(tmp_path)
+                        os.unlink(tmp_path)
+
                         # Apply to school system
                         integrator.apply_to_scoring_system(st.session_state.school_system)
-                        
+
                         # Calculate all scores
                         st.session_state.school_system.calculate_all_scores()
-                        
+
                         # Store integrator for later reference
                         st.session_state.exam_integrator = integrator
-                        
+
                         # Get statistics
                         stats = integrator.get_exam_statistics()
-                        
-                        # Display success message
+
                         st.success("Exam data imported successfully!")
-                        
-                        # Show results summary
-                        for result in results_summary:
-                            st.write(result)
-                        
+                        for section, res in all_results.items():
+                            st.write(f"✅ {section.title()}: {len(res)} teams")
+
                         st.info(f"📊 Total teams in system: {stats['total_teams']} | 💬 Scouting comments: {stats['total_comments']}")
-                        
+
                 except Exception as e:
-                    st.error(f"Failed to process exam files: {str(e)}")
-        
+                    st.error(f"Failed to process exam file: {str(e)}")
+
         # Show exam statistics if integrator exists
         if st.session_state.exam_integrator is not None:
             st.markdown("---")
             st.markdown("**📈 Current Exam Statistics:**")
             stats = st.session_state.exam_integrator.get_exam_statistics()
-            
+
             stat_cols = st.columns(4)
             exam_types = ["programming", "mechanical", "electrical", "competencies"]
             for i, exam_type in enumerate(exam_types):
@@ -2553,7 +2497,7 @@ elif page == "🏆 Honor Roll System":
                     s = stats[exam_type]
                     if s['count'] > 0:
                         st.metric(
-                            exam_type.title(), 
+                            exam_type.title(),
                             f"{s['count']} teams",
                             f"Avg: {s['avg_score']:.1f}%"
                         )

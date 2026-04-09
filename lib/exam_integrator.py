@@ -725,6 +725,84 @@ class ExamDataIntegrator:
         self.exam_results["competencies"] = results
         return results
     
+    def integrate_unified_exam(self, csv_path: str) -> Dict[str, Dict[str, "ExamResult"]]:
+        """
+        Integrate a single unified CSV containing all exam sections.
+
+        The CSV must follow the PITSCOUTING_FORMATSAMPLE format where all
+        mech_*, prog_*, elec_*, and comp_* columns live in one file.
+
+        Returns a dict with keys 'programming', 'mechanical', 'electrical',
+        'competencies', each mapping team_number -> ExamResult.
+        """
+        df = pd.read_csv(csv_path)
+        df = self._clean_and_deduplicate(df)
+        columns = list(df.columns)
+
+        team_col = self._find_matching_column(columns, [
+            "Team NUMBER", "Team Number", "Número de equipo",
+            "Numero de equipo", "team_number",
+        ])
+        score_col = self._find_matching_column(columns, ["Puntuación", "Puntuacion", "Score", "score"])
+
+        exam_types = ["programming", "mechanical", "electrical", "competences"]
+        results: Dict[str, Dict[str, "ExamResult"]] = {et: {} for et in exam_types}
+
+        for _, row in df.iterrows():
+            common_fields = self._extract_common_fields(row, columns)
+            team_number = common_fields["team_number"]
+            if not team_number and team_col:
+                team_number = str(row[team_col]).strip()
+            if not team_number:
+                continue
+
+            raw_score, max_score = self._parse_score(row[score_col]) if score_col else (0.0, 1.0)
+            normalized = self._normalize_score(raw_score, max_score) if score_col else 0.0
+            timestamp = row.get("_parsed_timestamp", datetime.min)
+
+            feedback = str(common_fields.get("examiner_feeling", "") or "")
+            self._add_comment(team_number, feedback)
+
+            for exam_type in exam_types:
+                answers, field_scores, derived = self._collect_questionnaire_fields(exam_type, row, columns)
+                questionnaire_score = derived.get("questionnaire_score")
+                score_map = derived.get("score_map", {})
+
+                details = {
+                    "schema_version": EXAM_SCHEMA_VERSION,
+                    "questionnaire": EXAM_QUESTIONNAIRES.get(exam_type, {}).get("label", exam_type.title()),
+                    "reported_score": normalized,
+                    "questionnaire_score": questionnaire_score,
+                    "field_scores": score_map,
+                    "answers": answers,
+                    "common_fields": common_fields,
+                }
+
+                final_score = questionnaire_score if questionnaire_score is not None else normalized
+                result = ExamResult(
+                    team_number=team_number,
+                    score=final_score,
+                    max_score=max_score,
+                    raw_score=raw_score,
+                    timestamp=timestamp,
+                    feedback=feedback,
+                    details=details,
+                )
+                results[exam_type][team_number] = result
+
+        # Store under canonical keys (competences -> competencies for storage)
+        self.exam_results["programming"] = results["programming"]
+        self.exam_results["mechanical"] = results["mechanical"]
+        self.exam_results["electrical"] = results["electrical"]
+        self.exam_results["competencies"] = results["competences"]
+
+        return {
+            "programming": results["programming"],
+            "mechanical": results["mechanical"],
+            "electrical": results["electrical"],
+            "competencies": results["competences"],
+        }
+
     def integrate_all_exams(self, exam_files: Dict[str, str]) -> None:
         """
         Integrate all exam files at once.
