@@ -862,7 +862,7 @@ def create_alliance_selector_teams():
 
         teams.append(Team(
             num=team_num,
-            rank=rank,
+            rank=captain_rank_by_team.get(team_key, 0),
             total_epa=overall_avg,
             auto_epa=phase_scores.get('autonomous', 0),
             teleop_epa=phase_scores.get('teleop', 0),
