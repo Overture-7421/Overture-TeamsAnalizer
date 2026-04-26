@@ -151,38 +151,66 @@ class AllianceSelector:
         return selected
 
     def update_alliance_captains(self):
-        selected_picks = set(self.get_selected_picks())
+        while True:
+            selected_picks = set(self.get_selected_picks())
+            old_captains = [a.captain for a in self.alliances]
 
-        # Validate existing captains and keep manual selections intact when possible
-        used_captains = set()
-        for alliance in self.alliances:
-            if alliance.captain is None:
-                continue
-            if alliance.captain in selected_picks:
-                alliance.captain = None
-                alliance.captainRank = None
-                alliance.manual_captain = False
-                continue
-            used_captains.add(alliance.captain)
+            # Step 1: Identify manual captains that are still valid (not picked)
+            manual_captains = {}
+            for i, alliance in enumerate(self.alliances):
+                if alliance.manual_captain and alliance.captain is not None:
+                    if alliance.captain in selected_picks:
+                        # A manual captain was drafted! It is no longer a captain.
+                        alliance.manual_captain = False
+                        alliance.captain = None
+                        alliance.pick1 = None
+                        alliance.pick2 = None
+                    else:
+                        manual_captains[i] = alliance.captain
 
-        available = [t for t in self.teams if t.team not in selected_picks and t.team not in used_captains]
-        available.sort(key=self._captain_sort_key)
+            # Step 2: Get all available teams for auto-fill
+            # A team is available if it's not a pick and not a manual captain
+            available = [
+                t for t in self.teams 
+                if t.team not in selected_picks and t.team not in manual_captains.values()
+            ]
+            available.sort(key=self._captain_sort_key)
 
-        for alliance in self.alliances:
-            if alliance.captain is None and available:
-                team = available.pop(0)
-                alliance.captain = team.team
-                alliance.captainRank = team.captain_rank
-                alliance.manual_captain = False
-            elif alliance.captain is not None:
-                # Ensure captain rank stays in sync
-                for team in self.teams:
-                    if team.team == alliance.captain:
-                        alliance.captainRank = team.captain_rank
-                        break
-            else:
-                alliance.captain = None
-                alliance.captainRank = None
+            # Step 3: Rebuild the 8 captains
+            for i, alliance in enumerate(self.alliances):
+                old_captain = alliance.captain
+                
+                if i in manual_captains:
+                    new_captain = manual_captains[i]
+                else:
+                    if available:
+                        new_captain = available.pop(0).team
+                    else:
+                        new_captain = None
+                        
+                # If the captain for this alliance slot changed, clear its picks 
+                # (No pick preservation upon shift/change)
+                if old_captain != new_captain:
+                    alliance.pick1 = None
+                    alliance.pick2 = None
+                    
+                alliance.captain = new_captain
+                
+                # Sync rank
+                if new_captain is not None:
+                    for t in self.teams:
+                        if t.team == new_captain:
+                            alliance.captainRank = t.captain_rank
+                            break
+                else:
+                    alliance.captainRank = None
+                    alliance.manual_captain = False
+            
+            # Check for stabilization
+            new_picks = set(self.get_selected_picks())
+            new_captains = [a.captain for a in self.alliances]
+            if selected_picks == new_picks and old_captains == new_captains:
+                break
 
     def get_available_teams(self, drafting_captain_rank, pick_type='pick1'):
         selected_picks = self.get_selected_picks()

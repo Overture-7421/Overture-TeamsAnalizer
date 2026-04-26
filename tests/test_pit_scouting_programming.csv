@@ -1,0 +1,3 @@
+Marca temporal,Puntuación,Team NUMBER,Nombre del examinador,"Como examinador, ¿cómo te sentiste evaluando a este equipo?",prog_path_planner,cambiar un autónomo,si su autónomo se prueba 10 veces,odometría
+04/04/2026 10:00:00,8 / 10,4400,John Doe,Muy bien,si,Sencillo,10 veces siempre,Corrección por april tag
+04/04/2026 10:05:00,4 / 10,4401,Jane Doe,Regular,no,Difícil,Menos de 5,Encoders de llanta

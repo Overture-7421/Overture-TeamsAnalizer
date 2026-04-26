@@ -898,7 +898,8 @@ class ExamDataIntegrator:
         # Apply programming exam results
         for team_number, result in self.exam_results["programming"].items():
             field_scores = result.details.get("field_scores", {})
-            programming_score = result.details.get("questionnaire_score", result.score)
+            qs = result.details.get("questionnaire_score")
+            programming_score = qs if qs is not None else result.score
             scoring_system.update_autonomous_score(team_number, programming_score)
 
             if programming_score >= 70 or field_scores.get("prog_auto_reliability", 0) >= 100:
@@ -909,7 +910,8 @@ class ExamDataIntegrator:
         # Apply mechanical exam results
         for team_number, result in self.exam_results["mechanical"].items():
             field_scores = result.details.get("field_scores", {})
-            mechanical_score = result.details.get("questionnaire_score", result.score)
+            qs = result.details.get("questionnaire_score")
+            mechanical_score = qs if qs is not None else result.score
             scoring_system.update_mechanical_score(team_number, mechanical_score)
 
             tools_candidates = [field_scores.get("mech_checklist"), field_scores.get("mech_std_bolts")]
@@ -926,7 +928,8 @@ class ExamDataIntegrator:
         # Apply electrical exam results
         for team_number, result in self.exam_results["electrical"].items():
             field_scores = result.details.get("field_scores", {})
-            electrical_score = result.details.get("questionnaire_score", result.score)
+            qs = result.details.get("questionnaire_score")
+            electrical_score = qs if qs is not None else result.score
             scoring_system.update_electrical_score(team_number, electrical_score)
 
             driver_station_candidates = [
@@ -947,7 +950,8 @@ class ExamDataIntegrator:
         # Apply competencies exam results
         for team_number, result in self.exam_results["competencies"].items():
             field_scores = result.details.get("field_scores", {})
-            competencies_score = result.details.get("questionnaire_score", result.score)
+            qs = result.details.get("questionnaire_score")
+            competencies_score = qs if qs is not None else result.score
             scoring_system.update_team_organization_score(team_number, competencies_score)
 
             if field_scores.get("comp_drivers_needed", 0) >= 100:

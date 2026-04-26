@@ -2078,6 +2078,40 @@ elif page == "📈 Team Statistics":
                         metrics_df.index.name = 'Metric'
                         st.dataframe(metrics_df, use_container_width=True, height=420)
 
+                        # Match Scouting & Pit Comments
+                        st.markdown("### 💬 Match Scouting & Pit Comments")
+                        comments = []
+                        
+                        # 1. Pit Scouting (Exams) Comments
+                        if hasattr(st.session_state, 'school_system') and st.session_state.school_system:
+                            team_score_obj = st.session_state.school_system.teams.get(str(selected_team_num))
+                            if team_score_obj and team_score_obj.scouting_comments:
+                                comments.extend(team_score_obj.scouting_comments)
+                                
+                        # 2. Match Data (QRs/CSVs/Raw Data) Comments
+                        analyzer = st.session_state.analizador
+                        comment_cols = []
+                        for col_name in analyzer._column_indices.keys():
+                            lower_col = col_name.lower()
+                            if "comment" in lower_col or "comentario" in lower_col or "feedback" in lower_col or "notas" in lower_col:
+                                comment_cols.append(col_name)
+                                
+                        team_rows = analyzer.get_team_data_grouped().get(str(selected_team_num), [])
+                        for row in team_rows:
+                            for col in comment_cols:
+                                idx = analyzer._column_indices.get(col)
+                                if idx is not None and idx < len(row):
+                                    val = str(row[idx]).strip()
+                                    if val and val.lower() not in ["nan", "none", "", "na"]:
+                                        if val not in comments:
+                                            comments.append(val)
+                                            
+                        if comments:
+                            for comment in comments:
+                                st.write(f"• {comment}")
+                        else:
+                            st.info("No feedback or comments available for this team.")
+
                         # Match performance line chart
                         st.markdown("### Match Performance Trend")
 
@@ -2613,6 +2647,67 @@ elif page == "🏆 Honor Roll System":
                     st.session_state.school_system.update_autonomous_score(team_num, auto_score)
                     st.session_state.school_system.update_teleop_score(team_num, teleop_score)
                     st.session_state.school_system.update_endgame_score(team_num, endgame_score)
+                    
+                    # Auto-check competencies based on metrics
+                    # 1. Driving Skills (Good or better -> mode/rate > 2.5)
+                    driver_val = 0.0
+                    for k, v in stat.items():
+                        if "driver" in k.lower() or "driving" in k.lower() or "chasis_type" in k.lower() or "quality" in k.lower():
+                            if isinstance(v, (int, float)):
+                                driver_val = max(driver_val, v)
+                    if driver_val > 2.5:
+                        st.session_state.school_system.update_competency(team_num, "driving_skills", True)
+                        
+                    # 2. No Deaths
+                    died_rate = 1.0 # Default to 1.0 (bad) if not found
+                    for k, v in stat.items():
+                        if ("died" in k.lower() or "death" in k.lower() or "broke" in k.lower()) and ("rate" in k.lower() or "avg" in k.lower()):
+                            if isinstance(v, (int, float)):
+                                died_rate = v
+                                break
+                    if died_rate == 0.0:
+                        st.session_state.school_system.update_competency(team_num, "no_deaths", True)
+                        
+                    # 3. Knows Game Rules (<= 2 penalties/match avg)
+                    penalty_avg = 99.0
+                    for k, v in stat.items():
+                        if ("penalty" in k.lower() or "foul" in k.lower() or "card" in k.lower()) and ("rate" in k.lower() or "avg" in k.lower()):
+                            if isinstance(v, (int, float)):
+                                penalty_avg = v
+                                break
+                    if penalty_avg <= 2.0:
+                        st.session_state.school_system.update_competency(team_num, "knows_the_rules", True)
+                        
+                    # 4. Wins Most Games (from post match data)
+                    pm_data = st.session_state.get("post_match_data", [])
+                    if pm_data:
+                        wins = 0
+                        total_matches = 0
+                        try:
+                            target = int(team_num)
+                            for entry in pm_data:
+                                team_nums = entry.get("team_numbers", [])
+                                if str(target) in team_nums or target in team_nums:
+                                    # Find if they are red or blue (first half of array is red)
+                                    try:
+                                        idx = list(team_nums).index(str(target)) if str(target) in team_nums else list(team_nums).index(target)
+                                        num_teams = entry.get("num_teams", 6)
+                                        is_red = idx < (num_teams // 2)
+                                        
+                                        red_pts = float(entry.get("red_points", 0))
+                                        blue_pts = float(entry.get("blue_points", 0))
+                                        
+                                        if is_red and red_pts > blue_pts:
+                                            wins += 1
+                                        elif not is_red and blue_pts > red_pts:
+                                            wins += 1
+                                        total_matches += 1
+                                    except ValueError:
+                                        pass
+                            if total_matches > 0 and (wins / total_matches) > 0.5:
+                                st.session_state.school_system.update_competency(team_num, "win_most_games", True)
+                        except (ValueError, TypeError):
+                            pass
                 
                 st.success(f"Added {len(stats)} teams to Honor Roll System!")
             else:
